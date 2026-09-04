@@ -93,8 +93,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #crosshair::before,#crosshair::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
 #crosshair::before{left:8px;top:0;width:2px;height:18px}
 #crosshair::after{top:8px;left:0;height:2px;width:18px}
-#biome-card{position:absolute;top:max(14px,env(safe-area-inset-top));left:14px;background:rgba(20,18,28,.62);
-  border:1px solid var(--line);border-radius:12px;padding:10px 14px;max-width:250px;transition:border-color .5s}
+#drive-hint b{display:flex;justify-content:space-between;align-items:center}
+#biome-card{position:absolute;top:max(14px,env(safe-area-inset-top));left:14px;
+  background:linear-gradient(180deg, rgba(30,27,43,.72), rgba(20,18,28,.66));
+  border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px 14px;max-width:250px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 6px 22px rgba(0,0,0,.32);transition:border-color .5s}
 #biome-card.flash{border-color:var(--moon)}
 #biome-name{font-family:var(--display);font-size:15px}
 #biome-blurb{color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:2px}
@@ -113,9 +117,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #breath{background:var(--moon)}
 #hotbar{position:absolute;left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:bottom center;
   bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:6px;pointer-events:auto}
-.slot{position:relative;width:52px;height:52px;padding:0;border-radius:10px;cursor:pointer;
-  background:rgba(20,18,28,.72);border:1.5px solid var(--line);display:grid;place-items:center}
-.slot.active{border-color:var(--moon);transform:translateY(-5px)}
+.slot{position:relative;width:52px;height:52px;padding:0;border-radius:12px;cursor:pointer;
+  background:linear-gradient(180deg, rgba(38,34,54,.8), rgba(20,18,28,.8));
+  border:1.5px solid rgba(255,255,255,.10);display:grid;place-items:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.35);transition:transform .1s ease, border-color .12s ease}
+.slot.active{border-color:var(--moon);transform:translateY(-6px);
+  box-shadow:0 6px 18px rgba(111,227,196,.28)}
 .slot canvas{width:36px;height:36px;image-rendering:pixelated;border-radius:5px}
 .slot em{position:absolute;right:4px;bottom:2px;font-style:normal;font-size:10px;
   font-family:var(--display);text-shadow:0 1px 2px #000}
@@ -152,18 +159,21 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .block-chip.on-bar{border-color:var(--moon)}
 #slot-list{display:flex;flex-direction:column;gap:6px;margin:8px 0 14px}
 .tbtn{position:relative;width:calc(58px * var(--ui));height:calc(58px * var(--ui));border-radius:50%;
-  background:linear-gradient(180deg, rgba(46,42,62,.92), rgba(20,18,28,.92));
-  border:1.5px solid var(--line);color:var(--text);font-family:var(--display);
+  background:radial-gradient(120% 120% at 30% 20%, rgba(62,56,84,.95), rgba(18,16,26,.95));
+  border:1.5px solid rgba(255,255,255,.14);color:var(--text);font-family:var(--display);
   font-size:calc(11px * var(--ui));display:grid;place-items:center;pointer-events:auto;
-  box-shadow:0 3px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07)}
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  box-shadow:0 4px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .09s ease, border-color .12s ease, background .12s ease}
+.tbtn:active{transform:scale(.94)}
 .tbtn.tiny{width:calc(42px * var(--ui));height:calc(42px * var(--ui));font-size:calc(9.5px * var(--ui))}
 .tbtn.act{width:calc(62px * var(--ui));height:calc(62px * var(--ui))}
 .tbtn.held{border-color:var(--moon);background:rgba(111,227,196,.28)}
 .pad{position:absolute;inset:0;pointer-events:none}
 .pad-strip{position:absolute;right:max(10px, env(safe-area-inset-right));
-  bottom:calc(env(safe-area-inset-bottom) + 92px + 200px * var(--ui));
-  display:grid;grid-template-columns:repeat(3, auto);justify-items:end;
-  gap:calc(7px * var(--ui));pointer-events:none;max-width:min(60vw, 240px)}
+  bottom:calc(env(safe-area-inset-bottom) + 92px + 206px * var(--ui));
+  display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;
+  gap:calc(7px * var(--ui));pointer-events:none;width:min(62vw, 216px)}
 .pad-arc{position:absolute;right:max(10px, env(safe-area-inset-right));
   bottom:calc(env(safe-area-inset-bottom) + 92px);width:calc(196px * var(--ui));
   height:calc(196px * var(--ui));pointer-events:none}
@@ -174,11 +184,17 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #btn-interact{right:calc(78px * var(--ui));bottom:calc(96px * var(--ui))}
 .tbtn.big{width:calc(74px * var(--ui));height:calc(74px * var(--ui));border-color:var(--moon);color:var(--moon)}
 
-.tbtn:active{border-color:var(--moon);background:rgba(111,227,196,.18)}
-#drive-hint{position:absolute;right:calc(12px + env(safe-area-inset-right));bottom:34%;
-  display:none;flex-direction:column;gap:3px;background:rgba(20,18,28,.74);border:1px solid var(--line);
-  border-radius:10px;padding:8px 11px;max-width:190px}
+.tbtn:active{border-color:var(--moon);background:rgba(111,227,196,.22);transform:scale(.94)}
+.tbtn{transition:transform .08s ease, background .12s ease, border-color .12s ease}
+#hotbar .slot{transition:transform .12s ease, border-color .12s ease}
+.screen .sheet{box-shadow:0 18px 60px rgba(0,0,0,.5)}
+#drive-hint{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:30%;
+  display:none;flex-direction:column;gap:3px;background:rgba(20,18,28,.82);border:1px solid var(--line);
+  border-left:3px solid var(--moon);border-radius:12px;padding:9px 12px;max-width:200px;
+  box-shadow:0 6px 22px rgba(0,0,0,.45)}
 #drive-hint.show{display:flex}
+#drive-hint{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 8px 26px rgba(0,0,0,.4)}
 #drive-hint b{font-family:var(--display);font-size:calc(12px * var(--ui));color:var(--moon);margin-bottom:3px}
 #drive-hint span{font-size:calc(10.5px * var(--ui));color:var(--muted);display:flex;gap:6px;align-items:center}
 #drive-hint kbd{font-family:var(--display);background:var(--panel-2);border:1px solid var(--line);
@@ -187,7 +203,10 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   top:calc(96px + env(safe-area-inset-top));width:calc(120px * var(--ui));height:calc(120px * var(--ui));
   border-radius:50%;padding:0;border:2px solid var(--line);background:rgba(20,18,28,.72);
   pointer-events:auto;cursor:pointer;overflow:hidden}
+#minimap-wrap{box-shadow:0 6px 22px rgba(0,0,0,.45)}
 #minimap-wrap:hover{border-color:var(--moon)}
+#minimap-wrap::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.55)}
 #minimap{width:100%;height:100%;display:block}
 #worldmap{padding:0;display:none}
 #worldmap.open{display:flex;flex-direction:column;z-index:60}
@@ -377,8 +396,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #altimeter{top:calc(30% )}
   .pad-arc{width:calc(150px * var(--ui));height:calc(150px * var(--ui));
     bottom:calc(env(safe-area-inset-bottom) + 54px)}
-  .pad-strip{bottom:calc(env(safe-area-inset-bottom) + 54px + 154px * var(--ui));
-    gap:calc(5px * var(--ui));grid-template-columns:repeat(6, auto)}
+  .pad-strip{bottom:calc(env(safe-area-inset-bottom) + 54px + 158px * var(--ui));
+    gap:calc(5px * var(--ui));width:min(80vw, 300px)}
   .tbtn.tiny{width:calc(34px * var(--ui));height:calc(34px * var(--ui));font-size:calc(8.5px * var(--ui))}
   .tbtn.act{width:calc(50px * var(--ui));height:calc(50px * var(--ui))}
   .tbtn.big{width:calc(60px * var(--ui));height:calc(60px * var(--ui))}
@@ -406,13 +425,10 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #minimap-wrap{top:calc(4px + env(safe-area-inset-top));right:auto;left:34vw;width:64px;height:64px}
 }
 /* very short windows, e.g. a small desktop window */
-@media (max-height:520px) and (orientation:landscape){
-  .pad-strip{bottom:auto;top:max(6px, env(safe-area-inset-top));
-    right:calc(78px + env(safe-area-inset-right));grid-template-columns:repeat(6, auto)}
-}
 @media (max-width:420px){
   .tbtn.tiny{width:calc(38px * var(--ui));height:calc(38px * var(--ui));font-size:calc(9px * var(--ui))}
-  .pad-strip{gap:calc(6px * var(--ui));max-width:70vw}
+  .pad-strip{bottom:calc(env(safe-area-inset-bottom) + 54px + 158px * var(--ui));
+    gap:calc(5px * var(--ui));width:min(80vw, 300px)}
 }
 @media (max-height:420px){
   #meters,#pouch{display:none}
@@ -3010,6 +3026,7 @@ const Game = {
   mount: null,
   vehicles: [],
   riding: null,
+  passengerIn: null,
   chests: null,
   explored: null,
   waypoints: null,
@@ -3724,6 +3741,16 @@ Object.assign(Game, {
         vf || (padNow.moveY ? -padNow.moveY : 0) || mz,
         vu || (padNow.jump ? 1 : 0), vd || (padNow.crouch ? 1 : 0));
     }
+    if (this.passengerIn) {
+      const v = this.passengerIn;
+      if (this.vehicles.indexOf(v) === -1) { this.passengerIn = null; $('#drive-hint').classList.remove('show'); }
+      else {
+        const o = v.parts.seatOffsets[1] || { x: 0.5, y: 0.5, z: -0.9 };
+        const cos = Math.cos(v.yaw), sin = Math.sin(v.yaw);
+        p.pos.set(v.pos.x + o.x * cos - o.z * sin, v.pos.y + v.def.seat, v.pos.z + o.x * sin + o.z * cos);
+        p.vel.set(0, 0, 0);
+      }
+    }
     for (const v of this.vehicles) {
       if (v === this.riding) continue;
       if (v.owner && v.owner !== this.net.selfId) { v.follow(dt); continue; }  // someone else is driving
@@ -3819,6 +3846,11 @@ Object.assign(Game, {
     }
     v.owner = m.owner || null;
     v.netTarget = v.netTarget || new THREE.Vector3();
+    if (v.netAt) {
+      const gap = Math.max(0.05, (performance.now() - v.netAt) / 1000);
+      v.netVel = { x: (m.x - v.netTarget.x) / gap, y: (m.y - v.netTarget.y) / gap, z: (m.z - v.netTarget.z) / gap };
+    }
+    v.netAt = performance.now();
     v.netTarget.set(m.x, m.y, m.z);
     v.netYaw = m.yaw;
     if (v.pos.distanceTo(v.netTarget) > 12) v.pos.copy(v.netTarget);
@@ -3862,10 +3894,19 @@ Object.assign(Game, {
     }
   },
 
-  showDriveHint() {
+  showDriveHint(asPassenger) {
     const el = $('#drive-hint');
-    if (!el || !this.riding) return;
-    const v = this.riding;
+    const v = asPassenger ? this.passengerIn : this.riding;
+    if (!el || !v) return;
+    if (asPassenger) {
+      el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i id="hint-close" title="Close">\u2715</i></b>' +
+        '<span>Someone else is driving. Sit back.</span>' +
+        `<span><kbd>${VKEYS.exit.replace('Key', '')}</kbd>hop off</span>`;
+      el.classList.add('show');
+      const c0 = document.getElementById('hint-close');
+      if (c0) c0.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); });
+      return;
+    }
     const pretty = (code) => code.replace('Key', '').replace('ShiftLeft', 'Shift').replace('Space', 'Space');
     const rows = [
       [pretty(VKEYS.forward) + ' / ' + pretty(VKEYS.back), 'throttle'],
@@ -4208,6 +4249,13 @@ Object.assign(Game, {
   },
 
   interact() {
+    if (this.passengerIn) {
+      this.toast('Hopped off the ' + this.passengerIn.def.name.toLowerCase() + '.');
+      this.passengerIn = null;
+      $('#drive-hint').classList.remove('show');
+      $('#altimeter').classList.remove('show');
+      return;
+    }
     if (this.mount) { this.dismountCreature(); return; }
     if (this.riding) {
       this.toast('Left the ' + this.riding.def.name.toLowerCase() + '.');
@@ -4236,11 +4284,19 @@ Object.assign(Game, {
       if (d < nvd) { nearV = v; nvd = d; }
     }
     if (nearV) {
-      if (nearV.owner && nearV.owner !== this.net.selfId) { this.toast(nearV.def.name + ' already has a driver.'); return; }
+      if (nearV.owner && nearV.owner !== this.net.selfId) {
+        // someone is already driving, so climb in as a passenger
+        this.passengerIn = nearV;
+        this.riding = null;
+        this.toast('Riding along in the ' + nearV.def.name.toLowerCase() + '. ' +
+                   (IS_TOUCH ? 'Use' : 'E') + ' to hop off.');
+        this.showDriveHint(true);
+        return;
+      }
       nearV.owner = this.net.selfId || 'local';
       this.riding = nearV;
-      this.toast('Aboard the ' + nearV.def.name + '.');
-      this.showDriveHint();
+      this.toast('Driving the ' + nearV.def.name + '.');
+      this.showDriveHint(false);
       this.net.sendVehicle(nearV, false);
       return;
     }
@@ -5332,6 +5388,7 @@ const UI = {
     bindRange('#set-voice', 'voiceVolume', v => Math.round(v * 100) + '%');
     $('#set-voice').addEventListener('input', () => Game.voice.applyVolume());
     $('#mic-desktop').addEventListener('click', () => Game.voice.toggle());
+    this.refreshSocialButtons();
     $('#chat-desktop').addEventListener('click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
@@ -5568,6 +5625,15 @@ const UI = {
     });
   },
 
+  refreshSocialButtons() {
+    const on = Game.net && Game.net.connected;
+    const show = (sel, vis) => { const el = $(sel); if (el) el.style.display = vis ? '' : 'none'; };
+    show('#mic-desktop', on && !IS_TOUCH);
+    show('#chat-desktop', on && !IS_TOUCH);
+    show('#btn-voice', on);
+    show('#btn-chat', on);
+  },
+
   refreshVoiceButton() {
     const b = $('#btn-voice');
     const s = $('#voice-toggle');
@@ -5633,7 +5699,9 @@ const UI = {
     const found = Object.keys(seen).length;
     const head = document.createElement('p');
     head.className = 'lede';
-    head.textContent = found + ' of ' + total + ' creatures met. Rare ones are marked.';
+    head.textContent = Game.mode === 'creative'
+      ? 'The index only fills in while you play survival. ' + found + ' of ' + total + ' met so far.'
+      : found + ' of ' + total + ' creatures met. Rare ones are marked.';
     body.appendChild(head);
     for (let bi = 0; bi < BIOMES.length; bi++) {
       const h = document.createElement('h4');
@@ -6033,6 +6101,7 @@ Object.assign(Game, {
         $('#breath-row').style.opacity = this.player.breath < 0.999 ? '1' : '0.25';
         this.refreshGearBadge();
         this.refreshTouchButtons();
+        UI.refreshSocialButtons();
         if (!UI.anyOpen()) this.drawMap($('#minimap'), 2.4, true);
         $('#fps').style.display = Settings.showFps ? 'block' : 'none';
         if (Settings.showFps) $('#fps').textContent = Math.round(1 / Math.max(dt, 0.001)) + ' fps';
@@ -6316,7 +6385,9 @@ Game.net = {
         Game.voice.onSignal(m.from, m.data);
         break;
       case 'voice':
-        if (m.on && Game.voice.on) Game.voice.call(m.id);
+        // someone switched a microphone on: connect so we can hear them,
+        // whether or not ours is on
+        if (m.on) Game.voice.call(m.id);
         break;
       case 'pong':
         this.lastPong = performance.now();
@@ -6330,16 +6401,13 @@ Game.net = {
         if (m.id === this.selfId) return;
         let p = this.peers.get(m.id);
         if (!p) p = this.addPeer(m.id, m.name || 'Player', m.skin);
-        // remember the step so the body keeps gliding if a packet is late
-        if (p.lastAt) {
-          const gap = Math.max(0.03, (performance.now() - p.lastAt) / 1000);
-          p.vel = { x: (m.x - p.target.x) / gap, y: (m.y - p.target.y) / gap, z: (m.z - p.target.z) / gap };
-        }
         p.lastAt = performance.now();
         p.target.set(m.x, m.y, m.z);
         p.yaw = m.yaw;
+        // only rebuild the body when their gear actually changes: comparing
+        // against an unset value rebuilt everyone on their first step
         const worn = m.skin ? ((m.skin.goggles ? 1 : 0) + (m.skin.scuba ? 2 : 0) + (m.skin.jetpack ? 4 : 0)) : 0;
-        if (p.worn !== worn) {
+        if (m.skin && p.worn !== undefined && p.worn !== worn) {
           p.worn = worn;
           Game.entityGroup.remove(p.model);
           this.peers.delete(m.id);
@@ -6386,7 +6454,7 @@ Game.net = {
     g.add(box(0.26, 0.65, 0.28, s.legs, 0.16, 0.33, 0));
     const tag = makeNameTag(name);
     if (tag) { tag.position.set(0, 2.35, 0); g.add(tag); }
-    const peer = { id, name, model: g, target: new THREE.Vector3(), yaw: 0 };
+    const peer = { id, name, model: g, target: new THREE.Vector3(), yaw: 0, worn: 0 };
     Game.entityGroup.add(g);
     this.peers.set(id, peer);
     return peer;
@@ -6401,16 +6469,11 @@ Game.net = {
     for (const p of this.peers.values()) {
       // carry on along the last known heading for a moment, so a dropped
       // packet reads as movement rather than a freeze
-      const age = p.lastAt ? (performance.now() - p.lastAt) / 1000 : 0;
-      if (p.vel && age < 0.8) {
-        // keep them moving along their last heading between packets
-        p.target.x += p.vel.x * dt;
-        p.target.y += p.vel.y * dt;
-        p.target.z += p.vel.z * dt;
-      }
+      // no guessing ahead: guessing compounds and makes people skate around.
+      // Just glide to the last position we were actually told about.
       const far = p.model.position.distanceTo(p.target);
-      if (far > 18) p.model.position.copy(p.target);
-      else p.model.position.lerp(p.target, Math.min(1, dt * 14));
+      if (far > 14) p.model.position.copy(p.target);
+      else p.model.position.lerp(p.target, Math.min(1, dt * 12));
       let dy = p.yaw - p.model.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
@@ -6422,7 +6485,7 @@ Game.net = {
     if (this.pingTimer > 4) { this.pingTimer = 0; this.send({ t: 'ping' }); }
 
     this.vehTimer = (this.vehTimer || 0) + dt;
-    if (this.vehTimer > 0.08) {
+    if (this.vehTimer > 0.06) {
       this.vehTimer = 0;
       for (const v of Game.vehicles) {
         if (v.owner && v.owner !== this.selfId) continue;
@@ -7197,7 +7260,15 @@ class Vehicle {
   /* not ours: ease toward wherever its driver says it is */
   follow(dt) {
     if (!this.netTarget) return;
-    this.pos.lerp(this.netTarget, Math.min(1, dt * 8));
+    // carry on along the driver's last heading while the next packet is in flight
+    const age = this.netAt ? (performance.now() - this.netAt) / 1000 : 0;
+    if (this.netVel && age < 0.8) {
+      this.netTarget.x += this.netVel.x * dt;
+      this.netTarget.y += this.netVel.y * dt;
+      this.netTarget.z += this.netVel.z * dt;
+    }
+    if (this.pos.distanceTo(this.netTarget) > 24) this.pos.copy(this.netTarget);
+    this.pos.lerp(this.netTarget, Math.min(1, dt * 14));
     let d = (this.netYaw || 0) - this.yaw;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
@@ -7503,6 +7574,8 @@ Object.assign(Game, {
 
   /* how much of the roster you have actually met */
   noteSighting(species) {
+    if (this.mode === 'creative') return;
+    if (this.mode === 'creative') return;   // the index is something you earn in survival
     if (!this.seen) this.seen = {};
     if (this.seen[species]) return;
     this.seen[species] = true;
@@ -7524,20 +7597,56 @@ Game.voice = {
     return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
   },
 
+  /* push our microphone into every connection we already have, and offer again */
+  async ensureTracks() {
+    if (!this.stream) return;
+    for (const [id, entry] of this.peers) {
+      const have = entry.pc.getSenders().some(s2 => s2.track && s2.track.kind === 'audio');
+      if (!have) this.stream.getTracks().forEach(t => entry.pc.addTrack(t, this.stream));
+      try {
+        const offer = await entry.pc.createOffer();
+        await entry.pc.setLocalDescription(offer);
+        Game.net.send({ t: 'signal', to: id, data: { sdp: entry.pc.localDescription } });
+      } catch (e) { /* a later signal will settle it */ }
+    }
+  },
+
   async toggle() {
     if (this.on) { this.stop(); return false; }
     if (!this.supported()) { Game.toast('This browser will not open a microphone here.'); return false; }
-    if (!Game.net.connected) { Game.toast('Join a room first, then turn the microphone on.'); return false; }
+    if (!Game.net.connected) { Game.toast('The microphone is for multiplayer. Join or host a room first.'); return false; }
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      const raw = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+          channelCount: 1, sampleRate: 48000
+        }
       });
+      // a gate and a compressor on top of the browser's own noise suppression
+      try {
+        const ac = Game.audio();
+        const src = ac.createMediaStreamSource(raw);
+        const hp = ac.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 110;          // rumble and handling noise
+        const comp = ac.createDynamicsCompressor();
+        comp.threshold.value = -34; comp.knee.value = 24;
+        comp.ratio.value = 8; comp.attack.value = 0.004; comp.release.value = 0.22;
+        const dest = ac.createMediaStreamDestination();
+        src.connect(hp); hp.connect(comp); comp.connect(dest);
+        this.rawStream = raw;
+        this.stream = dest.stream;
+      } catch (e) {
+        this.stream = raw;
+      }
     } catch (e) {
-      Game.toast('Microphone blocked. Allow it in your browser, and note it needs https.');
+      Game.toast((location.protocol !== 'https:' && location.hostname !== 'localhost')
+        ? 'Microphones only work on an https page. Open the game over https.'
+        : 'Microphone blocked. Allow it for this site in your browser settings.');
       return false;
     }
     this.on = true;
     Game.net.send({ t: 'voice', on: true });
+    await this.ensureTracks();
     for (const id of (this.roster || [])) this.call(id);
     Game.toast('Microphone on. Everyone in the room can hear you.');
     UI.refreshVoiceButton();
@@ -7547,6 +7656,7 @@ Game.voice = {
   stop() {
     this.on = false;
     if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+    if (this.rawStream) { this.rawStream.getTracks().forEach(t => t.stop()); this.rawStream = null; }
     for (const [, p] of this.peers) { try { p.pc.close(); } catch (e) {} }
     this.peers.clear();
     if (Game.net.connected) Game.net.send({ t: 'voice', on: false });
@@ -7555,7 +7665,15 @@ Game.voice = {
   },
 
   makePeer(id) {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' }
+      ]
+    });
+    // always be ready to receive, even with our own microphone off
+    try { pc.addTransceiver('audio', { direction: this.stream ? 'sendrecv' : 'recvonly' }); } catch (e) {}
+    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') this.drop(id); };
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
     pc.onicecandidate = (e) => {
       if (e.candidate) Game.net.send({ t: 'signal', to: id, data: { ice: e.candidate } });
@@ -7578,7 +7696,8 @@ Game.voice = {
   },
 
   async call(id) {
-    if (this.peers.has(id)) return;
+    if (!id || id === Game.net.selfId) return;
+    if (this.peers.has(id)) { await this.ensureTracks(); return; }
     const { pc } = this.makePeer(id);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
