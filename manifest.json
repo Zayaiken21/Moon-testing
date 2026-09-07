@@ -1,0 +1,14 @@
+{
+  "name": "Voxelia",
+  "short_name": "Voxelia",
+  "description": "A blocky open world where nothing can be killed. Build, tame, wander, and fly to other planets.",
+  "start_url": "./voxelia.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#14121C",
+  "theme_color": "#14121C",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

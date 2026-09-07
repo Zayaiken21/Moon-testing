@@ -7,6 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Voxelia — a world you can be kind to</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
@@ -211,6 +214,47 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   align-items:center;gap:8px;background:rgba(20,18,28,.76);border:1px solid var(--line);
   border-radius:10px;padding:6px 12px}
 #altimeter.show{display:flex}
+#alt-lever{position:absolute;right:calc(10px + env(safe-area-inset-right));top:50%;
+  transform:translateY(-50%);display:none;flex-direction:column;align-items:center;gap:6px;
+  background:rgba(20,18,28,.8);border:1px solid var(--line);border-radius:14px;
+  padding:8px 8px 10px;pointer-events:auto;z-index:2}
+#alt-lever.show{display:flex}
+#alt-lever .btn{padding:5px 9px;font-size:calc(11px * var(--ui));min-width:0}
+#alt-track{width:calc(20px * var(--ui));height:calc(110px * var(--ui));border-radius:999px;
+  background:rgba(255,255,255,.12);position:relative;overflow:hidden;cursor:ns-resize}
+#alt-fill{position:absolute;left:0;right:0;bottom:0;height:50%;
+  background:linear-gradient(180deg,var(--moon),rgba(111,227,196,.25))}
+#alt-read{color:var(--muted);font-size:calc(9.5px * var(--ui));white-space:nowrap}
+#drive-hint b i#hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
+  margin-left:auto;margin-right:8px}
+@media (orientation:landscape) and (max-height:560px){
+  #home{overflow:hidden}
+  #home .home-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;
+    padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));
+    height:100dvh;align-items:stretch}
+  #home .home-wrap > div:first-child{overflow-y:auto;padding-right:6px;
+    display:flex;flex-direction:column;justify-content:flex-start}
+  #home .wordmark h1{font-size:26px}
+  #home .wordmark span{font-size:11px}
+  #home .field{margin-bottom:8px}
+  #home .field label{font-size:11px;margin-bottom:3px}
+  #home .seed-row input,#home .btn{padding:7px 10px;font-size:12px}
+  #home .mode-option{padding:8px}
+  #home .mode-option strong{font-size:13px}
+  #home .mode-option small{font-size:10.5px}
+  #home .play{padding:10px;font-size:15px;margin-top:10px}
+  #home .minor-row{gap:6px;margin-top:8px}
+  #home .minor-row .btn{min-width:0;flex:1 1 30%}
+  #home .preview-note{font-size:10.5px;margin-top:8px}
+  #home .biome-strip{max-height:calc(100dvh - 24px);grid-template-columns:repeat(auto-fill,minmax(118px,1fr));
+    gap:7px}
+  #home .biome-card{padding:8px}
+  #home .biome-swatch{height:30px;margin-bottom:6px}
+  #home .biome-card h3{font-size:12px}
+  #home .biome-card dl{font-size:10px}
+  #alt-lever{top:auto;bottom:calc(52px + env(safe-area-inset-bottom));transform:none;padding:5px}
+  #alt-track{height:calc(70px * var(--ui))}
+}
 #altimeter b{font-size:calc(18px * var(--ui));color:var(--moon)}
 #altimeter span{font-size:calc(10.5px * var(--ui));color:var(--muted)}
 #drive-hint b i{float:right;font-style:normal;cursor:pointer;color:var(--muted);padding:0 2px}
@@ -479,7 +523,19 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #prompt{bottom:52px;font-size:11px;padding:5px 10px}
   #drive-hint{bottom:96px;max-width:150px}
   #fullscreen{bottom:auto;top:calc(6px + env(safe-area-inset-top));right:38vw}
-  .home-wrap{grid-template-columns:1fr 1fr;padding-top:8px;gap:14px;max-width:100vw}
+  .home-wrap{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);padding-top:6px;gap:12px;
+    max-width:100vw;align-items:start}
+  .biome-strip{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));max-height:74vh;
+    gap:7px;padding-right:2px}
+  .biome-card{padding:8px}
+  .biome-card h3{font-size:12px}
+  .biome-swatch{height:30px;margin-bottom:6px}
+  .biome-card dl{font-size:10px}
+  .biome-card dd{margin-bottom:4px}
+  .wordmark{margin-bottom:2px}
+  .field{margin-bottom:9px}
+  .play{padding:12px;font-size:16px;margin-top:12px}
+  .minor-row .btn{padding:9px 11px;font-size:12.5px;min-width:90px}
   .wordmark h1{font-size:32px}
   .tagline{display:none}
   .screen{padding:8px}
@@ -571,6 +627,13 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   <div id="drive-hint"></div>
   <div id="waypoint-guide"></div>
   <div id="altimeter"></div>
+  <div id="alt-lever">
+    <button class="btn" id="alt-up">▲</button>
+    <div id="alt-track"><div id="alt-fill"></div></div>
+    <button class="btn" id="alt-down">▼</button>
+    <button class="btn" id="alt-level">level</button>
+    <small id="alt-read"></small>
+  </div>
   <button id="minimap-wrap" title="Open the map"><canvas id="minimap" width="132" height="132"></canvas></button>
   <div id="lock-hint">Click the world to capture the mouse, or hold a button and drag to look</div>
   <div id="chat-log"></div>
@@ -926,6 +989,26 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- optional: drop store.js beside this file and a Store button appears on the title screen -->
 <script src="store.js" onerror="console.info('store.js not present, carrying on without it')"></script>
+<script>
+  /* keep a copy on the device so the game runs with no connection at all */
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {
+        console.info('offline copy unavailable here; the game still runs online');
+      });
+    });
+  }
+</script>
+<script>
+/* keep a copy of the game on the device, so it opens with no connection */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      console.info('offline copy unavailable here, the game still runs online');
+    });
+  });
+}
+</script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1706,9 +1789,12 @@ class World {
           else if (b.key === 'tidal' && rnd() < 0.5) kind = 'coconut';
           this.plant(chunk, lx, h + 1, lz, kind, rnd);
         } else if (h > SEA && blocks[idxOf(lx, h, lz)] === b.surface && rnd() < 0.15) {
-          const roll = rnd();
-          blocks[idxOf(lx, h + 1, lz)] = roll < 0.42 ? B.TALLGRASS
-            : roll < 0.58 ? B.FERN : FLOWERS[(rnd() * FLOWERS.length) | 0];
+          if (this.moonFlora) { this.plantMoonFlora(chunk, lx, h + 1, lz, rnd, rnd()); }
+          else {
+            const roll = rnd();
+            blocks[idxOf(lx, h + 1, lz)] = roll < 0.42 ? B.TALLGRASS
+              : roll < 0.58 ? B.FERN : FLOWERS[(rnd() * FLOWERS.length) | 0];
+          }
         } else if (h > SEA && rnd() < 0.006) {
           blocks[idxOf(lx, h + 1, lz)] = B.BERRYBUSH;
         } else if (h < SEA - 2 && b.key === 'ocean' && rnd() < 0.06) {
@@ -3122,6 +3208,7 @@ const Settings = {
   vehicleTurn: 1.8,
   vehicleInvert: false,
   vehicleAlignCamera: true,
+  vehicleChase: true,
   uiScale: 1.0
 };
 
@@ -3227,6 +3314,7 @@ const Game = {
     this.mode = mode;
     this.world = new World(seedText, { caves: Settings.caves });
     this.world.noTowns = !!offworld;
+    this.world.moonFlora = !!offworld;
     this.player = new Player(this.world);
     this.creatures = [];
     this.drops = [];
@@ -3932,6 +4020,12 @@ Object.assign(Game, {
       v.idle(dt, w);
     }
     this.updateGear(dt, jumpHeld);
+    if (this.hintTimer > 0) {
+      this.hintTimer -= dt;
+      const clock = document.getElementById('hint-clock');
+      if (clock) clock.textContent = Math.max(0, Math.ceil(this.hintTimer)) + 's';
+      if (this.hintTimer <= 0) $('#drive-hint').classList.remove('show');
+    }
     if (Input.consume(VKEYS.lights) && this.riding) {
       const on = this.riding.toggleLights();
       if (this.riding.kind === 'sub') this.toast(on ? 'Lamps on.' : 'Lamps off.');
@@ -3946,10 +4040,21 @@ Object.assign(Game, {
     if (p.pos.y < -6) { p.pos.y = w.surfaceY(Math.floor(p.pos.x), Math.floor(p.pos.z)) + 3; p.vel.set(0, 0, 0); }
 
     /* camera */
-    this.camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
-    this.camera.rotation.set(0, 0, 0, 'YXZ');
-    this.camera.rotateY(p.yaw);
-    this.camera.rotateX(p.pitch);
+    const aboard = this.riding || this.passengerIn || this.mount;
+    if (aboard && Settings.vehicleChase) {
+      const back = ((aboard.def && aboard.def.scale) || 1.3) * 5.5 + 2;
+      const lift2 = ((aboard.def && aboard.def.seat) || 0.8) + 2.2;
+      this.camera.position.set(p.pos.x + Math.sin(p.yaw) * back, p.pos.y + lift2,
+                               p.pos.z + Math.cos(p.yaw) * back);
+      this.camera.rotation.set(0, 0, 0, 'YXZ');
+      this.camera.rotateY(p.yaw);
+      this.camera.rotateX(p.pitch - 0.12);
+    } else {
+      this.camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
+      this.camera.rotation.set(0, 0, 0, 'YXZ');
+      this.camera.rotateY(p.yaw);
+      this.camera.rotateX(p.pitch);
+    }
 
     /* interaction */
     if (pad) {
@@ -4057,6 +4162,16 @@ Object.assign(Game, {
       c.model.position.copy(c.pos);
       c.model.rotation.y = v.yaw;
     });
+    const lever = $('#alt-lever');
+    if (lever) {
+      const wings = v.kind === 'plane' || v.kind === 'rotor' || v.kind === 'lighter';
+      lever.classList.toggle('show', wings && !this.passengerIn);
+      if (wings && v.trim === undefined) {
+        v.trim = 0;
+        const fill = $('#alt-fill'); if (fill) fill.style.height = '50%';
+        const read = $('#alt-read'); if (read) read.textContent = 'level';
+      }
+    }
     const alt = $('#altimeter');
     if (alt) {
       if (v.kind === 'sub' || v.kind === 'plane') {
@@ -4078,13 +4193,15 @@ Object.assign(Game, {
     const el = $('#drive-hint');
     const v = asPassenger ? this.passengerIn : this.riding;
     if (!el || !v) return;
+    this.hintTimer = 30;
     if (asPassenger) {
-      el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i id="hint-close" title="Close">\u2715</i></b>' +
+      el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i id="hint-clock">30s</i>' +
+        '<i id="hint-close" title="Close">\u2715</i></b>' +
         '<span>Someone else is driving. Sit back.</span>' +
         `<span><kbd>${VKEYS.exit.replace('Key', '')}</kbd>hop off</span>`;
       el.classList.add('show');
       const c0 = document.getElementById('hint-close');
-      if (c0) c0.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); });
+      if (c0) c0.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); Game.hintTimer = 0; });
       return;
     }
     const pretty = (code) => code.replace('Key', '').replace('ShiftLeft', 'Shift').replace('Space', 'Space');
@@ -4102,11 +4219,11 @@ Object.assign(Game, {
     }
     rows.push([pretty(VKEYS.exit), 'get out']);
     el.innerHTML = '<b>' + v.def.name + ' \u00b7 ' + v.def.seats + (v.def.seats > 1 ? ' seats' : ' seat') +
-      '<i id="hint-close" title="Close">\u2715</i></b>' +
+      '<i id="hint-clock">30s</i><i id="hint-close" title="Close">\u2715</i></b>' +
       rows.map(r => `<span><kbd>${r[0]}</kbd>${r[1]}</span>`).join('');
     el.classList.add('show');
     const close = document.getElementById('hint-close');
-    if (close) close.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); });
+    if (close) close.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); this.hintTimer = 0; });
   },
 
   toggleHeadlamp() {
@@ -4468,6 +4585,7 @@ Object.assign(Game, {
       this.passengerIn = null;
       $('#drive-hint').classList.remove('show');
       $('#altimeter').classList.remove('show');
+      $('#alt-lever').classList.remove('show');
       return;
     }
     if (this.mount) { this.dismountCreature(); return; }
@@ -5516,6 +5634,26 @@ const UI = {
     bindRange('#set-vturn', 'vehicleTurn', v => v.toFixed(1));
     bindCheck('#set-vinvert', 'vehicleInvert');
     bindCheck('#set-valign', 'vehicleAlignCamera');
+
+    /* the altitude lever: hold a climb, hold a descent, or level off */
+    const setTrim = (v) => {
+      const craft = Game.riding;
+      if (!craft) return;
+      craft.trim = Math.max(-1, Math.min(1, v));
+      const fill = $('#alt-fill');
+      if (fill) fill.style.height = Math.round(50 + craft.trim * 50) + '%';
+      const read = $('#alt-read');
+      if (read) read.textContent = craft.trim > 0.05 ? 'climbing'
+        : craft.trim < -0.05 ? 'descending' : 'level';
+    };
+    $('#alt-up').addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) + 0.34));
+    $('#alt-down').addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) - 0.34));
+    $('#alt-level').addEventListener('click', () => setTrim(0));
+    ['touchstart', 'mousedown'].forEach(ev => {
+      $('#alt-up').addEventListener(ev, (e) => e.stopPropagation());
+      $('#alt-down').addEventListener(ev, (e) => e.stopPropagation());
+      $('#alt-level').addEventListener(ev, (e) => e.stopPropagation());
+    });
     this.drawVKeys();
     $('#vkey-reset').addEventListener('click', () => {
       Object.assign(VKEYS, VKEY_DEFAULTS);
@@ -6107,6 +6245,7 @@ const UI = {
       for (const c of Game.world.chunks.values()) { c.generated = false; Game.world.generate(c); c.dirty = true; }
     }
     if (typeof welcome.time === 'number') Game.dayTime = welcome.time;
+    if (welcome.mode) Game.mode = welcome.mode;   // the room decides survival or creative
     if (welcome.resume) {
       // back where you stood when you last left this room
       Game.player.pos.set(welcome.resume.x, welcome.resume.y, welcome.resume.z);
@@ -6362,13 +6501,14 @@ const UI = {
   pause() {
     if (this.anyOpen()) { this.closeAll(); return; }
     if (!Game.running) return;
-    this.renderSlots();
+    // show the sheet before doing any of the slower work, so the tap lands
+    $('#pause').classList.add('open');
+    if (document.pointerLockElement) document.exitPointerLock();
+    setTimeout(() => this.renderSlots(), 0);
     Input.buttons.mine = false;
     Input.buttons.place = false;
     Input.buttons.jump = false;
     for (const k of Object.keys(Input.keys)) Input.keys[k] = false;
-    $('#pause').classList.add('open');
-    if (document.pointerLockElement) document.exitPointerLock();
   },
 
   anyOpen() { return $$('.screen.open').length > 0; },
@@ -6817,9 +6957,14 @@ Game.net = {
       // packet reads as movement rather than a freeze
       // no guessing ahead: guessing compounds and makes people skate around.
       // Just glide to the last position we were actually told about.
+      // a gentle chase rather than a snap to each packet, so walking reads
+      // as walking instead of a series of jumps
       const far = p.model.position.distanceTo(p.target);
-      if (far > 14) p.model.position.copy(p.target);
-      else p.model.position.lerp(p.target, Math.min(1, dt * 12));
+      if (far > 24) p.model.position.copy(p.target);
+      else p.model.position.lerp(p.target, Math.min(1, dt * (far > 6 ? 9 : 6)));
+      const moving = far > 0.05;
+      p.step = (p.step || 0) + (moving ? dt * 7 : 0);
+      if (moving) p.model.position.y += Math.abs(Math.sin(p.step)) * 0.06;
       let dy = p.yaw - p.model.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
@@ -6843,7 +6988,7 @@ Game.net = {
     }
 
     this.outTimer += dt;
-    if (this.outTimer < 0.045) return;
+    if (this.outTimer < 0.033) return;   // thirty updates a second
     this.outTimer = 0;
     const p = Game.player.pos;
     this.send({ t: 'move', x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
@@ -7683,9 +7828,12 @@ class Vehicle {
       // a real aircraft: throttle for airspeed, stick for climb and dive
       this.pos.x = nx; this.pos.z = nz;
       const airspeed = Math.abs(this.speed);
-      const lift = airspeed / max;                  // full lift at full throttle
-      const climb = cmd.up * 6 * lift;
-      const sink = -3.4 * (1 - lift * 0.85);
+      const lift = Math.min(1, airspeed / (max * 0.5));   // wings bite sooner
+      const trim = this.trim || 0;
+      // the lever is authoritative: set it and the aircraft holds that climb,
+      // whatever the airspeed is doing
+      const climb = cmd.up * 7.5 * lift + trim * 8;
+      const sink = -2.1 * (1 - lift * 0.92) * (1 - Math.min(1, Math.abs(trim)));
       this.vy += ((climb + sink) - this.vy) * Math.min(1, dt * 2.5);
       this.pos.y += this.vy * dt;
       if (this.pos.y < ground + 1) {
@@ -7694,7 +7842,7 @@ class Vehicle {
         this.speed *= 0.995;                        // rolls along the runway
         this.grounded = true;
       } else this.grounded = false;
-      if (this.pos.y > 118) { this.pos.y = 118; this.vy = Math.min(0, this.vy); }
+      if (this.pos.y > WY - 8) { this.pos.y = WY - 8; this.vy = Math.min(0, this.vy); }
       this.pitch = Math.max(-0.5, Math.min(0.5, this.vy * 0.08));
       this.tilt = -cmd.turn * 0.45;
 
@@ -7717,7 +7865,7 @@ class Vehicle {
       this.pos.y += this.vy * dt;
       const g2 = world.surfaceY(Math.floor(nx), Math.floor(nz));
       if (this.pos.y < g2 + 1.5) { this.pos.y = g2 + 1.5; this.vy = Math.max(0, this.vy); }
-      if (this.pos.y > 150) { this.pos.y = 150; this.vy = Math.min(0, this.vy); }
+      if (this.pos.y > WY - 12) { this.pos.y = WY - 12; this.vy = Math.min(0, this.vy); }
       this.pos.x = nx; this.pos.z = nz;
       this.tilt = -cmd.turn * 0.12;
       this.animate(dt);
@@ -8973,6 +9121,7 @@ Object.assign(Game, {
 
   /* out of air: come up on real ground, never mid-ocean and never in the sky */
   surfaceRescue() {
+    if (this.mode === 'creative') { this.player.breath = 1; return; }   // creative never drowns
     const p = this.player.pos;
     let best = null;
 
@@ -9644,6 +9793,128 @@ GARAGE.forEach((g) => {
     out: [id, 1], need: base.concat(extra),
     station: g.tier >= 2 ? 'engineer' : 'bench'
   });
+});
+
+/* ---------------------------------------------------------------
+   38. Moon flora — 73 named glowing plants that grow off-world
+   Each one is a real block with its own colour, height and rarity.
+   --------------------------------------------------------------- */
+const MOON_FLORA = [
+  ['pale_lumen', 'Pale Lumen', 'lumen', '#9fe8ff', 3, 'common'],
+  ['cyan_lumen', 'Cyan Lumen', 'lumen', '#35f0e8', 4, 'common'],
+  ['dust_moss', 'Dust Moss', 'moss', '#3fffa0', 1, 'common'],
+  ['ash_moss', 'Ash Moss', 'moss', '#2fe0c0', 1, 'common'],
+  ['glass_reed', 'Glass Reed', 'reed', '#9fe8ff', 3, 'common'],
+  ['grey_cap', 'Grey Cap', 'cap', '#f2f0ff', 2, 'common'],
+  ['spark_moss', 'Spark Moss', 'moss', '#ffbe3a', 1, 'common'],
+  ['low_spire', 'Low Spire', 'spire', '#3aa8ff', 4, 'common'],
+  ['crater_shard', 'Crater Shard', 'shard', '#9fe8ff', 2, 'common'],
+  ['regolith_bell', 'Regolith Bell', 'bell', '#8affd0', 3, 'common'],
+  ['thread_lumen', 'Thread Lumen', 'lumen', '#a8ff4a', 5, 'common'],
+  ['husk_cap', 'Husk Cap', 'cap', '#ff7a2f', 2, 'common'],
+  ['pin_reed', 'Pin Reed', 'reed', '#8affd0', 2, 'common'],
+  ['dim_ring', 'Dim Ring', 'ring', '#3aa8ff', 2, 'common'],
+  ['scree_bloom', 'Scree Bloom', 'crystal', '#f2f0ff', 2, 'common'],
+  ['violet_lumen', 'Violet Lumen', 'lumen', '#9a4dff', 6, 'uncommon'],
+  ['orchid_lantern', 'Orchid Lantern', 'lantern', '#d45cff', 5, 'uncommon'],
+  ['frost_crystal', 'Frost Crystal', 'crystal', '#9fe8ff', 3, 'uncommon'],
+  ['ember_cap', 'Ember Cap', 'cap', '#ff7a2f', 3, 'uncommon'],
+  ['halo_fern', 'Halo Fern', 'halo', '#3fffa0', 3, 'uncommon'],
+  ['coil_vine', 'Coil Vine', 'coil', '#ff3fa8', 5, 'uncommon'],
+  ['azure_column', 'Azure Column', 'column', '#3aa8ff', 6, 'uncommon'],
+  ['quartz_shard', 'Quartz Shard', 'shard', '#f2f0ff', 4, 'uncommon'],
+  ['gold_reed', 'Gold Reed', 'reed', '#ffe066', 4, 'uncommon'],
+  ['rose_bell', 'Rose Bell', 'bell', '#ff6f9c', 4, 'uncommon'],
+  ['spore_lantern', 'Spore Lantern', 'lantern', '#a8ff4a', 4, 'uncommon'],
+  ['web_filament', 'Filament Web', 'web', '#35f0e8', 4, 'uncommon'],
+  ['copper_spire', 'Copper Spire', 'spire', '#ff9b5a', 7, 'uncommon'],
+  ['twin_ring', 'Twin Ring', 'ring', '#6f4aff', 3, 'uncommon'],
+  ['pearl_geode', 'Pearl Geode', 'geode', '#f2f0ff', 2, 'uncommon'],
+  ['mint_cap', 'Mint Cap', 'cap', '#8affd0', 3, 'uncommon'],
+  ['slate_prism', 'Slate Prism', 'prism', '#9fe8ff', 6, 'uncommon'],
+  ['drift_moss', 'Drift Moss', 'moss', '#6f4aff', 1, 'uncommon'],
+  ['aurora_veil', 'Aurora Veil', 'veil', '#2fe0c0', 6, 'rare'],
+  ['comet_bloom', 'Comet Bloom', 'comet', '#9fe8ff', 5, 'rare'],
+  ['prism_tree', 'Prism Tree', 'prism', '#3aa8ff', 11, 'rare'],
+  ['gravity_bell', 'Gravity Bell', 'inverted', '#d45cff', 7, 'rare'],
+  ['nova_cap', 'Nova Cap', 'cap', '#ffe066', 5, 'rare'],
+  ['deep_lantern', 'Deep Lantern', 'lantern', '#4257ff', 8, 'rare'],
+  ['halo_crown', 'Halo Crown', 'ring', '#d45cff', 5, 'rare'],
+  ['siren_reed', 'Siren Reed', 'reed', '#ff3fa8', 7, 'rare'],
+  ['spiral_lumen', 'Spiral Lumen', 'coil', '#35f0e8', 8, 'rare'],
+  ['shatterstar', 'Shatterstar', 'shard', '#9a4dff', 6, 'rare'],
+  ['emberthorn', 'Ember Thorn', 'spire', '#ff2f4a', 6, 'rare'],
+  ['ghost_veil', 'Ghost Veil', 'veil', '#f2f0ff', 5, 'rare'],
+  ['geode_heart', 'Geode Heart', 'geode', '#ff3fa8', 3, 'rare'],
+  ['lace_web', 'Lace Web', 'web', '#9fe8ff', 6, 'rare'],
+  ['sun_column', 'Sun Column', 'column', '#ffbe3a', 9, 'rare'],
+  ['jade_cage', 'Jade Cage', 'bloomcage', '#3fffa0', 4, 'rare'],
+  ['tide_bell', 'Tide Bell', 'bell', '#2fe0c0', 6, 'rare'],
+  ['starfall_moss', 'Starfall Moss', 'moss', '#f2f0ff', 1, 'rare'],
+  ['chromatic_lumen', 'Chromatic Lumen', 'lumen', '#35f0e8', 9, 'exotic'],
+  ['void_orchid', 'Void Orchid', 'crystal', '#d45cff', 5, 'exotic'],
+  ['lantern_grove', 'Lantern Grove', 'lantern', '#ffbe3a', 12, 'exotic'],
+  ['crown_prism', 'Crown Prism', 'prism', '#9a4dff', 16, 'exotic'],
+  ['halo_tree', 'Halo Tree', 'inverted', '#4257ff', 13, 'exotic'],
+  ['nebula_veil', 'Nebula Veil', 'veil', '#ff3fa8', 9, 'exotic'],
+  ['meteor_bloom', 'Meteor Bloom', 'comet', '#ff7a2f', 9, 'exotic'],
+  ['cathedral_reed', 'Cathedral Reed', 'reed', '#9fe8ff', 12, 'exotic'],
+  ['helix_bloom', 'Helix Bloom', 'coil', '#3fffa0', 12, 'exotic'],
+  ['rift_web', 'Rift Web', 'web', '#6f4aff', 10, 'exotic'],
+  ['ember_cathedral', 'Ember Cathedral', 'column', '#ff2f4a', 14, 'exotic'],
+  ['pearl_cage', 'Pearl Cage', 'bloomcage', '#f2f0ff', 7, 'exotic'],
+  ['shardfall', 'Shardfall', 'shard', '#4257ff', 10, 'exotic'],
+  ['siren_geode', 'Siren Geode', 'geode', '#2fe0c0', 5, 'exotic'],
+  ['worldlight', 'Worldlight', 'prism', '#f2f0ff', 24, 'mythic'],
+  ['the_hourglass', 'The Hourglass', 'inverted', '#ffe066', 20, 'mythic'],
+  ['drowned_star', 'Drowned Star', 'lantern', '#4257ff', 18, 'mythic'],
+  ['aurora_crown', 'Aurora Crown', 'veil', '#35f0e8', 15, 'mythic'],
+  ['the_long_note', 'The Long Note', 'column', '#ffbe3a', 22, 'mythic'],
+  ['heartwood_geode', 'Heartwood Geode', 'geode', '#ff3fa8', 8, 'mythic'],
+  ['the_weeping_coil', 'The Weeping Coil', 'coil', '#d45cff', 19, 'mythic'],
+  ['finality', 'Finality', 'spire', '#ff2f4a', 26, 'mythic']
+];
+
+const MOONPLANT_BLOCKS = [];
+MOON_FLORA.forEach(([key, name, form, glow, h, rarity]) => {
+  const tall = h >= 5;
+  const style = (form === 'crystal' || form === 'shard' || form === 'prism' || form === 'geode') ? 'crystal'
+              : (form === 'moss' || form === 'halo') ? 'grass'
+              : (form === 'reed' || form === 'coil' || form === 'web' || form === 'veil') ? 'leaf' : 'glow';
+  const id = defBlock({
+    name, category: 'Moon Flora', hardness: 0.2,
+    glow: rarity === 'mythic' ? 15 : rarity === 'exotic' ? 13 : rarity === 'rare' ? 11 : 8,
+    tint: glow, varied: 0.3, opaque: false, solid: false,
+    top: paintTile(style, glow), side: 0, bottom: 0,
+    moonForm: form, moonHeight: h, rarity, moonKey: key
+  });
+  BLOCKS[id].side = BLOCKS[id].bottom = BLOCKS[id].top;
+  BLOCKS[id].translucent = style === 'crystal';
+  MOONPLANT_BLOCKS.push(id);
+});
+
+/* they grow on other worlds, sized and clustered by their own spec */
+Object.assign(World.prototype, {
+  plantMoonFlora(chunk, lx, y, lz, rnd, rarityRoll) {
+    const pool = MOONPLANT_BLOCKS;
+    let id = pool[(rnd() * pool.length) | 0];
+    // rare kinds only turn up on a lucky roll
+    for (let tries = 0; tries < 6; tries++) {
+      const b = BLOCKS[id];
+      const need = b.rarity === 'mythic' ? 0.998 : b.rarity === 'exotic' ? 0.99
+                 : b.rarity === 'rare' ? 0.95 : b.rarity === 'uncommon' ? 0.7 : 0;
+      if (rarityRoll >= need) break;
+      id = pool[(rnd() * pool.length) | 0];
+    }
+    const b = BLOCKS[id];
+    const height = Math.max(1, Math.round(b.moonHeight * (0.5 + rnd())));
+    for (let i = 0; i < height; i++) {
+      if (y + i >= WY) break;
+      const idx = idxOf(lx, y + i, lz);
+      if (chunk.blocks[idx] !== AIR) break;
+      chunk.blocks[idx] = id;
+    }
+  }
 });
 </script>
 </body>
