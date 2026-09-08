@@ -228,6 +228,18 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #drive-hint b i#hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
   margin-left:auto;margin-right:8px}
 @media (orientation:landscape) and (max-height:560px){
+  /* the readouts you actually need, all on screen */
+  #meters{display:flex !important;flex-direction:column;
+    left:calc(8px + env(safe-area-inset-left)) !important;
+    top:calc(46px + env(safe-area-inset-top)) !important;bottom:auto !important;
+    width:calc(104px * var(--ui)) !important;z-index:5}
+  #meters .meter-row{font-size:calc(9px * var(--ui));margin-bottom:3px}
+  #meters .meter{height:5px}
+  #mic-desktop,#chat-desktop{top:calc(4px + env(safe-area-inset-top)) !important}
+  #btn-voice,#btn-chat{position:absolute !important;top:calc(4px + env(safe-area-inset-top));
+    width:calc(38px * var(--ui));height:calc(38px * var(--ui));font-size:calc(9px * var(--ui))}
+  #btn-voice{right:calc(58px + env(safe-area-inset-right))}
+  #btn-chat{right:calc(102px + env(safe-area-inset-right))}
   #home{overflow:hidden}
   #home .home-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;
     padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));
@@ -408,6 +420,18 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   border-radius:6px;padding:2px 8px;font-size:12px}
 .kbd-list span{color:var(--muted);line-height:1.45}
 
+
+/* ---------- survival combat ---------- */
+#combat-hud{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%);min-width:220px;padding:8px 11px;background:rgba(20,18,28,.72);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px);text-align:center;pointer-events:none;z-index:4}
+.combat-top{display:flex;justify-content:space-between;gap:14px;font-family:var(--display);font-size:11px}.combat-top b{color:var(--ember)}.combat-top span{color:var(--muted)}
+.health-wrap{display:flex;align-items:center;gap:7px;margin-top:6px;font:10px var(--display);color:var(--muted)}.health-wrap>div{flex:1;height:6px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}.health-wrap i{display:block;height:100%;width:100%;background:var(--ember)}.health-wrap b{color:var(--text);min-width:28px}
+#weapon-readout{margin-top:5px;color:var(--moon);font:11px var(--display)}
+.combat-attack,.combat-craft{position:absolute;z-index:31;pointer-events:auto;border:1px solid var(--ember);background:rgba(55,22,20,.86);color:#fff;border-radius:999px;font:700 12px var(--display);padding:10px 14px;display:none}.combat-attack{right:calc(18px + env(safe-area-inset-right));bottom:calc(176px + env(safe-area-inset-bottom))}.combat-craft{right:calc(18px + env(safe-area-inset-right));bottom:calc(126px + env(safe-area-inset-bottom));border-color:var(--moon);color:var(--moon);background:rgba(20,38,34,.86)}
+#combat-attack.show,#combat-craft.show{display:block}.combat-attack:active{transform:scale(.94)}
+.combat-touch{border-color:var(--ember)!important;color:#fff!important;background:rgba(80,25,20,.9)!important}
+@media (max-width:860px){#combat-hud{top:calc(8px + env(safe-area-inset-top));min-width:190px}.combat-attack,.combat-craft{display:block}}
+@media (orientation:landscape) and (max-height:560px){#combat-hud{top:4px;min-width:180px;padding:5px 8px}.combat-attack{right:150px;bottom:10px}.combat-craft{right:150px;bottom:58px}}
+
 /* ---------- touch ---------- */
 /* ---------- touch controls: one coherent system, sized from --ui ---------- */
 #stick-move{position:absolute;width:calc(120px * var(--ui));height:calc(120px * var(--ui));
@@ -564,7 +588,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   <div class="home-wrap">
     <div>
       <div class="wordmark"><h1>Voxelia</h1><span>build · tame · wander</span></div>
-      <p class="tagline">A blocky open world where <b>nothing can be killed</b>. You mine, build,
+      <p class="tagline">A blocky open world where survival, building, exploration, and creature encounters all matter. You mine, build,
         grow food, and earn the trust of seven animals — each one lends you a way of moving that
         the world was shaped around.</p>
 
@@ -608,6 +632,9 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 <!-- ============ HUD ============ -->
 <div id="hud">
   <div id="crosshair"></div>
+  <div id="combat-hud"><div class="combat-top"><b id="combat-title">SURVIVAL</b><span id="monster-count">Monsters nearby: 0</span></div><div class="health-wrap"><span>HP</span><div><i id="combat-health"></i></div><b id="combat-health-text">100</b></div><div id="weapon-readout">Hands · 0 ammo</div></div>
+  <button id="combat-attack" class="combat-attack">ATTACK</button>
+  <button id="combat-craft" class="combat-craft">CRAFT</button>
   <div id="biome-card"><div id="biome-name">—</div><div id="biome-blurb"></div><div id="coords"></div></div>
   <div id="ability-badge"><span>No companion</span></div>
   <button id="fullscreen" title="Pause and options">❙❙</button>
@@ -667,6 +694,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="tbtn act" id="btn-place">Place</button>
       <button class="tbtn act" id="btn-mine">Mine</button>
       <button class="tbtn big" id="btn-jump">Jump</button>
+      <button class="tbtn big combat-touch" id="btn-attack">Attack</button>
     </div>
   </div>
 </div>
@@ -3675,14 +3703,15 @@ const Game = {
         // Mine and Place are hold-and-aim: the finger that holds them also turns
         // the view, so you can sweep along a wall while you dig
         const aimable = btn && (btn.id === 'btn-mine' || btn.id === 'btn-place');
-        if (btn && !aimable && e.type === 'touchstart') continue;
-        if (aimable && e.type === 'touchstart') {
-          stick.id = t.identifier; stick.ox = t.clientX; stick.oy = t.clientY;
-          stick.active = true; stick.aiming = true;
-          continue;
-        }
         const left = t.clientX < innerWidth * 0.5;
         const stick = left ? Input.moveStick : Input.lookStick;
+        if (btn && !aimable && e.type === 'touchstart') continue;
+        if (aimable && e.type === 'touchstart') {
+          const aimStick = Input.lookStick;
+          aimStick.id = t.identifier; aimStick.ox = t.clientX; aimStick.oy = t.clientY;
+          aimStick.active = true; aimStick.aiming = true;
+          continue;
+        }
         if (e.type === 'touchstart' && stick.id === null) {
           if (left) {
             // a second push on the stick within a moment means "run"
@@ -4042,14 +4071,32 @@ Object.assign(Game, {
     /* camera */
     const aboard = this.riding || this.passengerIn || this.mount;
     if (aboard && Settings.vehicleChase) {
-      const back = ((aboard.def && aboard.def.scale) || 1.3) * 5.5 + 2;
-      const lift2 = ((aboard.def && aboard.def.seat) || 0.8) + 2.2;
-      this.camera.position.set(p.pos.x + Math.sin(p.yaw) * back, p.pos.y + lift2,
-                               p.pos.z + Math.cos(p.yaw) * back);
+      // frame the whole craft: further back for bigger hulls, higher when you
+      // look down, and never buried inside terrain
+      const sc = (aboard.def && aboard.def.scale) || 1.3;
+      const size = sc * (aboard.def && aboard.def.big ? 7.5 : 5.5);
+      const want = size + 3 + Math.max(0, -p.pitch) * 6;
+      this.camDist = this.camDist === undefined ? want : this.camDist + (want - this.camDist) * Math.min(1, dt * 4);
+      const lift2 = ((aboard.def && aboard.def.seat) || 0.8) + sc * 1.8 + Math.max(0, p.pitch) * 4;
+
+      const cy = Math.cos(p.pitch);
+      let bx = Math.sin(p.yaw) * cy, bz = Math.cos(p.yaw) * cy;
+      let dist = this.camDist;
+      // pull in until the view is clear of blocks
+      for (let step = dist; step > 1.2; step -= 0.8) {
+        const tx = Math.floor(p.pos.x + bx * step);
+        const ty = Math.floor(p.pos.y + lift2);
+        const tz = Math.floor(p.pos.z + bz * step);
+        const b = BLOCKS[w.getBlock(tx, ty, tz)];
+        if (!b.solid || b.id === AIR) { dist = step; break; }
+        dist = step - 0.8;
+      }
+      this.camera.position.set(p.pos.x + bx * dist, p.pos.y + lift2, p.pos.z + bz * dist);
       this.camera.rotation.set(0, 0, 0, 'YXZ');
       this.camera.rotateY(p.yaw);
-      this.camera.rotateX(p.pitch - 0.12);
+      this.camera.rotateX(p.pitch - 0.18);
     } else {
+      this.camDist = undefined;
       this.camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
       this.camera.rotation.set(0, 0, 0, 'YXZ');
       this.camera.rotateY(p.yaw);
@@ -4190,6 +4237,7 @@ Object.assign(Game, {
   },
 
   showDriveHint(asPassenger) {
+    if (this.hintDismissed) return;
     const el = $('#drive-hint');
     const v = asPassenger ? this.passengerIn : this.riding;
     if (!el || !v) return;
@@ -4222,8 +4270,18 @@ Object.assign(Game, {
       '<i id="hint-clock">30s</i><i id="hint-close" title="Close">\u2715</i></b>' +
       rows.map(r => `<span><kbd>${r[0]}</kbd>${r[1]}</span>`).join('');
     el.classList.add('show');
+    const shut = (ev) => {
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      el.classList.remove('show');
+      this.hintTimer = 0;
+      this.hintDismissed = true;          // do not pop back up this ride
+    };
     const close = document.getElementById('hint-close');
-    if (close) close.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); this.hintTimer = 0; });
+    if (close) {
+      close.addEventListener('click', shut);
+      close.addEventListener('touchstart', shut, { passive: false });
+    }
+    el.addEventListener('dblclick', shut);
   },
 
   toggleHeadlamp() {
@@ -4625,6 +4683,7 @@ Object.assign(Game, {
         this.showDriveHint(true);
         return;
       }
+      this.hintDismissed = false;
       nearV.owner = this.net.selfId || 'local';
       this.riding = nearV;
       this.toast('Driving the ' + nearV.def.name + '.');
@@ -6883,6 +6942,22 @@ Game.net = {
         Game.applyRemoteVehicle(m);
         break;
       }
+      case 'realm': {
+        // somebody changed world: only draw people who are where you are
+        const peer = this.peers.get(m.id);
+        if (peer) {
+          peer.realm = m.realm;
+          peer.model.visible = (m.realm === Game.realm);
+        }
+        break;
+      }
+      case 'crew': {
+        // the pilot is taking the whole crew somewhere
+        if (m.crew && m.crew.indexOf(this.selfId) >= 0 && m.realm && m.realm !== Game.realm) {
+          Game.followCrew(m);
+        }
+        break;
+      }
       case 'move': {
         if (m.id === this.selfId) return;
         let p = this.peers.get(m.id);
@@ -6890,6 +6965,11 @@ Game.net = {
         p.lastAt = performance.now();
         p.target.set(m.x, m.y, m.z);
         p.yaw = m.yaw;
+        p.aboard = m.riding || null;
+        if (m.realm) {
+          p.realm = m.realm;
+          p.model.visible = (m.realm === Game.realm);
+        }
         // only rebuild the body when their gear actually changes: comparing
         // against an unset value rebuilt everyone on their first step
         const worn = m.skin ? ((m.skin.goggles ? 1 : 0) + (m.skin.scuba ? 2 : 0) + (m.skin.jetpack ? 4 : 0)) : 0;
@@ -6992,7 +7072,8 @@ Game.net = {
     this.outTimer = 0;
     const p = Game.player.pos;
     this.send({ t: 'move', x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
-                riding: Game.riding ? Game.riding.id : null,
+                riding: Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null),
+                realm: Game.realm,
                 skin: Object.assign({}, Game.skin, {
                   goggles: Game.gear.goggles, scuba: Game.gear.scuba, jetpack: Game.gear.jetpack
                 }) });
@@ -7003,6 +7084,19 @@ Game.net = {
   },
 
   sendEdit(x, y, z, b) { if (this.connected) this.send({ t: 'edit', x, y, z, b }); },
+
+  sendRealm(realm) {
+    if (!this.connected) return;
+    this.send({ t: 'realm', realm });
+  },
+
+  /* the pilot tells the room where the ship is taking everyone */
+  sendCrewMove(realm, planetId, site) {
+    if (!this.connected) return;
+    const crew = [this.selfId];
+    for (const p of this.peers.values()) if (p.aboard && p.aboard === (Game.riding && Game.riding.id)) crew.push(p.id);
+    this.send({ t: 'crew', realm, planet: planetId, crew, site });
+  },
 
   sendVehicle(v, gone) {
     if (!this.connected) return;
@@ -7469,6 +7563,24 @@ Object.assign(UI, {
     }
 
     // creative: everything that exists, added by hand
+    const note = document.createElement('p');
+    note.className = 'lede';
+    note.textContent = 'Every block, item, tool and companion food in the game. Use the search box above.';
+    body.appendChild(note);
+    const foods = ITEMS.filter(d => ['food', 'produce', 'seed'].indexOf(d.kind) >= 0 &&
+                                    d.name.toLowerCase().includes(q));
+    if (foods.length) {
+      const h4 = document.createElement('h4');
+      h4.textContent = 'Companion food and seeds (' + foods.length + ')';
+      body.appendChild(h4);
+      const fg = document.createElement('div');
+      fg.className = 'block-grid';
+      foods.forEach(d => fg.appendChild(chip(d.id, '', () => {
+        Game.give(d.id, 32);
+        Game.toast(d.name + ' \u00d7 32 added.');
+      }, d.kind === 'seed' ? 'seed' : 'animal food')));
+      body.appendChild(fg);
+    }
     const grid = document.createElement('div');
     grid.className = 'block-grid';
     BLOCKS.forEach(b => {
@@ -7847,6 +7959,8 @@ class Vehicle {
       this.tilt = -cmd.turn * 0.45;
 
     } else if (this.kind === 'rotor') {
+      // hold to climb, hold the other to sink, otherwise the lever holds you
+      if (cmd.up === 0 && this.trim) cmd = Object.assign({}, cmd, { up: this.trim });
       // a helicopter: the rotor holds you up, the stick moves you along
       const lift = (cmd.up !== 0 ? cmd.up : (this.pos.y < world.surfaceY(Math.floor(this.pos.x), Math.floor(this.pos.z)) + 2 ? 0 : -0.35));
       this.vy += (lift * 9 - this.vy) * Math.min(1, dt * 2.6);
@@ -9347,6 +9461,7 @@ Object.assign(Game, {
     this.ensureSystem();
     this.buildSpaceScene();
     this.realm = 'space';
+    this.net.sendRealm('space');
     this.spacePos = new THREE.Vector3(0, 40, 340);
     this.spaceVel = new THREE.Vector3();
     this.tethered = false;
@@ -9488,6 +9603,8 @@ Object.assign(Game, {
       for (const c of this.companions) crew.push(c.def.name);
     }
     this.landingSeq = { planet, t: 0, crew };
+    // take everyone aboard with you, to the same world
+    this.net.sendCrewMove('planet:' + planet.id, planet.id, null);
     this.toast('Descending to ' + planet.name +
                (crew.length > 1 ? ' with ' + (crew.length - 1) + ' aboard.' : '.'));
     $('#space-bar').classList.remove('show');
@@ -9533,18 +9650,50 @@ Object.assign(Game, {
     }
   },
 
+  /* a passenger being taken along by the pilot */
+  followCrew(m) {
+    const sys = this.ensureSystem();
+    if (m.realm === 'ground') { this.returnHome(); return; }
+    const p = sys && sys.planets[m.planet];
+    if (!p) return;
+    this.toast('The ship is taking you to ' + p.name + '.');
+    this.beginLanding(p);
+  },
+
   landOn(planet) {
     this.homeSeed = this.homeSeed || (this.world ? this.world.seedText : 'voxelia');
-    const seed = this.homeSeed + ':' + planet.name;
+    // fixed for all time: the same planet in the same system is the same ground
+    const seed = this.homeSeed + '::planet::' + planet.id + '::' + planet.name;
     this.offworld = planet;
     this.applyPlanetTerrain(planet);
     this.startWorld(seed, this.mode, null, true);
     this.realm = 'planet:' + planet.id;
+    this.net.sendRealm(this.realm);
     $('#hud').classList.remove('in-space');
     this.biomeLabel = null;
     // gravity you can feel underfoot
     this.gravityScale = planet.gravity;
-    this.player.pos.y = this.world.surfaceY(0, 0) + 2;
+    // look for the flattest patch nearby so the ship is not left on a slope
+    let best = { x: 0, z: 0, score: 1e9 };
+    for (let a = 0; a < 40; a++) {
+      const cx = Math.round((Math.random() - 0.5) * 120);
+      const cz = Math.round((Math.random() - 0.5) * 120);
+      const h0 = this.world.heightAt(cx, cz);
+      if (h0 <= SEA + 1) continue;
+      let spread = 0;
+      for (const [dx, dz] of [[3, 0], [-3, 0], [0, 3], [0, -3], [2, 2], [-2, -2]]) {
+        spread += Math.abs(this.world.heightAt(cx + dx, cz + dz) - h0);
+      }
+      if (spread < best.score) best = { x: cx, z: cz, score: spread };
+    }
+    const px = best.x + 0.5, pz = best.z + 0.5;
+    const cx0 = Math.floor(px / CX), cz0 = Math.floor(pz / CZ);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const c = this.world.getChunk(cx0 + dx, cz0 + dz, true);
+      if (!c.generated) this.world.generate(c);
+    }
+    this.player.pos.set(px, this.world.surfaceY(Math.floor(px), Math.floor(pz)) + 2, pz);
+    this.landingPad = { x: px, z: pz };
     // a broad exhaust plume under the ship for the descent
     if (!this.landingFlame) {
       const flame = new THREE.Group();
@@ -9562,6 +9711,7 @@ Object.assign(Game, {
     this.gravityScale = 1;
     this.offworld = null;
     this.realm = 'ground';
+    this.net.sendRealm('ground');
     this.startWorld(this.homeSeed || 'voxelia', this.mode);
     this.attachHand();
     this.toast('Home again.');
@@ -9916,6 +10066,9 @@ Object.assign(World.prototype, {
     }
   }
 });
+
+
 </script>
+<script src="survival_combat.js"></script>
 </body>
 </html>
