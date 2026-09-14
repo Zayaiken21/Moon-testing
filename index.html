@@ -5687,7 +5687,7 @@ const UI = {
     $('#map-out').addEventListener('click', () => { this.mapZoom = Math.min(40, (this.mapZoom || 6) * 1.6); this.redrawMap(); });
     $('#mp-host-btn').addEventListener('click', () => this.hostGame());
     $('#mp-join-btn').addEventListener('click', () => this.joinByCode());
-    $('#mp-refresh').addEventListener('click', () => this.probeServers());
+    $('#mp-refresh').addEventListener('click', () => this.probeServers(true));
     $('#mp-relay').addEventListener('change', () => {
       const v = ($('#mp-relay').value || '').trim();
       if (v) { this.rememberServer(v); this.probeServers(); }
@@ -6425,7 +6425,15 @@ const UI = {
   },
 
   /* ask each candidate whether it is really a Voxelia server */
-  probeServers() {
+  probeServers(force) {
+    // a probe answer is good for two minutes: reopening the screen costs nothing
+    const now = Date.now();
+    if (!force && this._probedAt && now - this._probedAt < 120000 && this.liveServers) {
+      this.drawServers();
+      if (this.liveServers.length) this.refreshServerList(true);
+      return Promise.resolve(this.liveServers);
+    }
+    this._probedAt = now;
     const cands = this.knownServers();
     const status = $('#mp-status');
     const field = $('#server-field');
@@ -6519,10 +6527,15 @@ const UI = {
 
   startAutoRefresh() {
     clearInterval(this._mpTimer);
-    this._mpTimer = setInterval(() => {
-      if ($('#multiplayer').classList.contains('open')) this.refreshServerList(true);
-      else clearInterval(this._mpTimer);
-    }, 5000);
+    this._mpBackoff = 0;
+    const tick = () => {
+      if (!$('#multiplayer').classList.contains('open')) { clearInterval(this._mpTimer); return; }
+      if (document.hidden) return;                       // nothing to see, so nothing to ask
+      if (this._mpBackoff > 0) { this._mpBackoff--; return; }
+      this.refreshServerList(true);
+    };
+    // every twelve seconds while the screen is open, and slower after a failure
+    this._mpTimer = setInterval(tick, 12000);
   },
 
   refreshServerList(quiet) {
@@ -6543,7 +6556,10 @@ const UI = {
           listEl.appendChild(row);
         });
       })
-      .catch(() => { listEl.innerHTML = '<p class="lede">That relay did not answer.</p>'; });
+      .catch(() => {
+        this._mpBackoff = 4;      // wait about a minute before trying again
+        listEl.innerHTML = '<p class="lede">No answer from the server. Trying again shortly.</p>';
+      });
   },
 
   randomSeed() {
@@ -6705,6 +6721,13 @@ Object.assign(Game, {
   try {
     const server = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
     if (!server) return;
+    // once a day per device: enough to count players, light enough never to
+    // trouble a free tier or trip a rate limit
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      if (localStorage.getItem('voxelia.counted') === today) return;
+      localStorage.setItem('voxelia.counted', today);
+    } catch (e) { /* private browsing: ping once for this page load */ }
     const base = /^https?:\/\//.test(server) ? server
                : (location.protocol === 'https:' ? 'https://' : 'http://') + server;
     fetch(base.replace(/\/$/, '') + '/visit', {
