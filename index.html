@@ -4253,6 +4253,24 @@ Object.assign(Game, {
     this.hintTimer = 0;
   },
 
+  /* what the controls are called on whatever you are holding */
+  controlWords() {
+    const padOn = Input.activePad && Input.activePad();
+    if (padOn) {
+      return { throttle: 'Left stick', steer: 'Left stick', up: 'A', down: 'B',
+               lamps: 'Y', exit: 'X', how: 'controller' };
+    }
+    if (IS_TOUCH) {
+      return { throttle: 'Left stick', steer: 'Left stick', up: 'Jump', down: 'Down',
+               lamps: 'Lamps', exit: 'Use', how: 'touch' };
+    }
+    const pretty = (c) => String(c).replace('Key', '').replace('ShiftLeft', 'Shift');
+    return { throttle: pretty(VKEYS.forward) + ' / ' + pretty(VKEYS.back),
+             steer: pretty(VKEYS.left) + ' / ' + pretty(VKEYS.right),
+             up: pretty(VKEYS.up), down: pretty(VKEYS.down),
+             lamps: pretty(VKEYS.lights), exit: pretty(VKEYS.exit), how: 'keyboard' };
+  },
+
   showDriveHint(asPassenger) {
     if (this.hintDismissed) return;
     const el = $('#drive-hint');
@@ -4263,26 +4281,25 @@ Object.assign(Game, {
       el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i id="hint-clock">30s</i>' +
         '<i id="hint-close" title="Close">\u2715</i></b>' +
         '<span>Someone else is driving. Sit back.</span>' +
-        `<span><kbd>${VKEYS.exit.replace('Key', '')}</kbd>hop off</span>`;
+        `<span><kbd>${Game.controlWords().exit}</kbd>hop off</span>`;
       el.classList.add('show');
       const c0 = document.getElementById('hint-close');
       if (c0) c0.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); Game.hintTimer = 0; });
       return;
     }
-    const pretty = (code) => code.replace('Key', '').replace('ShiftLeft', 'Shift').replace('Space', 'Space');
-    const rows = [
-      [pretty(VKEYS.forward) + ' / ' + pretty(VKEYS.back), 'throttle'],
-      [pretty(VKEYS.left) + ' / ' + pretty(VKEYS.right), 'steer']
-    ];
+    // named for whatever you are actually holding
+    const W = this.controlWords();
+    const pretty = () => '';
+    const rows = [[W.throttle, 'throttle'], [W.steer, 'steer']];
     if (v.kind === 'sub') {
-      rows.push([pretty(VKEYS.up), '\u25b2 rise to the surface']);
-      rows.push([pretty(VKEYS.down), '\u25bc dive deeper (it sinks on its own)']);
-      rows.push([pretty(VKEYS.lights), 'lamps on and off']);
+      rows.push([W.up, '\u25b2 rise to the surface']);
+      rows.push([W.down, '\u25bc dive deeper (it sinks on its own)']);
+      rows.push([W.lamps, 'lamps on and off']);
     } else if (v.kind === 'plane') {
-      rows.push([pretty(VKEYS.up), '\u25b2 nose up \u2014 keep the throttle on or you stall']);
-      rows.push([pretty(VKEYS.down), '\u25bc nose down']);
+      rows.push([W.up, '\u25b2 nose up \u2014 keep the throttle on or you stall']);
+      rows.push([W.down, '\u25bc nose down']);
     }
-    rows.push([pretty(VKEYS.exit), 'get out']);
+    rows.push([W.exit, 'get out']);
     el.innerHTML = '<b>' + v.def.name + ' \u00b7 ' + v.def.seats + (v.def.seats > 1 ? ' seats' : ' seat') +
       '<i id="hint-clock">30s</i><i id="hint-close" title="Close">\u2715</i></b>' +
       rows.map(r => `<span><kbd>${r[0]}</kbd>${r[1]}</span>`).join('');
@@ -4688,7 +4705,8 @@ Object.assign(Game, {
       if (d < nvd) { nearV = v; nvd = d; }
     }
     if (nearV) {
-      if (nearV.owner && nearV.owner !== this.net.selfId) {
+      const me = this.net.selfId || 'local';
+      if (nearV.owner && nearV.owner !== me) {
         // someone is already driving, so climb in as a passenger
         this.passengerIn = nearV;
         this.riding = null;
@@ -4698,7 +4716,7 @@ Object.assign(Game, {
         return;
       }
       this.hintDismissed = false;
-      nearV.owner = this.net.selfId || 'local';
+      nearV.owner = me;
       this.riding = nearV;
       this.toast('Driving the ' + nearV.def.name + '.');
       this.showDriveHint(false);
@@ -6313,6 +6331,8 @@ const UI = {
     $('#home').classList.remove('open');
     $('#hud').classList.add('on');
     if (IS_TOUCH) $('#touch-layer').classList.add('on');
+    Game.homeSeed = welcome.seed;         // the room's seed drives the whole system
+    Game.system = null;
     Game.startWorld(welcome.seed, welcome.mode || 'survival');
     if (welcome.edits && welcome.edits.length) {
       for (const [k, v] of welcome.edits) Game.world.edits.set(k, v);
@@ -9338,7 +9358,7 @@ const PLANET_NAME_B = ['ara', 'ion', 'eth', 'is', 'una', 'or', 'ix', 'aris', 'ot
 
 function buildSystem(seedText) {
   const r = mulberry32(hashString(seedText + ':system'));
-  const count = 7 + Math.floor(r() * 6);          // seven to a dozen worlds
+  const count = 12 + Math.floor(r() * 9);        // a dozen to twenty worlds
   const taken = new Set(['Voxelia']);
   const planets = [];
   for (let i = 0; i < count; i++) {
@@ -9431,7 +9451,12 @@ Object.assign(Game, {
   system: null,
 
   ensureSystem() {
-    if (!this.system && this.world) this.system = buildSystem(this.world.seedText);
+    // the system belongs to the world seed, so a whole room sees the same sky
+    const base = this.homeSeed || (this.world && this.world.seedText) || 'voxelia';
+    if (!this.system || this.systemSeed !== base) {
+      this.system = buildSystem(base);
+      this.systemSeed = base;
+    }
     return this.system;
   },
 
@@ -9481,14 +9506,37 @@ Object.assign(Game, {
 
     // floating minerals to gather on a tether
     this.spaceRocks = [];
-    for (let i = 0; i < 90; i++) {
-      const item = SPACE_MINERALS[i % SPACE_MINERALS.length];
-      const rock = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 2.4),
-                                  new THREE.MeshLambertMaterial({ color: itemDef(item).tint }));
-      const a = Math.random() * Math.PI * 2, d = 260 + Math.random() * 1500;
-      rock.position.set(Math.cos(a) * d, (Math.random() - 0.5) * 260, Math.sin(a) * d);
+    for (let i = 0; i < 170; i++) {
+      const kind = ASTEROIDS[i % ASTEROIDS.length];
+      const holds = kind.holds.filter(k => ORE_ITEMS[k] !== undefined);
+      const item = holds.length ? ORE_ITEMS[holds[(Math.random() * holds.length) | 0]]
+                                : SPACE_MINERALS[i % SPACE_MINERALS.length];
+      // a lumpy body, not a plain cube: a rock core with mineral veins showing
+      const rock = new THREE.Group();
+      const size = 1.8 + Math.random() * 3.4;
+      const core = new THREE.Mesh(new THREE.BoxGeometry(size, size * 0.86, size * 1.12),
+                                  new THREE.MeshLambertMaterial({ color: kind.matrix }));
+      rock.add(core);
+      for (let c = 0; c < 3; c++) {
+        const chunk = new THREE.Mesh(
+          new THREE.BoxGeometry(size * 0.6, size * 0.6, size * 0.6),
+          new THREE.MeshLambertMaterial({ color: kind.matrix }));
+        chunk.position.set((Math.random() - 0.5) * size, (Math.random() - 0.5) * size,
+                           (Math.random() - 0.5) * size);
+        rock.add(chunk);
+      }
+      for (let v = 0; v < 3; v++) {
+        const vein = new THREE.Mesh(
+          new THREE.BoxGeometry(size * 1.04, size * 0.16, size * 0.3),
+          new THREE.MeshLambertMaterial({ color: itemDef(item).tint }));
+        vein.position.y = (v - 1) * size * 0.3;
+        vein.rotation.z = Math.random() * 0.6;
+        rock.add(vein);
+      }
+      const a = Math.random() * Math.PI * 2, d = 240 + Math.random() * 1900;
+      rock.position.set(Math.cos(a) * d, (Math.random() - 0.5) * 320, Math.sin(a) * d);
       scene.add(rock);
-      this.spaceRocks.push({ mesh: rock, item, spin: Math.random() * 6 });
+      this.spaceRocks.push({ mesh: rock, item, kind: kind.name, spin: Math.random() * 6 });
     }
 
     this.spaceScene = scene;
@@ -9496,6 +9544,18 @@ Object.assign(Game, {
   },
 
   enterSpace() {
+    if (this.riding && this.riding.def.space) {
+      this.shipItem = this.riding.itemId;
+      // the craft leaves the ground with you
+      const v = this.riding;
+      this.net.sendVehicle(v, true);
+      this.entityGroup.remove(v.model);
+      const at = this.vehicles.indexOf(v);
+      if (at >= 0) this.vehicles.splice(at, 1);
+      this.riding = null;
+      this.parkedShip = null;
+      this.clearVehicleHud();
+    }
     this.ensureSystem();
     this.buildSpaceScene();
     this.realm = 'space';
@@ -9508,6 +9568,16 @@ Object.assign(Game, {
     this.tethered = false;
     if (this.riding) { this.spaceShip = this.riding; }
     $('#hud').classList.add('in-space');
+    if (this.courseTo) {
+      const entry = this.planetMeshes.find(e => e.planet.id === this.courseTo.id);
+      if (entry) {
+        this.spacePos.copy(entry.mesh.position).add(
+          new THREE.Vector3(0, this.courseTo.radius * 0.4, this.courseTo.radius + 80));
+        this.spaceVel.set(0, 0, 0);
+        this.toast('Course held: ' + this.courseTo.name + ' is off the bow.');
+      }
+      this.courseTo = null;
+    }
     this.toast('Orbit reached. ' + (IS_TOUCH ? 'Use' : 'E') + ' leaves the ship on a tether. Open the telescope to choose a world.');
     UI.refreshSpaceBar();
   },
@@ -9575,7 +9645,7 @@ Object.assign(Game, {
         rock.spin += dt;
         rock.mesh.rotation.set(rock.spin * 0.4, rock.spin * 0.6, 0);
         if (rock.mesh.position.distanceTo(this.spacePos) < 6) {
-          this.give(rock.item, 1 + Math.floor(Math.random() * 3));
+          this.give(rock.item, 1 + Math.floor(Math.random() * 4));
           this.spaceScene.remove(rock.mesh);
           this.spaceRocks.splice(i, 1);
           this.blip(880);
@@ -9643,6 +9713,9 @@ Object.assign(Game, {
       crew.push('you');
       for (const c of this.companions) crew.push(c.def.name);
     }
+    // remember which ship brought you, so it is there when you want to leave
+    this.shipItem = (this.riding && this.riding.def.space) ? this.riding.itemId
+                  : (this.shipItem || I.ROCKET);
     this.landingSeq = { planet, t: 0, crew };
     // take everyone aboard with you, to the same world
     this.net.sendCrewMove('planet:' + planet.id, planet.id, null);
@@ -9685,6 +9758,7 @@ Object.assign(Game, {
       if (this.landingFlame) { this.scene.remove(this.landingFlame); this.landingFlame = null; }
       this.realm = 'planet:' + seq.planet.id;
       this.landingSeq = null;
+      this.parkShip();
       this.blip(200);
       this.toast('Down safely on ' + seq.planet.name + '. ' + seq.planet.label + '.');
       UI.refreshSpaceBar();
@@ -9747,6 +9821,36 @@ Object.assign(Game, {
     UI.refreshSpaceBar();
   },
 
+  /* set the ship down beside you, upright on the ground, ready to fly again */
+  parkShip() {
+    if (!this.shipItem || !VEHICLES[this.shipItem]) return;
+    // you are stood on the ground now, not strapped into anything
+    this.riding = null;
+    this.passengerIn = null;
+    this.mount = null;
+    this.clearVehicleHud();
+    const p = this.player.pos;
+    // a few paces to one side, on whatever the ground is there
+    let sx = Math.round(p.x) + 4, sz = Math.round(p.z);
+    for (let tries = 0; tries < 12; tries++) {
+      const h = this.world.surfaceY(sx, sz);
+      const flatEnough = Math.abs(this.world.surfaceY(sx + 2, sz) - h) <= 1 &&
+                         Math.abs(this.world.surfaceY(sx, sz + 2) - h) <= 1;
+      if (h > 1 && flatEnough) break;
+      const a = tries * 1.1;
+      sx = Math.round(p.x + Math.cos(a) * (4 + tries));
+      sz = Math.round(p.z + Math.sin(a) * (4 + tries));
+    }
+    const gy = this.world.surfaceY(sx, sz) + 1;
+    const ship = new Vehicle(this.shipItem, new THREE.Vector3(sx + 0.5, gy, sz + 0.5), this.player.yaw);
+    ship.owner = this.net.selfId || 'local';
+    this.vehicles.push(ship);
+    this.entityGroup.add(ship.model);
+    this.net.sendVehicle(ship, false);
+    this.parkedShip = ship;
+    this.toast('Your ' + ship.def.name.toLowerCase() + ' is on the pad beside you.');
+  },
+
   returnHome() {
     this.keepKit = true;
     this.restoreHomeTerrain();
@@ -9756,6 +9860,7 @@ Object.assign(Game, {
     this.net.sendRealm('ground');
     this.startWorld(this.homeSeed || 'voxelia', this.mode);
     this.keepKit = false;
+    if (this.shipItem) this.parkShip();
     this.attachHand();
     this.toast('Home again.');
     UI.refreshSpaceBar();
@@ -9811,14 +9916,22 @@ Object.assign(UI, {
     });
     list.appendChild(home);
 
+    const head = document.createElement('p');
+    head.className = 'lede';
+    head.textContent = sys.planets.length + ' worlds charted. ' +
+      (Game.realm === 'space' ? 'Pick one and the ship comes about.'
+       : 'Pick one to set a course; you launch from the ground in a rocket.');
+    list.appendChild(head);
+
     sys.planets.forEach(p => {
       const row = document.createElement('button');
       row.className = 'bind-row';
       const here = Game.realm === 'planet:' + p.id;
       row.innerHTML =
         `<span><span class="chart-dot" style="background:${p.colors.ground};box-shadow:0 0 14px ${p.colors.sky}"></span>` +
-        `<strong>${p.name}</strong><br><small>${p.label} \u00b7 ${p.note}</small></span>` +
-        `<b>${here ? 'you are here' : (Game.realm === 'space' ? 'fly there' : 'observed')}</b>`;
+        `<strong>${p.name}${Game.courseTo === p ? ' \u2713' : ''}</strong><br>` +
+        `<small>${p.label} \u00b7 ${p.note}</small></span>` +
+        `<b>${here ? 'you are here' : (Game.realm === 'space' ? 'fly there' : 'set course')}</b>`;
       row.addEventListener('click', () => {
         if (here) return;
         if (Game.realm === 'space') {
@@ -9832,7 +9945,11 @@ Object.assign(UI, {
             this.refreshSpaceBar();
           }
         } else {
-          Game.toast(p.name + ': ' + p.label + '. ' + p.note);
+          // from the ground: remember the destination, so the rocket knows
+          Game.courseTo = p;
+          Game.toast('Course set for ' + p.name + '. ' + p.label +
+                     '. Launch and it will be waiting at the top of the chart.');
+          this.openStarChart();
         }
       });
       list.appendChild(row);
@@ -10109,6 +10226,123 @@ Object.assign(World.prototype, {
     }
   }
 });
+
+/* ---------------------------------------------------------------
+   39. The wider system — fourteen kinds of world and forty five
+   minerals, straight from the survey tables.
+   --------------------------------------------------------------- */
+const WORLD_TYPES = [
+  { key: 'terran', label: 'Terran world', sky: '#8FC6E8', fog: '#6FA8C7', ground: '#5FA945', accent: '#7A5433', grav: 1.00, relief: 0.55, sea: 0.52, craters: 0.02, ice: 0.70, clouds: 0.55, life: 0.90, ridge: 0.55, tree: 'jungle' },
+  { key: 'oceanic', label: 'Oceanic world', sky: '#2E86C1', fog: '#1E6C9E', ground: '#2E6E92', accent: '#6FD8D0', grav: 0.95, relief: 0.35, sea: 0.88, craters: 0.01, ice: 0.60, clouds: 0.70, life: 0.80, ridge: 0.35, tree: 'reef' },
+  { key: 'arid', label: 'Arid world', sky: '#E0B471', fog: '#B89A66', ground: '#C4A472', accent: '#8A6A3C', grav: 0.90, relief: 0.60, sea: 0.08, craters: 0.18, ice: 0.15, clouds: 0.12, life: 0.15, ridge: 0.60, tree: 'cactus' },
+  { key: 'desert', label: 'Desert world', sky: '#F0D9A8', fog: '#D9B978', ground: '#E2C489', accent: '#C87A3E', grav: 0.85, relief: 0.45, sea: 0.00, craters: 0.25, ice: 0.05, clouds: 0.06, life: 0.05, ridge: 0.40, tree: 'cactus' },
+  { key: 'tundra', label: 'Tundra world', sky: '#CFE0EA', fog: '#A8C0D0', ground: '#B9C8D0', accent: '#4E3B2E', grav: 0.92, relief: 0.50, sea: 0.35, craters: 0.06, ice: 0.95, clouds: 0.50, life: 0.35, ridge: 0.50, tree: 'pine' },
+  { key: 'glacial', label: 'Glacial world', sky: '#DCEBF5', fog: '#A8C8DE', ground: '#EAF2F7', accent: '#8FB6CE', grav: 0.80, relief: 0.45, sea: 0.30, craters: 0.08, ice: 1.00, clouds: 0.45, life: 0.10, ridge: 0.45, tree: 'none' },
+  { key: 'volcanic', label: 'Volcanic world', sky: '#5A2A22', fog: '#7A3324', ground: '#4A2A26', accent: '#FF6B3D', grav: 1.15, relief: 0.80, sea: 0.12, craters: 0.30, ice: 0.00, clouds: 0.30, life: 0.02, ridge: 0.85, tree: 'ember' },
+  { key: 'lunar', label: 'Lunar world', sky: '#4A4A52', fog: '#33333A', ground: '#8A8593', accent: '#C6C9D6', grav: 0.35, relief: 0.50, sea: 0.00, craters: 1.00, ice: 0.05, clouds: 0.00, life: 0.00, ridge: 0.30, tree: 'none' },
+  { key: 'ferrous', label: 'Ferrous world', sky: '#7A5A4A', fog: '#5A4038', ground: '#8A6A58', accent: '#C87A3E', grav: 1.05, relief: 0.65, sea: 0.00, craters: 0.55, ice: 0.00, clouds: 0.04, life: 0.00, ridge: 0.70, tree: 'none' },
+  { key: 'carbon', label: 'Carbon world', sky: '#2A2A2E', fog: '#1A1A1E', ground: '#3A3A42', accent: '#6E6A78', grav: 0.90, relief: 0.55, sea: 0.00, craters: 0.40, ice: 0.00, clouds: 0.08, life: 0.00, ridge: 0.60, tree: 'none' },
+  { key: 'crystalline', label: 'Crystalline world', sky: '#B08AE8', fog: '#7A5AC0', ground: '#8F6FD0', accent: '#8FE3D0', grav: 0.65, relief: 0.75, sea: 0.05, craters: 0.20, ice: 0.30, clouds: 0.05, life: 0.05, ridge: 0.90, tree: 'none' },
+  { key: 'fungal', label: 'Fungal world', sky: '#3A2A56', fog: '#4B3378', ground: '#6A4A9E', accent: '#C86BE8', grav: 0.78, relief: 0.40, sea: 0.30, craters: 0.03, ice: 0.20, clouds: 0.50, life: 1.00, ridge: 0.35, tree: 'shroom' },
+  { key: 'toxic', label: 'Toxic world', sky: '#6E7A3A', fog: '#4A5A22', ground: '#5A6A2A', accent: '#B8E86B', grav: 1.00, relief: 0.50, sea: 0.40, craters: 0.05, ice: 0.10, clouds: 0.90, life: 0.30, ridge: 0.50, tree: 'none' },
+  { key: 'shattered', label: 'Shattered world', sky: '#4A4458', fog: '#33303F', ground: '#5D5A6A', accent: '#A97BFF', grav: 0.55, relief: 0.90, sea: 0.00, craters: 0.80, ice: 0.00, clouds: 0.00, life: 0.00, ridge: 0.80, tree: 'none' }
+];
+
+/* every mineral is a real item you can mine out of an asteroid or the
+   ground of another world, priced by how hard it is to reach */
+const SPACE_ORES = [
+  ['regolith', 'Regolith', '#5d5a55', 1, 1, 1],
+  ['silicate', 'Silicate Rock', '#7a7466', 1, 1, 1],
+  ['basalt_ore', 'Basalt', '#3c3a40', 1, 2, 2],
+  ['carbonite', 'Carbonite', '#1d1d22', 1, 2, 3],
+  ['ice_ore', 'Water Ice', '#bfe4f2', 1, 1, 3],
+  ['methane_clathrate', 'Methane Clathrate', '#a8d8d0', 1, 1, 4],
+  ['ammonia_ice', 'Ammonia Ice', '#d0e0c0', 1, 1, 4],
+  ['sulphur', 'Sulphur', '#d8c23a', 1, 2, 4],
+  ['iron_ore', 'Iron Ore', '#8a6a58', 2, 2, 6],
+  ['nickel_ore', 'Nickel Ore', '#9aa0a8', 2, 3, 8],
+  ['copper_ore', 'Copper Ore', '#b5703a', 2, 2, 8],
+  ['aluminium_ore', 'Bauxite', '#c08a5a', 2, 2, 7],
+  ['titanium_ore', 'Ilmenite', '#6a6f78', 3, 4, 18],
+  ['tin_ore', 'Cassiterite', '#8f8f96', 2, 3, 9],
+  ['zinc_ore', 'Sphalerite', '#9a8a6a', 2, 3, 8],
+  ['lead_ore', 'Galena', '#5f6068', 2, 3, 9],
+  ['chromite', 'Chromite', '#4a4f58', 3, 4, 16],
+  ['cobalt_ore', 'Cobaltite', '#4a5f8a', 3, 4, 20],
+  ['silver_ore', 'Silver Ore', '#cfd4da', 3, 3, 28],
+  ['gold_ore', 'Gold Ore', '#d8a62a', 4, 4, 55],
+  ['platinum_ore', 'Platinum Ore', '#dce0e4', 4, 5, 90],
+  ['palladium_ore', 'Palladium', '#c4c8cc', 4, 5, 85],
+  ['iridium_ore', 'Iridium', '#b8bcc8', 5, 6, 140],
+  ['osmium_ore', 'Osmium', '#8a94a8', 5, 6, 130],
+  ['quartz_ore', 'Quartz', '#d8dce4', 2, 3, 10],
+  ['amethyst_ore', 'Amethyst', '#8f5ec8', 3, 3, 30],
+  ['emerald_ore', 'Emerald', '#2fb87a', 4, 4, 75],
+  ['sapphire_ore', 'Sapphire', '#2f6fd0', 4, 4, 78],
+  ['ruby_ore', 'Ruby', '#d02f4a', 4, 4, 80],
+  ['diamond_ore', 'Diamond', '#dff4ff', 5, 6, 180],
+  ['opal_ore', 'Void Opal', '#c8a8ff', 5, 5, 200],
+  ['uranite', 'Uranite', '#6fb03a', 4, 5, 95],
+  ['thorite', 'Thorite', '#8fc44a', 4, 5, 88],
+  ['helium3', 'Helium-3 Deposit', '#a8e8ff', 4, 2, 70],
+  ['deuterium_ice', 'Deuterium Ice', '#9fd8ff', 3, 2, 45],
+  ['tritium_salt', 'Tritium Salt', '#d8ffe4', 5, 4, 160],
+  ['rare_earth', 'Rare Earth Oxides', '#c8a060', 4, 4, 65],
+  ['lithium_ore', 'Spodumene', '#e0d4c0', 3, 3, 34],
+  ['phosphorite', 'Phosphorite', '#c8c07a', 2, 2, 12],
+  ['magnetite', 'Magnetite', '#3a3f4a', 3, 4, 22],
+  ['pyrite', 'Pyrite', '#c8a83a', 2, 3, 6],
+  ['obsidian_glass', 'Obsidian', '#1a1620', 2, 4, 14],
+  ['starmetal', 'Starmetal', '#a8d4ff', 5, 7, 320],
+  ['void_crystal', 'Void Crystal', '#9a4dff', 5, 7, 380],
+  ['quantite', 'Quantite', '#3fffc0', 5, 8, 460]
+];
+
+const ORE_ITEMS = {};
+SPACE_ORES.forEach(([key, name, colour, tier, hard, value]) => {
+  const id = defItem({ name, kind: 'material', tint: colour, tier, hardness: hard, value, oreKey: key });
+  ORE_ITEMS[key] = id;
+});
+const ORE_ITEM_LIST = Object.keys(ORE_ITEMS).map(k => ORE_ITEMS[k]);
+
+/* asteroid kinds, each carrying its own likely minerals */
+const ASTEROIDS = [
+  { key: 'stony',        name: 'Stony asteroid',      matrix: '#6f6a60', holds: ['silicate', 'iron_ore', 'copper_ore', 'quartz_ore'] },
+  { key: 'metallic',     name: 'Metallic asteroid',   matrix: '#77706a', holds: ['iron_ore', 'nickel_ore', 'titanium_ore', 'magnetite'] },
+  { key: 'carbonaceous', name: 'Carbon asteroid',     matrix: '#2a2a2e', holds: ['carbonite', 'phosphorite', 'ice_ore'] },
+  { key: 'icy',          name: 'Icy body',            matrix: '#9fc4d4', holds: ['ice_ore', 'ammonia_ice', 'methane_clathrate'] },
+  { key: 'cometary',     name: 'Comet nucleus',       matrix: '#4a5a64', holds: ['ice_ore', 'deuterium_ice', 'methane_clathrate'] },
+  { key: 'crystalline',  name: 'Crystal shard',       matrix: '#4a4a6a', holds: ['quartz_ore', 'amethyst_ore', 'sapphire_ore'] },
+  { key: 'volcanic',     name: 'Volcanic fragment',   matrix: '#3a2c28', holds: ['basalt_ore', 'sulphur', 'obsidian_glass'] },
+  { key: 'regolith',     name: 'Regolith clump',      matrix: '#5d5a55', holds: ['regolith', 'helium3', 'silicate'] }
+];
+
+/* the survey types stand alongside the originals, so a system mixes both */
+WORLD_TYPES.forEach(w => {
+  PLANET_TYPES.push({
+    key: w.key, label: w.label, sky: w.sky, fog: w.fog,
+    ground: w.ground, accent: w.accent, grav: w.grav, survey: w
+  });
+  PLANET_TERRAIN[w.key] = {
+    surface: w.key === 'oceanic' ? B.CORALSAND : w.key === 'glacial' || w.key === 'tundra' ? B.SNOW
+           : w.key === 'volcanic' ? B.ASH : w.key === 'desert' || w.key === 'arid' ? B.SAND
+           : w.key === 'lunar' ? B.GRAVEL : w.key === 'ferrous' ? B.GRAVEL
+           : w.key === 'carbon' ? B.STONE : w.key === 'crystalline' ? B.MARBLE
+           : w.key === 'fungal' ? B.MYCELIUM : w.key === 'toxic' ? B.JUNGLETURF
+           : w.key === 'shattered' ? B.STONE : B.GRASS,
+    sub: w.key === 'ferrous' ? B.IRON : w.key === 'carbon' ? B.COAL
+       : w.key === 'crystalline' ? B.AMETHYST : w.key === 'volcanic' ? B.EMBERITE
+       : w.key === 'glacial' ? B.ICE : B.STONE,
+    amp: 0.6 + w.relief * 2.4,
+    base: Math.round(-14 + w.sea * -18 + w.relief * 26),
+    tree: w.tree,
+    flora: w.life * 0.3,
+    water: Math.round((w.sea - 0.45) * 40),
+    cover: w.ice > 0.6 ? B.ICE : null
+  };
+});
+
+
 </script>
 </body>
 </html>
