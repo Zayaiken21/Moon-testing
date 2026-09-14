@@ -437,6 +437,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   background:rgba(255,255,255,.24)}
 
 .pad{position:absolute;inset:0;pointer-events:none}
+/* aboard a craft: mining, placing and jumping make no sense, so they go */
+.pad.riding #btn-mine,.pad.riding #btn-place,.pad.riding #btn-jump,
+.pad.riding #btn-drop,.pad.riding #btn-bag{display:none}
+.pad.riding #btn-interact{border-color:var(--ember);color:var(--ember)}
+#hud.riding #hotbar,#hud.riding #break-bar-wrap,#hud.riding #prompt{display:none}
+#hud.riding #stick-move{opacity:.55}
 
 .tbtn{position:relative;border-radius:50%;pointer-events:auto;
   background:radial-gradient(120% 120% at 30% 25%, rgba(70,64,92,.95), rgba(18,16,26,.92));
@@ -1007,6 +1013,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- optional: drop store.js beside this file and a Store button appears on the title screen -->
+<script src="rewards.js" onerror="console.info('rewards.js not present, carrying on without it')"></script>
 <script src="store.js" onerror="console.info('store.js not present, carrying on without it')"></script>
 <script>
   /* keep a copy on the device so the game runs with no connection at all */
@@ -2760,6 +2767,7 @@ class Creature {
   }
 
   get displayName() { return this.nickname || this.def.name; }
+  get rarity() { return this.def.rarity || (this.def.rare ? 'rare' : 'common'); }
 
   feed() {
     this.trust = Math.min(1, this.trust + 1 / this.def.feedsToTame);
@@ -3310,6 +3318,7 @@ const Game = {
 
     addEventListener('resize', () => this.resize());
     Input.bindKeyboard();
+    this.bindHintClose();
     this.bindMouse();
     this.bindTouch();
     this.clock = performance.now();
@@ -3603,23 +3612,26 @@ const Game = {
         return;                                         // swimmers need real depth
       }
       if (def.sessile) {
-        // anemones, coral and tubeworms root to the sea floor in patches
         const patch = Math.min(4, def.herd || 3);
         for (let i = 0; i < patch; i++) {
-          this.addCreature(species, x + (rnd() - 0.5) * 6, bed + 1, z + (rnd() - 0.5) * 6);
+          this.addCreature(species, x + (rnd() - 0.5) * 6, bed + 1, z + (rnd() - 0.5) * 6,
+                           null, cx + ':' + cz + ':' + (nth || 0) + ':' + i);
         }
         return;
       }
       const school = (def.plan === 'fish' || def.family === 'fish') ? 5 + ((rnd() * 6) | 0) : (def.herd || 1);
       for (let i = 0; i < school; i++) {
         const y = bed + 1.5 + rnd() * Math.max(1, SEA - bed - 2.5);
-        this.addCreature(species, x + (rnd() - 0.5) * 5, y, z + (rnd() - 0.5) * 5);
+        this.addCreature(species, x + (rnd() - 0.5) * 5, y, z + (rnd() - 0.5) * 5,
+                         null, cx + ':' + cz + ':' + (nth || 0) + ':' + i);
       }
       return;
     }
     if (bed < SEA) return;                              // land animals stay dry
     const n = (def.herd || 1) + (rnd() < 0.5 ? 1 : 0);
-    for (let i = 0; i < n; i++) this.addCreature(species, x + i * 1.6, bed + 1, z);
+    for (let i = 0; i < n; i++) {
+      this.addCreature(species, x + i * 1.6, bed + 1, z, null, cx + ':' + cz + ':' + (nth || 0) + ':' + i);
+    }
   },
 
   // keeps the world alive as animals wander off or get bucketed
@@ -3652,8 +3664,10 @@ const Game = {
     }
   },
 
-  addCreature(species, x, y, z, id) {
+  addCreature(species, x, y, z, id, spawnKey) {
     const c = new Creature(species, new THREE.Vector3(x, y, z), id);
+    // a stable name for this individual, so a payout can only land once
+    c.spawnKey = spawnKey || (Math.round(x) + '_' + Math.round(y) + '_' + Math.round(z));
     this.creatures.push(c);
     this.entityGroup.add(c.model);
     return c;
@@ -4255,6 +4269,26 @@ Object.assign(Game, {
   },
 
   /* everything a vehicle puts on screen, taken away in one go */
+  /* one handler for the card, bound once: the X can never miss */
+  bindHintClose() {
+    if (this.hintDelegate) return;
+    this.hintDelegate = true;
+    const el = $('#drive-hint');
+    if (!el) return;
+    const shut = (ev) => {
+      const t = ev.target;
+      if (!t || !t.id || (t.id !== 'hint-close' && t.id !== 'hint-clock')) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      el.classList.remove('show');
+      this.hintTimer = 0;
+      this.hintDismissed = true;
+      clearInterval(this._hintTimer);
+    };
+    el.addEventListener('click', shut);
+    el.addEventListener('touchstart', shut, { passive: false });
+  },
+
   clearVehicleHud() {
     ['#drive-hint', '#altimeter', '#alt-lever'].forEach(sel => {
       const el = $(sel);
@@ -4376,6 +4410,13 @@ Object.assign(Game, {
 
   /* the round buttons relabel themselves for whatever you are looking at */
   refreshTouchButtons() {
+    // aboard anything, the on-foot buttons step aside for the craft's own
+    const aboard = !!(this.riding || this.passengerIn || this.mount);
+    const pad = document.querySelector('.pad');
+    if (pad) pad.classList.toggle('riding', aboard);
+    const hud = $('#hud');
+    if (hud) hud.classList.toggle('riding', aboard);
+
     const act = $('#btn-interact');
     const alt = $('#btn-alt');
     if (!act || !alt) return;
@@ -6696,6 +6737,10 @@ Object.assign(Game, {
         $('#breath-row').style.opacity = this.player.breath < 0.999 ? '1' : '0.25';
         this.refreshGearBadge();
         this.refreshTouchButtons();
+        if (!IS_TOUCH) {
+          const hud = $('#hud');
+          if (hud) hud.classList.toggle('riding', !!(this.riding || this.passengerIn || this.mount));
+        }
         UI.refreshSocialButtons();
         if (!UI.anyOpen()) this.drawMap($('#minimap'), 2.4, true);
         $('#fps').style.display = Settings.showFps ? 'block' : 'none';
