@@ -9,9 +9,9 @@
 <title>Voxelia — a world you can be kind to</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta name="application-name" content="Voxelia">
 <meta name="apple-mobile-web-app-title" content="Voxelia">
 <meta name="color-scheme" content="dark">
@@ -362,6 +362,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 @media (orientation:landscape) and (max-height:560px){
   #space-bar{bottom:calc(env(safe-area-inset-bottom) + 8px);padding:6px 12px;gap:5px}
 }
+.slot-del{margin-left:10px;font-style:normal;color:var(--muted);cursor:pointer;padding:0 6px}
+.slot-del:hover{color:#FF9E9E}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
   flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
 #chat-log.show{display:flex;opacity:1}
@@ -904,7 +906,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="bag-tab" data-tab="index">Creatures</button>
       <button class="bag-tab" data-tab="eggs">Eggs</button>
       <button class="bag-tab" data-tab="quests">Errands</button>
-      <button class="bag-tab" data-tab="all">All blocks</button>
+      <button class="bag-tab" data-tab="all">All items</button>
     </div>
     <input type="text" id="bag-search" placeholder="Search…" spellcheck="false" />
     <div id="bag-body"></div>
@@ -982,7 +984,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <input id="mp-relay" spellcheck="false" placeholder="voxelia-yourname.onrender.com" style="margin-top:8px" />
     </div>
 
-    <br><button class="btn" id="mp-leave">Leave the room</button>
+
     <button class="btn close-screen">Close</button>
   </div>
 </section>
@@ -3346,6 +3348,12 @@ const Game = {
     this.disposeWorld();
     if (!offworld) { this.homeSeed = seedText; this.offworld = null; this.realm = 'ground'; }
     this.mode = mode;
+    if (!save) {
+      // the record of how a world was made, and whether creative has ever
+      // touched it: this is what the ledger trusts
+      this.origin = mode;
+      this.everCreative = (mode === 'creative');
+    }
     this.world = new World(seedText, { caves: Settings.caves });
     this.world.noTowns = !!offworld;
     this.world.moonFlora = !!offworld;
@@ -4188,6 +4196,14 @@ Object.assign(Game, {
 
   /* a vehicle someone else put down, or moved */
   applyRemoteVehicle(m) {
+    // the owner's word is final: never build a second craft for one that exists
+    const dupe = this.vehicles.find(v => v.id !== m.id && v.itemId === m.item &&
+      Math.abs(v.pos.x - m.x) < 2.5 && Math.abs(v.pos.y - m.y) < 3 && Math.abs(v.pos.z - m.z) < 2.5 &&
+      (!v.owner || v.owner === m.owner));
+    if (dupe && dupe !== this.riding && dupe !== this.passengerIn) {
+      this.entityGroup.remove(dupe.model);
+      this.vehicles.splice(this.vehicles.indexOf(dupe), 1);
+    }
     let v = this.vehicles.find(x => x.id === m.id);
     // if we are the ones driving it, ignore anything the room says about it
     if (v && (v === this.riding || (v.owner && v.owner === this.net.selfId) )) {
@@ -5751,7 +5767,8 @@ const UI = {
       const v = ($('#mp-relay').value || '').trim();
       if (v) { this.rememberServer(v); this.probeServers(); }
     });
-    $('#mp-leave').addEventListener('click', () => { Game.net.disconnect(); Game.toast('Left the server.'); });
+    // leave is handled by the back button
+    if (false) $('#mp-leave').addEventListener('click', () => { Game.net.disconnect(); Game.toast('Left the server.'); });
     // on a phone this is the pause pill; on a computer it is fullscreen
     $('#fullscreen').addEventListener('click', () => {
       if (IS_TOUCH) this.pause(); else this.toggleFullscreen();
@@ -5860,6 +5877,28 @@ const UI = {
     bindCheck('#set-caves', 'caves');
     bindCheck('#set-auto', 'autoQuality');
     bindCheck('#set-autosave', 'autosave');
+    bindCheck('#set-autosave2', 'autosave');
+
+    /* the pause menu's quick settings */
+    $('#mode-survival').addEventListener('click', () => Game.setMode('survival'));
+    $('#mode-creative').addEventListener('click', () => {
+      if (Game.everCreative || confirm(
+        'Creative mode is permanent for this world: it will never be able to earn again. Continue?')) {
+        Game.setMode('creative');
+      }
+    });
+    $('#pause-settings').addEventListener('click', () => { this.closeAll(); this.toggle('settings'); });
+    $('#pause-howto').addEventListener('click', () => { this.closeAll(); this.toggle('guide'); });
+    const vol = $('#set-volume');
+    vol.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
+    vol.addEventListener('input', () => {
+      Settings.volume = parseInt(vol.value, 10) / 100;
+      saveSettings();
+      Game.blip(520);
+    });
+    $('#mp-roll').addEventListener('click', () => {
+      $('#mp-seed').value = randomSeed();
+    });
     $('#companion-close').addEventListener('click', () => this.closeCompanions());
     $('#space-chart').addEventListener('click', () => this.openStarChart());
     $('#space-tether').addEventListener('click', () => Game.toggleTether());
@@ -6323,6 +6362,20 @@ const UI = {
     }
   },
 
+  refreshModeButtons() {
+    const s = $('#mode-survival'), c = $('#mode-creative'), note = $('#mode-note');
+    if (!s || !c) return;
+    s.classList.toggle('on', Game.mode === 'survival');
+    c.classList.toggle('on', Game.mode === 'creative');
+    if (note) {
+      note.textContent = Game.everCreative
+        ? 'This world has used creative, so it cannot earn.'
+        : (Game.mode === 'survival'
+            ? 'Survival: gather, craft, tame \u2014 and this world can earn.'
+            : 'Creative: everything unlocked.');
+    }
+  },
+
   renderSlots() {
     const el = $('#slot-list');
     const slots = Game.listSlots();
@@ -6332,8 +6385,19 @@ const UI = {
     slots.forEach(sl => {
       const row = document.createElement('button');
       row.className = 'bind-row';
-      row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}</small></span><b>Load</b>`;
-      row.addEventListener('click', () => { if (Game.loadSlot(sl.name)) this.closeAll(); });
+      row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ` +
+        `${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}${sl.everCreative ? ' \u00b7 creative used' : ''}` +
+        `</small></span><b>Load</b><i class="danger slot-del" title="Delete this world">\u2715</i>`;
+      row.addEventListener('click', (ev) => {
+        if (ev.target && ev.target.classList && ev.target.classList.contains('slot-del')) {
+          ev.stopPropagation();
+          if (!confirm('Delete "' + sl.name + '" for good? This cannot be undone.')) return;
+          Game.deleteSlot(sl.name);
+          this.renderSlots();
+          return;
+        }
+        if (Game.loadSlot(sl.name)) this.closeAll();
+      });
       el.appendChild(row);
     });
   },
@@ -6672,6 +6736,10 @@ const UI = {
     if (!Game.running) return;
     // show the sheet before doing any of the slower work, so the tap lands
     $('#pause').classList.add('open');
+    this.refreshModeButtons();
+    this.refreshModeButtons();
+    const v = $('#set-volume');
+    if (v) v.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
     if (document.pointerLockElement) document.exitPointerLock();
     setTimeout(() => this.renderSlots(), 0);
     Input.buttons.mine = false;
@@ -6789,8 +6857,7 @@ Object.assign(Game, {
     const today = new Date().toISOString().slice(0, 10);
     try {
       if (localStorage.getItem('voxelia.counted') === today) return;
-      localStorage.setItem('voxelia.counted', today);
-    } catch (e) { /* private browsing: ping once for this page load */ }
+    } catch (e) { /* private browsing: it pings once for this page load */ }
     const base = /^https?:\/\//.test(server) ? server
                : (location.protocol === 'https:' ? 'https://' : 'http://') + server;
     fetch(base.replace(/\/$/, '') + '/visit', {
@@ -6798,10 +6865,15 @@ Object.assign(Game, {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         ref: document.referrer || 'direct',
+        account: (function () { try { return localStorage.getItem('voxelia.account') || null; } catch (e) { return null; } })(),
         standalone: matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches,
         mode: 'open'
       }),
       keepalive: true
+    }).then((res) => {
+      // only remember it once the server has actually taken it, so a failed
+      // ping is retried next time instead of being silently swallowed
+      if (res && res.ok) { try { localStorage.setItem('voxelia.counted', today); } catch (e) {} }
     }).catch(() => {});
   } catch (e) {}
 })();
@@ -6845,6 +6917,8 @@ Object.assign(Game, {
       }, {}),
       waypoints: this.waypoints || [],
       realm: this.realm,
+      origin: this.origin || this.mode,
+      everCreative: !!this.everCreative,
       homeSeed: this.homeSeed,
       offworld: this.offworld ? this.offworld.id : null,
       seen: this.seen || {},
@@ -6869,6 +6943,19 @@ Object.assign(Game, {
   },
 
   slotKey(name) { return 'voxelia.save.' + name; },
+
+  deleteSlot(name) {
+    try {
+      const all = JSON.parse(localStorage.getItem(SLOT_KEY) || '{}');
+      delete all[name];
+      localStorage.setItem(SLOT_KEY, JSON.stringify(all));
+      this.toast('"' + name + '" deleted.');
+      return true;
+    } catch (e) {
+      this.toast('That world could not be deleted.');
+      return false;
+    }
+  },
 
   listSlots() {
     const store = this.storage();
@@ -6951,6 +7038,9 @@ Object.assign(Game, {
     if (save.bucketed) this.bucketed = save.bucketed.slice();
     if (save.waypoints) this.waypoints = save.waypoints.slice();
     if (save.homeSeed) this.homeSeed = save.homeSeed;
+    if (save.origin) this.origin = save.origin;
+    // once true it can never go back: a world that has seen creative is marked
+    this.everCreative = !!this.everCreative || !!save.everCreative || save.origin === 'creative';
     if (save.offworld !== null && save.offworld !== undefined) {
       const sys = this.ensureSystem();
       const p = sys && sys.planets[save.offworld];
@@ -8443,6 +8533,8 @@ Object.assign(Game, {
    23. House kits, jewel recipes, waypoints and the animal index
    --------------------------------------------------------------- */
 I.LEASH      = defItem({ name: 'Leash', kind: 'tool', tool: 'leash', tier: 1, tint: '#A87C46' });
+I.ROPE       = defItem({ name: 'Rope', kind: 'material', tint: '#C9A96B' });
+I.ROPE_LONG  = defItem({ name: 'Rope Coil', kind: 'material', tint: '#A88A4C' });
 I.SEED_TREE  = defItem({ name: 'Fruit Tree Seed', kind: 'seed', tint: '#4FA83E', plants: -2 });
 I.SEED_KELP  = defItem({ name: 'Kelp Spore', kind: 'seed', tint: '#3E8C5A', plants: -3 });
 I.PLUM       = defItem({ name: 'Jungleplum', kind: 'food', tint: '#8F5FD0' });
@@ -8465,6 +8557,8 @@ RECIPES.push(
   { out: [I.HOUSE_KIT, 1], need: [[B.WALL_PANEL, 12], [B.ROOF_THATCH, 8], [B.FLOORBOARD, 9], [B.DOORFRAME, 1], [B.WINDOWPANE, 2]], station: 'bench' },
   { out: [I.HOUSE_KIT2, 1], need: [[B.WALL_STONE, 12], [B.ROOF_TILE, 8], [B.FLOORBOARD, 9], [B.DOORFRAME, 1], [B.WINDOWPANE, 2], [B.PILLAR, 2]], station: 'engineer' },
   { out: [I.LEASH, 2], need: [[B.THATCH, 4], [I.STICK, 2]], station: 'bench' },
+  { out: [I.ROPE, 4], need: [[B.THATCH, 3]], station: null },
+  { out: [I.ROPE_LONG, 1], need: [[I.ROPE, 4], [I.IRON_ING, 1]], station: 'bench' },
   { out: [I.SEED_TREE, 1], need: [[I.BANANA, 1]], station: null },
   { out: [I.SEED_KELP, 2], need: [[B.KELP, 1]], station: null }
 );
@@ -9571,6 +9665,26 @@ VEHICLES[I.STARLINER] = {
    33. Space: leaving the sky, flying the system, walking on tether
    --------------------------------------------------------------- */
 Object.assign(Game, {
+  /* switching between the two, with the record kept honestly */
+  setMode(m) {
+    if (m === this.mode) return;
+    this.mode = m;
+    if (m === 'creative') {
+      this.everCreative = true;
+      this.toast('Creative on. This world can no longer earn — that is permanent.');
+    } else {
+      this.toast(this.everCreative
+        ? 'Survival on. This world has used creative, so it still cannot earn.'
+        : 'Survival on.');
+    }
+    this.player.breath = 1;
+    this.player.stamina = 1;
+    this.refreshHotbar();
+    UI.refreshModeButtons();
+  },
+
+  earnable() { return !this.everCreative && this.mode === 'survival'; },
+
   realm: 'ground',
   system: null,
 

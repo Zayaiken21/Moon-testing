@@ -1,21 +1,17 @@
-/* Voxelia service worker — makes the game playable with no connection.
-   Everything is cached on the first visit, then served from the device. */
-const CACHE = 'voxelia-v1';
+/* Voxelia service worker — offline play, background sync, push. */
+const CACHE = 'voxelia-v2';
 const SHELL = [
-  './',
-  './voxelia.html',
-  './index.html',
-  './store.js',
-  './manifest.json',
+  './', './index.html', './voxelia.html', './manifest.json',
+  './store.js', './rewards.js',
+  './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      // a missing optional file must not sink the whole install
-      Promise.all(SHELL.map((url) => c.add(url).catch(() => null)))
-    ).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => null))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -30,12 +26,12 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // multiplayer must always go to the network; everything else can come from disk
-  if (req.url.includes('/rooms') || req.url.includes('/room?') || req.url.startsWith('ws')) return;
+  if (req.url.includes('/rooms') || req.url.includes('/room?') ||
+      req.url.includes('/visit') || req.url.includes('/claim') ||
+      req.url.includes('/wallet') || req.url.startsWith('ws')) return;
   e.respondWith(
     caches.match(req).then((hit) => {
       if (hit) {
-        // refresh it quietly in the background for next time
         fetch(req).then((res) => {
           if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
         }).catch(() => {});
@@ -47,7 +43,51 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
-      }).catch(() => caches.match('./voxelia.html'));
+      }).catch(() => caches.match('./index.html'));
+    })
+  );
+});
+
+/* Background Sync: a claim made with no connection is sent once one returns. */
+self.addEventListener('sync', (e) => {
+  if (e.tag === 'voxelia-claims') {
+    e.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true })
+        .then((cs) => cs.forEach((c) => c.postMessage({ type: 'flush-claims' })))
+    );
+  }
+});
+
+/* Periodic Sync: keeps the room list warm so multiplayer opens instantly. */
+self.addEventListener('periodicsync', (e) => {
+  if (e.tag === 'voxelia-rooms') {
+    e.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true })
+        .then((cs) => cs.forEach((c) => c.postMessage({ type: 'refresh-rooms' })))
+    );
+  }
+});
+
+/* Push: an invitation to a friend's room, when you have granted permission. */
+self.addEventListener('push', (e) => {
+  let data = { title: 'Voxelia', body: 'A friend opened a room.' };
+  try { if (e.data) data = Object.assign(data, e.data.json()); } catch (err) {}
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: './icon-192.png',
+    badge: './monochrome-512.png',
+    tag: 'voxelia',
+    data: { url: data.url || './index.html' }
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './index.html';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) if ('focus' in c) return c.focus();
+      return self.clients.openWindow(url);
     })
   );
 });

@@ -1,45 +1,170 @@
 {
-  "id": "/voxelia/",
-  "name": "Voxelia — build, tame, wander",
+  "id": "/Moon-testing/",
+  "name": "Voxelia \u2014 build, tame, wander",
   "short_name": "Voxelia",
-  "description": "A blocky open world where nothing can be killed. Mine and build across ten biomes, tame any of 3,004 creatures, craft boats, planes, helicopters and submarines, then fly a rocket to another planet. Plays offline, and online with friends by room code.",
+  "description": "A blocky open world where nothing can be killed. Mine and build across ten biomes, tame thousands of creatures, craft forty vehicles, and fly a rocket to other planets. Plays offline, and online with friends by room code.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
-  "display_override": ["window-controls-overlay", "fullscreen", "standalone", "minimal-ui", "browser"],
+  "display_override": [
+    "tabbed",
+    "window-controls-overlay",
+    "fullscreen",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
   "orientation": "any",
   "background_color": "#14121C",
   "theme_color": "#14121C",
   "lang": "en-GB",
   "dir": "ltr",
-  "categories": ["games", "entertainment", "kids"],
+  "categories": [
+    "games",
+    "entertainment",
+    "kids"
+  ],
   "prefer_related_applications": false,
-  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
+  "related_applications": [],
+  "launch_handler": {
+    "client_mode": [
+      "navigate-existing",
+      "auto"
+    ]
+  },
   "handle_links": "preferred",
-  "edge_side_panel": { "preferred_width": 480 },
-  "scope_extensions": [],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "scope_extensions": [
+    {
+      "origin": "https://zayaiken21.github.io"
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "./index.html?action=note"
+  },
   "icons": [
-    { "src": "icons/icon-48.png",   "sizes": "48x48",   "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-256.png",  "sizes": "256x256", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
-    { "src": "icons/maskable-192.png",  "sizes": "192x192",  "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/maskable-512.png",  "sizes": "512x512",  "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/maskable-1024.png", "sizes": "1024x1024","type": "image/png", "purpose": "maskable" },
-    { "src": "icons/monochrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
+    {
+      "src": "icon-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "maskable-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "monochrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
   ],
   "screenshots": [
-    { "src": "screenshots/wide-1280x720.png",  "sizes": "1280x720",  "type": "image/png", "form_factor": "wide",   "label": "Building in the Verdant Vale" },
-    { "src": "screenshots/wide-1920x1080.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide",   "label": "Coralbright Atoll, one of ten biomes" },
-    { "src": "screenshots/narrow-720x1280.png",  "sizes": "720x1280",  "type": "image/png", "form_factor": "narrow", "label": "Touch controls in the Whisperwood Canopy" },
-    { "src": "screenshots/narrow-1080x1920.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Diving the Abyssal Reach" }
+    {
+      "src": "wide-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Building in the Verdant Vale"
+    },
+    {
+      "src": "wide-1920x1080.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Coralbright Atoll"
+    },
+    {
+      "src": "narrow-720x1280.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Touch controls"
+    },
+    {
+      "src": "narrow-1080x1920.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Diving the Abyssal Reach"
+    }
   ],
   "shortcuts": [
     {
@@ -47,39 +172,67 @@
       "short_name": "Continue",
       "description": "Load the world you played last",
       "url": "./index.html?action=continue",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "New world",
       "short_name": "New",
       "description": "Roll a fresh seed and start again",
       "url": "./index.html?action=new",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Play together",
       "short_name": "Multiplayer",
-      "description": "Host a room or join one with a code",
+      "description": "Host a room or join with a code",
       "url": "./index.html?action=multiplayer",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
-  "share_target": {
-    "action": "./index.html",
-    "method": "GET",
-    "params": { "title": "title", "text": "seed", "url": "url" }
-  },
-  "file_handlers": [
+  "widgets": [
     {
-      "action": "./index.html",
-      "accept": { "application/json": [".json"] },
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }],
-      "launch_type": "single-client"
+      "name": "Voxelia status",
+      "short_name": "Voxelia",
+      "description": "Rooms open now and creatures you have tamed.",
+      "tag": "voxelia-status",
+      "template": "voxelia-status",
+      "ms_ac_template": "widget-template.json",
+      "data": "widget-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "wide-1280x720.png",
+          "sizes": "1280x720",
+          "label": "Voxelia"
+        }
+      ],
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ],
+      "auth": false,
+      "update": 86400
     }
-  ],
-  "protocol_handlers": [
-    { "protocol": "web+voxelia", "url": "./index.html?room=%s" }
-  ],
-  "related_applications": [],
-  "widgets": []
+  ]
 }
