@@ -9,6 +9,13 @@
 <title>Voxelia — a world you can be kind to</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="application-name" content="Voxelia">
+<meta name="apple-mobile-web-app-title" content="Voxelia">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A blocky open world where nothing can be killed. Build, tame 3,004 creatures, craft forty vehicles, and fly a rocket to another planet. Plays offline.">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -420,18 +427,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   border-radius:6px;padding:2px 8px;font-size:12px}
 .kbd-list span{color:var(--muted);line-height:1.45}
 
-
-/* ---------- survival combat ---------- */
-#combat-hud{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%);min-width:220px;padding:8px 11px;background:rgba(20,18,28,.72);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px);text-align:center;pointer-events:none;z-index:4}
-.combat-top{display:flex;justify-content:space-between;gap:14px;font-family:var(--display);font-size:11px}.combat-top b{color:var(--ember)}.combat-top span{color:var(--muted)}
-.health-wrap{display:flex;align-items:center;gap:7px;margin-top:6px;font:10px var(--display);color:var(--muted)}.health-wrap>div{flex:1;height:6px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}.health-wrap i{display:block;height:100%;width:100%;background:var(--ember)}.health-wrap b{color:var(--text);min-width:28px}
-#weapon-readout{margin-top:5px;color:var(--moon);font:11px var(--display)}
-.combat-attack,.combat-craft{position:absolute;z-index:31;pointer-events:auto;border:1px solid var(--ember);background:rgba(55,22,20,.86);color:#fff;border-radius:999px;font:700 12px var(--display);padding:10px 14px;display:none}.combat-attack{right:calc(18px + env(safe-area-inset-right));bottom:calc(176px + env(safe-area-inset-bottom))}.combat-craft{right:calc(18px + env(safe-area-inset-right));bottom:calc(126px + env(safe-area-inset-bottom));border-color:var(--moon);color:var(--moon);background:rgba(20,38,34,.86)}
-#combat-attack.show,#combat-craft.show{display:block}.combat-attack:active{transform:scale(.94)}
-.combat-touch{border-color:var(--ember)!important;color:#fff!important;background:rgba(80,25,20,.9)!important}
-@media (max-width:860px){#combat-hud{top:calc(8px + env(safe-area-inset-top));min-width:190px}.combat-attack,.combat-craft{display:block}}
-@media (orientation:landscape) and (max-height:560px){#combat-hud{top:4px;min-width:180px;padding:5px 8px}.combat-attack{right:150px;bottom:10px}.combat-craft{right:150px;bottom:58px}}
-
 /* ---------- touch ---------- */
 /* ---------- touch controls: one coherent system, sized from --ui ---------- */
 #stick-move{position:absolute;width:calc(120px * var(--ui));height:calc(120px * var(--ui));
@@ -588,7 +583,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   <div class="home-wrap">
     <div>
       <div class="wordmark"><h1>Voxelia</h1><span>build · tame · wander</span></div>
-      <p class="tagline">A blocky open world where survival, building, exploration, and creature encounters all matter. You mine, build,
+      <p class="tagline">A blocky open world where <b>nothing can be killed</b>. You mine, build,
         grow food, and earn the trust of seven animals — each one lends you a way of moving that
         the world was shaped around.</p>
 
@@ -632,9 +627,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 <!-- ============ HUD ============ -->
 <div id="hud">
   <div id="crosshair"></div>
-  <div id="combat-hud"><div class="combat-top"><b id="combat-title">SURVIVAL</b><span id="monster-count">Monsters nearby: 0</span></div><div class="health-wrap"><span>HP</span><div><i id="combat-health"></i></div><b id="combat-health-text">100</b></div><div id="weapon-readout">Scrap Club · 16 dmg · 1/6 crafted · Kills 0</div></div>
-  <button id="combat-attack" class="combat-attack">ATTACK</button>
-  <button id="combat-craft" class="combat-craft">CRAFT</button>
   <div id="biome-card"><div id="biome-name">—</div><div id="biome-blurb"></div><div id="coords"></div></div>
   <div id="ability-badge"><span>No companion</span></div>
   <button id="fullscreen" title="Pause and options">❙❙</button>
@@ -694,7 +686,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="tbtn act" id="btn-place">Place</button>
       <button class="tbtn act" id="btn-mine">Mine</button>
       <button class="tbtn big" id="btn-jump">Jump</button>
-      <button class="tbtn big combat-touch" id="btn-attack">Attack</button>
     </div>
   </div>
 </div>
@@ -3337,6 +3328,12 @@ const Game = {
 
   /* ---------- world lifecycle ---------- */
   startWorld(seedText, mode, save, offworld) {
+    // travelling between worlds must never empty your pockets
+    const carried = (offworld || this.keepKit) ? {
+      inventory: this.inventory, hotbar: this.hotbar, slot: this.slot,
+      gear: this.gear, bucketed: this.bucketed, seen: this.seen,
+      waypoints: this.waypoints, questProgress: this.questProgress, eggIds: this.eggIds
+    } : null;
     this.disposeWorld();
     if (!offworld) { this.homeSeed = seedText; this.offworld = null; this.realm = 'ground'; }
     this.mode = mode;
@@ -3377,6 +3374,17 @@ const Game = {
     this.player.pos.set(0.5, sy + 1.2, 0.5);
     this.spawnCreaturesNear(0, 0);
     this.running = true;
+    if (carried) {
+      this.inventory = carried.inventory || this.inventory;
+      this.hotbar = carried.hotbar || this.hotbar;
+      this.slot = carried.slot || 0;
+      this.gear = carried.gear || this.gear;
+      this.bucketed = carried.bucketed || this.bucketed;
+      this.seen = carried.seen || this.seen;
+      this.waypoints = carried.waypoints || this.waypoints;
+      this.questProgress = carried.questProgress || this.questProgress;
+      this.eggIds = carried.eggIds || this.eggIds;
+    }
     if (save) this.applySave(save);
     this.tipIndex = 0;
     this.tipTimer = 6;
@@ -3703,15 +3711,14 @@ const Game = {
         // Mine and Place are hold-and-aim: the finger that holds them also turns
         // the view, so you can sweep along a wall while you dig
         const aimable = btn && (btn.id === 'btn-mine' || btn.id === 'btn-place');
-        const left = t.clientX < innerWidth * 0.5;
-        const stick = left ? Input.moveStick : Input.lookStick;
         if (btn && !aimable && e.type === 'touchstart') continue;
         if (aimable && e.type === 'touchstart') {
-          const aimStick = Input.lookStick;
-          aimStick.id = t.identifier; aimStick.ox = t.clientX; aimStick.oy = t.clientY;
-          aimStick.active = true; aimStick.aiming = true;
+          stick.id = t.identifier; stick.ox = t.clientX; stick.oy = t.clientY;
+          stick.active = true; stick.aiming = true;
           continue;
         }
+        const left = t.clientX < innerWidth * 0.5;
+        const stick = left ? Input.moveStick : Input.lookStick;
         if (e.type === 'touchstart' && stick.id === null) {
           if (left) {
             // a second push on the stick within a moment means "run"
@@ -4236,6 +4243,16 @@ Object.assign(Game, {
     }
   },
 
+  /* everything a vehicle puts on screen, taken away in one go */
+  clearVehicleHud() {
+    ['#drive-hint', '#altimeter', '#alt-lever'].forEach(sel => {
+      const el = $(sel);
+      if (el) el.classList.remove('show');
+    });
+    clearInterval(this._hintTimer);
+    this.hintTimer = 0;
+  },
+
   showDriveHint(asPassenger) {
     if (this.hintDismissed) return;
     const el = $('#drive-hint');
@@ -4641,9 +4658,7 @@ Object.assign(Game, {
     if (this.passengerIn) {
       this.toast('Hopped off the ' + this.passengerIn.def.name.toLowerCase() + '.');
       this.passengerIn = null;
-      $('#drive-hint').classList.remove('show');
-      $('#altimeter').classList.remove('show');
-      $('#alt-lever').classList.remove('show');
+      this.clearVehicleHud();
       return;
     }
     if (this.mount) { this.dismountCreature(); return; }
@@ -4653,8 +4668,7 @@ Object.assign(Game, {
       this.net.sendVehicle(this.riding, false);
       this.riding = null;
       for (const c of this.companions) c.seated = false;
-      $('#drive-hint').classList.remove('show');
-      $('#altimeter').classList.remove('show');
+      this.clearVehicleHud();
       return;
     }
 
@@ -4751,6 +4765,7 @@ Object.assign(Game, {
 
   dismountCreature() {
     if (!this.mount) return;
+    this.clearVehicleHud();
     this.toast('Down from ' + this.mount.def.name + '.');
     this.mount = null;
   },
@@ -6665,6 +6680,26 @@ Object.assign(Game, {
 /* ---------------------------------------------------------------
    15. Boot
    --------------------------------------------------------------- */
+/* a single quiet ping so the owner can see how many people opened the game */
+(function countVisit() {
+  try {
+    const server = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
+    if (!server) return;
+    const base = /^https?:\/\//.test(server) ? server
+               : (location.protocol === 'https:' ? 'https://' : 'http://') + server;
+    fetch(base.replace(/\/$/, '') + '/visit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        ref: document.referrer || 'direct',
+        standalone: matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches,
+        mode: 'open'
+      }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (e) {}
+})();
+
 window.addEventListener('load', () => {
   if (!window.THREE) {
     $('#boot-error').style.display = 'block';
@@ -7852,12 +7887,15 @@ function buildVehicleModel(kind, def) {
 }
 
 let vehicleCounter = 0;
+/* every client stamps its own prefix, so two players can never mint the same
+   vehicle id and each end up driving their own copy of the same craft */
+const CLIENT_TAG = Math.random().toString(36).slice(2, 8);
 class Vehicle {
   constructor(itemId, pos, yaw) {
     this.def = VEHICLES[itemId];
     this.itemId = itemId;
     this.kind = this.def.kind;
-    this.id = 'v' + (++vehicleCounter);
+    this.id = 'v' + CLIENT_TAG + '_' + (++vehicleCounter);
     this.pos = pos.clone();
     this.yaw = yaw || 0;
     this.speed = 0;
@@ -9461,8 +9499,11 @@ Object.assign(Game, {
     this.ensureSystem();
     this.buildSpaceScene();
     this.realm = 'space';
+    if (this.net.connected) this.net.sendCrewMove('space', null, null);
     this.net.sendRealm('space');
-    this.spacePos = new THREE.Vector3(0, 40, 340);
+    // one shared entry point per system, so a crew arrives together
+    const anchor = mulberry32(hashString((this.homeSeed || (this.world && this.world.seedText) || 'voxelia') + ':orbit'));
+    this.spacePos = new THREE.Vector3((anchor() - 0.5) * 50, 40 + anchor() * 16, 320 + anchor() * 30);
     this.spaceVel = new THREE.Vector3();
     this.tethered = false;
     if (this.riding) { this.spaceShip = this.riding; }
@@ -9707,12 +9748,14 @@ Object.assign(Game, {
   },
 
   returnHome() {
+    this.keepKit = true;
     this.restoreHomeTerrain();
     this.gravityScale = 1;
     this.offworld = null;
     this.realm = 'ground';
     this.net.sendRealm('ground');
     this.startWorld(this.homeSeed || 'voxelia', this.mode);
+    this.keepKit = false;
     this.attachHand();
     this.toast('Home again.');
     UI.refreshSpaceBar();
@@ -10066,9 +10109,6 @@ Object.assign(World.prototype, {
     }
   }
 });
-
-
 </script>
-<script src="survival_combat.js"></script>
 </body>
 </html>
