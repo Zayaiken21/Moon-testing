@@ -3348,7 +3348,11 @@ const Game = {
     this.riding = null;
     this.mount = null;
     this.chests = new Map();
-    this.explored = new Map();
+    // each world keeps its own map, so nothing is lost by travelling
+    if (!this.exploredByRealm) this.exploredByRealm = {};
+    const realmKey = (offworld && this.offworld) ? ('planet:' + this.offworld.id) : 'ground';
+    if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
+    this.explored = this.exploredByRealm[realmKey];
     this.peopled = new Set();
     this.waypoints = [];
     this.seen = {};
@@ -3427,8 +3431,8 @@ const Game = {
         this.noteExplored(c);
         this.spawnTownsfolk(c);
         this.markNeighborsDirty(cx, cz);
-        this.spawnCreaturesNear(cx, cz);
-        if (Math.random() < 0.5) this.spawnCreaturesNear(cx, cz);
+        this.spawnCreaturesNear(cx, cz, 0);
+        this.spawnCreaturesNear(cx, cz, 1);
       }
       if (c.dirty) this.meshChunk(c);
       if (Math.abs(cx - pcx) <= 2 && Math.abs(cz - pcz) <= 2) this.noteExplored(c);
@@ -3452,7 +3456,10 @@ const Game = {
 
   /* one entry per chunk you have been near: its main biome and its height */
   noteExplored(chunk) {
-    if (!this.explored) this.explored = new Map();
+    if (!this.exploredByRealm) this.exploredByRealm = {};
+    const realmKey = this.realm || 'ground';
+    if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
+    this.explored = this.exploredByRealm[realmKey];
     const key = chunk.cx + ',' + chunk.cz;
     if (this.explored.has(key)) return;
     const tally = {};
@@ -3567,20 +3574,24 @@ const Game = {
     chunk.dirty = false;
   },
 
-  spawnCreaturesNear(cx, cz) {
+  spawnCreaturesNear(cx, cz, nth) {
     if (this.creatures.length > 190) return;
-    const x = cx * CX + 3 + Math.floor(Math.random() * 10);
-    const z = cz * CZ + 3 + Math.floor(Math.random() * 10);
+    // seeded by the chunk itself, so every player in the room finds the same
+    // creatures standing in the same places
+    const rnd = mulberry32(hashString(
+      (this.world ? this.world.seedText : 'w') + ':life:' + cx + ':' + cz + ':' + (nth || 0)));
+    const x = cx * CX + 3 + Math.floor(rnd() * 10);
+    const z = cz * CZ + 3 + Math.floor(rnd() * 10);
     const bi = this.world.biomeAt(x, z);
     const roster = this.offworld ? this.planetSpecies(this.offworld) : SPECIES_BY_BIOME[bi];
     if (!roster || !roster.length) return;
-    let species = roster[(Math.random() * roster.length) | 0];
-    if (ANIMALS[species].rare && Math.random() < 0.75) species = roster[(Math.random() * roster.length) | 0];
+    let species = roster[(rnd() * roster.length) | 0];
+    if (ANIMALS[species].rare && rnd() < 0.75) species = roster[(rnd() * roster.length) | 0];
     // reefs and sea floors want their gardens, so deliberately seed rooted life
     const bkey = BIOMES[bi].key;
-    if ((bkey === 'reef' || bkey === 'ocean' || bkey === 'tidal') && Math.random() < 0.22) {
+    if ((bkey === 'reef' || bkey === 'ocean' || bkey === 'tidal') && rnd() < 0.22) {
       const rooted = roster.filter(k => ANIMALS[k].sessile);
-      if (rooted.length) species = rooted[(Math.random() * rooted.length) | 0];
+      if (rooted.length) species = rooted[(rnd() * rooted.length) | 0];
     }
     const def = ANIMALS[species];
     const bed = this.world.surfaceY(x, z);
@@ -3595,19 +3606,19 @@ const Game = {
         // anemones, coral and tubeworms root to the sea floor in patches
         const patch = Math.min(4, def.herd || 3);
         for (let i = 0; i < patch; i++) {
-          this.addCreature(species, x + (Math.random() - 0.5) * 6, bed + 1, z + (Math.random() - 0.5) * 6);
+          this.addCreature(species, x + (rnd() - 0.5) * 6, bed + 1, z + (rnd() - 0.5) * 6);
         }
         return;
       }
-      const school = (def.plan === 'fish' || def.family === 'fish') ? 5 + ((Math.random() * 6) | 0) : (def.herd || 1);
+      const school = (def.plan === 'fish' || def.family === 'fish') ? 5 + ((rnd() * 6) | 0) : (def.herd || 1);
       for (let i = 0; i < school; i++) {
-        const y = bed + 1.5 + Math.random() * Math.max(1, SEA - bed - 2.5);
-        this.addCreature(species, x + (Math.random() - 0.5) * 5, y, z + (Math.random() - 0.5) * 5);
+        const y = bed + 1.5 + rnd() * Math.max(1, SEA - bed - 2.5);
+        this.addCreature(species, x + (rnd() - 0.5) * 5, y, z + (rnd() - 0.5) * 5);
       }
       return;
     }
     if (bed < SEA) return;                              // land animals stay dry
-    const n = (def.herd || 1) + (Math.random() < 0.5 ? 1 : 0);
+    const n = (def.herd || 1) + (rnd() < 0.5 ? 1 : 0);
     for (let i = 0; i < n; i++) this.addCreature(species, x + i * 1.6, bed + 1, z);
   },
 
@@ -4283,8 +4294,15 @@ Object.assign(Game, {
         '<span>Someone else is driving. Sit back.</span>' +
         `<span><kbd>${Game.controlWords().exit}</kbd>hop off</span>`;
       el.classList.add('show');
+      const shut0 = (ev) => {
+        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+        el.classList.remove('show');
+        Game.hintTimer = 0;
+        Game.hintDismissed = true;
+      };
       const c0 = document.getElementById('hint-close');
-      if (c0) c0.addEventListener('click', (ev) => { ev.stopPropagation(); el.classList.remove('show'); Game.hintTimer = 0; });
+      if (c0) { c0.addEventListener('click', shut0); c0.addEventListener('touchstart', shut0, { passive: false }); }
+      el.addEventListener('click', shut0);
       return;
     }
     // named for whatever you are actually holding
@@ -6776,6 +6794,10 @@ Object.assign(Game, {
       chests: Array.from(this.chests || [], ([k, v]) => [k, v]),
       growing: Array.from(this.growing || [], ([k, v]) => [k, v]),
       explored: Array.from(this.explored || [], ([k, v]) => [k, v]),
+      exploredByRealm: Object.keys(this.exploredByRealm || {}).reduce((acc, k) => {
+        acc[k] = Array.from(this.exploredByRealm[k], ([kk, vv]) => [kk, vv]);
+        return acc;
+      }, {}),
       waypoints: this.waypoints || [],
       realm: this.realm,
       homeSeed: this.homeSeed,
@@ -6890,6 +6912,13 @@ Object.assign(Game, {
       if (p) { this.offworld = p; this.realm = 'planet:' + p.id; }
     }
     if (save.seen) this.seen = Object.assign({}, save.seen);
+    if (save.exploredByRealm) {
+      this.exploredByRealm = {};
+      for (const k of Object.keys(save.exploredByRealm)) {
+        this.exploredByRealm[k] = new Map(save.exploredByRealm[k]);
+      }
+      this.explored = this.exploredByRealm[this.realm || 'ground'] || new Map();
+    }
     if (save.explored) { this.explored = new Map(); for (const [k, v] of save.explored) this.explored.set(k, v); }
     if (save.growing) { this.growing = new Map(); for (const [k, v] of save.growing) this.growing.set(k, v); }
     if (save.quests) this.questProgress = save.quests;
@@ -7117,6 +7146,20 @@ Game.net = {
       // Just glide to the last position we were actually told about.
       // a gentle chase rather than a snap to each packet, so walking reads
       // as walking instead of a series of jumps
+      // if they are aboard something we can see, put them in its seat rather
+      // than wherever their own body last reported
+      if (p.aboard) {
+        const craft = Game.vehicles.find(v => v.id === p.aboard);
+        if (craft) {
+          const seat = craft.parts.seatOffsets[1] || { x: 0.6, y: craft.def.seat, z: -0.7 };
+          const sc = craft.def.scale || 1.3;
+          const cs = Math.cos(craft.yaw), sn = Math.sin(craft.yaw);
+          p.target.set(craft.pos.x + seat.x * sc * cs - seat.z * sc * sn,
+                       craft.pos.y + craft.def.seat,
+                       craft.pos.z + seat.x * sc * sn + seat.z * sc * cs);
+          p.yaw = craft.yaw;
+        }
+      }
       const far = p.model.position.distanceTo(p.target);
       if (far > 24) p.model.position.copy(p.target);
       else p.model.position.lerp(p.target, Math.min(1, dt * (far > 6 ? 9 : 6)));
@@ -7133,6 +7176,19 @@ Game.net = {
     this.pingTimer = (this.pingTimer || 0) + dt;
     if (this.pingTimer > 4) { this.pingTimer = 0; this.send({ t: 'ping' }); }
 
+    // a parked craft is re-announced every few seconds, so anyone who joined
+    // late, or missed the packet, still sees it and can climb in
+    this.reannounce = (this.reannounce || 0) + dt;
+    if (this.reannounce > 3) {
+      this.reannounce = 0;
+      const me = this.selfId || 'local';
+      for (const v of Game.vehicles) {
+        if (v.owner && v.owner !== me) continue;
+        this.send({ t: 'vehicle', id: v.id, item: v.itemId, x: v.pos.x, y: v.pos.y, z: v.pos.z,
+                    yaw: v.yaw, lights: v.lightsOn, owner: v.owner || null });
+      }
+    }
+
     this.vehTimer = (this.vehTimer || 0) + dt;
     if (this.vehTimer > 0.06) {
       this.vehTimer = 0;
@@ -7148,7 +7204,7 @@ Game.net = {
     this.outTimer += dt;
     if (this.outTimer < 0.033) return;   // thirty updates a second
     this.outTimer = 0;
-    const p = Game.player.pos;
+    const p = (Game.realm === 'space' && Game.spacePos) ? Game.spacePos : Game.player.pos;
     this.send({ t: 'move', x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
                 riding: Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null),
                 realm: Game.realm,
@@ -9408,8 +9464,8 @@ function buildSystem(seedText) {
       label: type.label,
       colors: type,
       gravity: Math.round(type.grav * (0.8 + r() * 0.4) * 100) / 100,
-      radius: 26 + r() * 34,
-      orbit: 220 + i * 190 + r() * 90,
+      radius: 30 + r() * 40,
+      orbit: 170 + i * 78 + r() * 40,
       angle: r() * Math.PI * 2,
       speed: (0.02 + r() * 0.05) / (1 + i * 0.35),
       moons,
@@ -9506,7 +9562,8 @@ Object.assign(Game, {
     scene.add(new THREE.AmbientLight(0x40466A, 1.1));
     const sun = new THREE.PointLight(0xFFE9A8, 2.4, 6000);
     scene.add(sun);
-    const star = new THREE.Mesh(new THREE.SphereGeometry(60, 20, 16),
+    sun.position.set(0, 0, 0);
+    const star = new THREE.Mesh(new THREE.SphereGeometry(70, 24, 18),
                                 new THREE.MeshBasicMaterial({ color: 0xFFE9A8 }));
     scene.add(star);
 
@@ -9562,6 +9619,9 @@ Object.assign(Game, {
       this.spaceRocks.push({ mesh: rock, item, kind: kind.name, spin: Math.random() * 6 });
     }
 
+    // other players need to be visible out here as well as on the ground
+    this.spacePeers = new THREE.Group();
+    scene.add(this.spacePeers);
     this.spaceScene = scene;
     this.spaceSun = star;
   },
@@ -9614,13 +9674,15 @@ Object.assign(Game, {
   /* ---------- flying between worlds ---------- */
   updateSpace(dt) {
     const sys = this.ensureSystem();
-    const t = this.dayTime * 600 + (performance.now() / 1000) * 0.05;
+    // a steady clock, shared by everyone in the room, so the sky does not jump
+    this.orbitClock = (this.orbitClock || 0) + dt;
+    const t = this.dayTime * 600 + this.orbitClock * 0.05;
 
     for (const entry of this.planetMeshes) {
       const p = entry.planet;
       const a = p.angle + t * p.speed;
       entry.mesh.position.set(Math.cos(a) * p.orbit, Math.sin(a * 0.4) * 40, Math.sin(a) * p.orbit);
-      entry.mesh.rotation.y += dt * 0.05;
+      entry.mesh.rotation.y = t * 0.05 + p.angle;
       entry.mesh.children.forEach((child, i) => {
         const m = child.userData.moon;
         if (!m) return;
@@ -9648,8 +9710,15 @@ Object.assign(Game, {
     this.spaceVel.x += (mz * dir.x + (mx * cos)) * thrust * dt;
     this.spaceVel.y += (mz * dir.y + up * 0.9) * thrust * dt;
     this.spaceVel.z += (mz * dir.z + (-mx * sin)) * thrust * dt;
-    const drag = this.tethered ? 1.4 : 0.5;                 // space is not empty of sense
+    // momentum carries: thrust builds speed, letting go coasts, and there is
+    // only a whisper of damping so it never feels like flying through syrup
+    const drag = this.tethered ? 0.9 : 0.12;
     this.spaceVel.multiplyScalar(Math.max(0, 1 - drag * dt));
+    const top = this.tethered ? 14 : 150;
+    const sp = Math.hypot(this.spaceVel.x, this.spaceVel.y, this.spaceVel.z);
+    if (sp > top) this.spaceVel.multiplyScalar(top / sp);
+    // a brake, for arriving somewhere rather than sailing past it
+    if (Input.keys.ShiftLeft || Input.buttons.crouch) this.spaceVel.multiplyScalar(Math.max(0, 1 - 2.4 * dt));
     this.spacePos.x += this.spaceVel.x * dt;
     this.spacePos.y += this.spaceVel.y * dt;
     this.spacePos.z += this.spaceVel.z * dt;
@@ -9675,6 +9744,21 @@ Object.assign(Game, {
           this.toast('Collected ' + thingName(rock.item) + '.');
         }
       }
+    }
+
+    // draw everyone who is also in orbit
+    for (const peer of this.net.peers.values()) {
+      if (peer.realm !== 'space') { if (peer.spaceModel) peer.spaceModel.visible = false; continue; }
+      if (!peer.spaceModel) {
+        const m = peer.model.clone ? peer.model.clone() : null;
+        peer.spaceModel = m || new THREE.Mesh(
+          new THREE.BoxGeometry(1.2, 2.2, 1.2),
+          new THREE.MeshLambertMaterial({ color: 0xA97BFF }));
+        this.spacePeers.add(peer.spaceModel);
+      }
+      peer.spaceModel.visible = true;
+      peer.spaceModel.position.lerp(peer.target, Math.min(1, dt * 8));
+      peer.spaceModel.rotation.y = peer.yaw;
     }
 
     this.camera.position.copy(this.spacePos);
@@ -9960,9 +10044,15 @@ Object.assign(UI, {
         if (Game.realm === 'space') {
           const entry = Game.planetMeshes.find(e => e.planet.id === p.id);
           if (entry) {
-            // slide out to it: the chart is also your autopilot
-            Game.spacePos.copy(entry.mesh.position).add(new THREE.Vector3(0, p.radius * 0.4, p.radius + 70));
+            // stand off the world at a fixed, safe distance and face it
+            const away = entry.mesh.position.clone().normalize();
+            Game.spacePos.copy(entry.mesh.position)
+              .add(away.multiplyScalar(p.radius + 55))
+              .add(new THREE.Vector3(0, p.radius * 0.3, 0));
             Game.spaceVel.set(0, 0, 0);
+            Game.player.yaw = Math.atan2(entry.mesh.position.x - Game.spacePos.x,
+                                         entry.mesh.position.z - Game.spacePos.z) + Math.PI;
+            Game.player.pitch = 0;
             Game.toast('Arrived at ' + p.name + '.');
             this.closeAll();
             this.refreshSpaceBar();
