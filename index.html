@@ -364,6 +364,15 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 }
 .slot-del{margin-left:10px;font-style:normal;color:var(--muted);cursor:pointer;padding:0 6px}
 .slot-del:hover{color:#FF9E9E}
+.pause-quick{display:flex;flex-direction:column;gap:10px;margin:14px 0 18px}
+.pause-quick .setting{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.pause-quick .setting b{font-family:var(--display);font-size:14px}
+.pause-quick .setting small{color:var(--muted);font-size:11.5px;line-height:1.45}
+.seg{display:flex;gap:6px}
+.seg .btn{flex:1;padding:9px;min-width:0}
+.seg .btn.on{border-color:var(--moon);color:var(--moon);background:rgba(111,227,196,.16)}
+#set-volume{width:100%;accent-color:var(--moon)}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
   flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
 #chat-log.show{display:flex;opacity:1}
@@ -995,6 +1004,38 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
     <h2>Paused</h2>
     <p class="lede">The world keeps its shape. Your seed rebuilds it exactly.</p>
     <button class="btn" id="resume">Back to the world</button>
+
+    <div class="pause-quick">
+      <div class="setting"><b>Mode</b><small id="mode-note">Survival: gather, craft, tame.</small>
+        <div class="seg">
+          <button class="btn" id="mode-survival">Survival</button>
+          <button class="btn" id="mode-creative">Creative</button>
+        </div></div>
+
+      <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small>
+        <div class="seg">
+          <button class="btn" id="pause-mic">&#127908; Microphone</button>
+          <button class="btn" id="pause-chat">&#128172; Chat</button>
+        </div></div>
+
+      <div class="setting"><b>Volume</b><small>Everything the game makes a sound about.</small>
+        <input type="range" id="set-volume" min="0" max="100" step="1" value="60" /></div>
+
+      <div class="setting"><b>Save automatically</b><small>Keeps a rolling save of this world.</small>
+        <input type="checkbox" id="set-autosave2" /></div>
+
+      <div class="setting"><b>This world</b><small id="pause-world">&mdash;</small></div>
+
+      <div class="seg">
+        <button class="btn" id="pause-settings">All settings</button>
+        <button class="btn" id="pause-howto">How to play</button>
+      </div>
+      <div class="seg">
+        <button class="btn" id="pause-map">Map</button>
+        <button class="btn" id="pause-companions">Companions</button>
+      </div>
+    </div>
+
     <div class="field" style="margin-top:12px">
       <label for="slot-name">Save on this device</label>
       <div class="seed-row">
@@ -4195,6 +4236,37 @@ Object.assign(Game, {
   },
 
   /* a vehicle someone else put down, or moved */
+  /* the room's answer about who is sitting where */
+  applySeat(m) {
+    const v = this.vehicles.find(x => x.id === m.id);
+    if (!v) { this.boardPending = null; return; }
+    const me = this.net.selfId;
+    v.driver = m.driver || null;
+    v.riders = m.riders || [];
+    v.owner = m.driver || null;
+
+    if (m.who === me) {
+      this.boardPending = null;
+      if (m.left) {
+        this.riding = null; this.passengerIn = null;
+        this.clearVehicleHud();
+      } else if (m.driver === me) {
+        this.riding = v; this.passengerIn = null;
+        this.hintDismissed = false;
+        this.toast('Driving the ' + v.def.name + '.');
+        this.showDriveHint(false);
+      } else {
+        this.passengerIn = v; this.riding = null;
+        this.toast('Riding along in the ' + v.def.name.toLowerCase() + '. ' +
+                   (IS_TOUCH ? 'Use' : 'E') + ' to hop off.');
+        this.showDriveHint(true);
+      }
+      return;
+    }
+    const peer = this.net.peers.get(m.who);
+    if (peer) peer.aboard = m.left ? null : v.id;
+  },
+
   applyRemoteVehicle(m) {
     // the owner's word is final: never build a second craft for one that exists
     const dupe = this.vehicles.find(v => v.id !== m.id && v.itemId === m.item &&
@@ -4749,12 +4821,14 @@ Object.assign(Game, {
     if (this.realm === 'space') { this.toggleTether(); return; }
     if (this.passengerIn) {
       this.toast('Hopped off the ' + this.passengerIn.def.name.toLowerCase() + '.');
+      this.net.sendUnboard(this.passengerIn.id);
       this.passengerIn = null;
       this.clearVehicleHud();
       return;
     }
     if (this.mount) { this.dismountCreature(); return; }
     if (this.riding) {
+      this.net.sendUnboard(this.riding.id);
       this.toast('Left the ' + this.riding.def.name.toLowerCase() + '.');
       this.riding.owner = null;
       this.net.sendVehicle(this.riding, false);
@@ -4781,6 +4855,12 @@ Object.assign(Game, {
     }
     if (nearV) {
       const me = this.net.selfId || 'local';
+      if (this.net.connected) {
+        // in a room the server decides: first one in drives, the rest ride along
+        this.net.send({ t: 'board', id: nearV.id, seats: nearV.def.seats, item: nearV.itemId });
+        this.boardPending = nearV;
+        return;
+      }
       if (nearV.owner && nearV.owner !== me) {
         // someone is already driving, so climb in as a passenger
         this.passengerIn = nearV;
@@ -5779,6 +5859,7 @@ const UI = {
     /* settings */
     const bindRange = (sel, key, fmt) => {
       const el = $(sel);
+      if (!el) return;
       el.value = Settings[key];
       const out = $(sel + '-out');
       const sync = () => {
@@ -5793,8 +5874,10 @@ const UI = {
     bindRange('#set-sens', 'sensitivity', v => v.toFixed(2) + '×');
     bindRange('#set-touch', 'touchScale', v => v.toFixed(2) + '×');
     const bindCheck = (sel, key) => {
-      const el = $(sel); el.checked = Settings[key];
-      el.addEventListener('change', () => { Settings[key] = el.checked; });
+      const el = $(sel);
+      if (!el) return;                       // a control that is not on this page
+      el.checked = !!Settings[key];
+      el.addEventListener('change', () => { Settings[key] = el.checked; saveSettings(); });
     };
     bindCheck('#set-invert', 'invertY');
     bindCheck('#set-swapmouse', 'swapMouse');
@@ -5814,13 +5897,13 @@ const UI = {
       if (read) read.textContent = craft.trim > 0.05 ? 'climbing'
         : craft.trim < -0.05 ? 'descending' : 'level';
     };
-    $('#alt-up').addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) + 0.34));
-    $('#alt-down').addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) - 0.34));
-    $('#alt-level').addEventListener('click', () => setTrim(0));
+    (($('#alt-up') || { addEventListener() {} })).addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) + 0.34));
+    (($('#alt-down') || { addEventListener() {} })).addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) - 0.34));
+    (($('#alt-level') || { addEventListener() {} })).addEventListener('click', () => setTrim(0));
     ['touchstart', 'mousedown'].forEach(ev => {
-      $('#alt-up').addEventListener(ev, (e) => e.stopPropagation());
-      $('#alt-down').addEventListener(ev, (e) => e.stopPropagation());
-      $('#alt-level').addEventListener(ev, (e) => e.stopPropagation());
+      (($('#alt-up') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
+      (($('#alt-down') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
+      (($('#alt-level') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
     });
     this.drawVKeys();
     $('#vkey-reset').addEventListener('click', () => {
@@ -5880,29 +5963,41 @@ const UI = {
     bindCheck('#set-autosave2', 'autosave');
 
     /* the pause menu's quick settings */
-    $('#mode-survival').addEventListener('click', () => Game.setMode('survival'));
-    $('#mode-creative').addEventListener('click', () => {
+    (($('#mode-survival') || { addEventListener() {} })).addEventListener('click', () => Game.setMode('survival'));
+    (($('#mode-creative') || { addEventListener() {} })).addEventListener('click', () => {
       if (Game.everCreative || confirm(
         'Creative mode is permanent for this world: it will never be able to earn again. Continue?')) {
         Game.setMode('creative');
       }
     });
-    $('#pause-settings').addEventListener('click', () => { this.closeAll(); this.toggle('settings'); });
-    $('#pause-howto').addEventListener('click', () => { this.closeAll(); this.toggle('guide'); });
+    (($('#pause-mic') || { addEventListener() {} })).addEventListener('click', () => Game.voice.toggle());
+    (($('#pause-chat') || { addEventListener() {} })).addEventListener('click', () => {
+      this.closeAll();
+      const box = $('#chat-input');
+      if (box) { box.parentElement.classList.add('show'); box.focus(); }
+    });
+    (($('#pause-map') || { addEventListener() {} })).addEventListener('click', () => {
+      this.closeAll(); this.openMap();
+    });
+    (($('#pause-companions') || { addEventListener() {} })).addEventListener('click', () => {
+      this.closeAll(); this.openCompanions();
+    });
+    (($('#pause-settings') || { addEventListener() {} })).addEventListener('click', () => { this.closeAll(); this.toggle('settings'); });
+    (($('#pause-howto') || { addEventListener() {} })).addEventListener('click', () => { this.closeAll(); this.toggle('guide'); });
     const vol = $('#set-volume');
-    vol.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
-    vol.addEventListener('input', () => {
+    if (vol) vol.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
+    if (vol) vol.addEventListener('input', () => {
       Settings.volume = parseInt(vol.value, 10) / 100;
       saveSettings();
       Game.blip(520);
     });
-    $('#mp-roll').addEventListener('click', () => {
+    (($('#mp-roll') || { addEventListener() {} })).addEventListener('click', () => {
       $('#mp-seed').value = randomSeed();
     });
-    $('#companion-close').addEventListener('click', () => this.closeCompanions());
-    $('#space-chart').addEventListener('click', () => this.openStarChart());
-    $('#space-tether').addEventListener('click', () => Game.toggleTether());
-    $('#space-land').addEventListener('click', () => {
+    (($('#companion-close') || { addEventListener() {} })).addEventListener('click', () => this.closeCompanions());
+    (($('#space-chart') || { addEventListener() {} })).addEventListener('click', () => this.openStarChart());
+    (($('#space-tether') || { addEventListener() {} })).addEventListener('click', () => Game.toggleTether());
+    (($('#space-land') || { addEventListener() {} })).addEventListener('click', () => {
       if (Game.landTarget) { this.closeAll(); Game.beginLanding(Game.landTarget.planet); }
     });
     addEventListener('keydown', (e) => {
@@ -5973,14 +6068,14 @@ const UI = {
     $('#voice-toggle').addEventListener('click', () => Game.voice.toggle());
     bindRange('#set-voice', 'voiceVolume', v => Math.round(v * 100) + '%');
     $('#set-voice').addEventListener('input', () => Game.voice.applyVolume());
-    $('#mic-desktop').addEventListener('click', () => Game.voice.toggle());
+    (($('#mic-desktop') || { addEventListener() {} })).addEventListener('click', () => Game.voice.toggle());
     this.refreshSocialButtons();
-    $('#chat-desktop').addEventListener('click', () => {
+    (($('#chat-desktop') || { addEventListener() {} })).addEventListener('click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
       box.focus();
     });
-    $('#chat-desktop').addEventListener('click', () => {
+    (($('#chat-desktop') || { addEventListener() {} })).addEventListener('click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
       box.focus();
@@ -6362,6 +6457,26 @@ const UI = {
     }
   },
 
+  refreshPauseDetail() {
+    const room = $('#pause-room'), note = $('#pause-room-note'), world = $('#pause-world');
+    const online = !!(Game.net && Game.net.connected);
+    if (room) room.style.display = online ? '' : 'none';
+    if (note) {
+      const n = online ? Game.net.peers.size + 1 : 1;
+      note.textContent = 'Room ' + (Game.net.room || '') + ' \u00b7 ' + n +
+                         (n === 1 ? ' player' : ' players');
+    }
+    if (world) {
+      const seed = (Game.world && Game.world.seedText) || '';
+      const where = Game.offworld ? Game.offworld.name : 'Voxelia';
+      world.textContent = where + ' \u00b7 seed ' + seed + ' \u00b7 ' +
+        (Game.everCreative ? 'creative has been used' : 'clean survival') +
+        ' \u00b7 ' + (Game.creatures ? Game.creatures.length : 0) + ' creatures nearby';
+    }
+    const mic = $('#pause-mic');
+    if (mic) mic.classList.toggle('on', !!(Game.voice && Game.voice.on));
+  },
+
   refreshModeButtons() {
     const s = $('#mode-survival'), c = $('#mode-creative'), note = $('#mode-note');
     if (!s || !c) return;
@@ -6463,6 +6578,13 @@ const UI = {
     }
     if (typeof welcome.time === 'number') Game.dayTime = welcome.time;
     if (welcome.mode) Game.mode = welcome.mode;   // the room decides survival or creative
+    if (Array.isArray(welcome.vehicles)) {
+      // every craft already standing in this room
+      for (const v of welcome.vehicles) {
+        Game.applyRemoteVehicle({ id: v.id, item: v.item, x: v.x, y: v.y, z: v.z,
+                                  yaw: v.yaw, owner: v.driver });
+      }
+    }
     if (welcome.resume) {
       // back where you stood when you last left this room
       Game.player.pos.set(welcome.resume.x, welcome.resume.y, welcome.resume.z);
@@ -6737,6 +6859,7 @@ const UI = {
     // show the sheet before doing any of the slower work, so the tap lands
     $('#pause').classList.add('open');
     this.refreshModeButtons();
+    this.refreshPauseDetail();
     this.refreshModeButtons();
     const v = $('#set-volume');
     if (v) v.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
@@ -7184,6 +7307,10 @@ Game.net = {
         Game.applyRemoteVehicle(m);
         break;
       }
+      case 'seat': {
+        Game.applySeat(m);
+        break;
+      }
       case 'realm': {
         // somebody changed world: only draw people who are where you are
         const peer = this.peers.get(m.id);
@@ -7353,6 +7480,8 @@ Game.net = {
   },
 
   sendEdit(x, y, z, b) { if (this.connected) this.send({ t: 'edit', x, y, z, b }); },
+
+  sendUnboard(id) { if (this.connected && id) this.send({ t: 'unboard', id }); },
 
   sendRealm(realm) {
     if (!this.connected) return;
