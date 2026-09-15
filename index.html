@@ -302,8 +302,11 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   width:calc(46px * var(--ui));height:calc(26px * var(--ui));font-size:calc(11px * var(--ui));
   letter-spacing:2px;color:var(--text);cursor:pointer;display:grid;place-items:center}
 #fullscreen:hover{border-color:var(--moon);color:var(--moon)}
-#top-bar{position:absolute;left:calc(12px + env(safe-area-inset-left));top:calc(8px + env(safe-area-inset-top));
-  display:flex;gap:6px;pointer-events:auto}
+#top-bar{position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(6px + env(safe-area-inset-top));display:flex;align-items:center;
+  gap:calc(8px * var(--ui));pointer-events:none;z-index:6}
+#top-bar > button{pointer-events:auto;min-width:calc(66px * var(--ui));
+  height:calc(34px * var(--ui));display:inline-flex;align-items:center;justify-content:center}
 #top-bar button{background:rgba(20,18,28,.78);border:1px solid var(--line);border-radius:999px;
   padding:calc(5px * var(--ui)) calc(12px * var(--ui));font-size:calc(11px * var(--ui));
   font-family:var(--display);color:var(--muted);cursor:pointer}
@@ -384,6 +387,17 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .seg .btn{flex:1;padding:9px;min-width:0}
 .seg .btn.on{border-color:var(--moon);color:var(--moon);background:rgba(111,227,196,.16)}
 #set-volume{width:100%;accent-color:var(--moon)}
+#give-card{position:absolute;left:50%;top:20%;transform:translate(-50%,0);
+  width:min(320px,88vw);background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:14px;pointer-events:auto;display:none;z-index:75;
+  box-shadow:0 18px 50px rgba(0,0,0,.55)}
+#give-card.show{display:block}
+#give-card b{font-family:var(--display);font-size:14px;display:block;margin-bottom:10px}
+#give-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:40vh;overflow-y:auto}
+#give-list button{width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;color:var(--text);font-family:var(--display);
+  font-size:13px;cursor:pointer}
+#give-list button:hover{border-color:var(--moon);color:var(--moon)}
 #offer-card{position:absolute;left:50%;top:22%;transform:translate(-50%,0) scale(.96);
   width:min(320px,88vw);background:var(--panel);border:1px solid var(--line);
   border-left:3px solid var(--amethyst);border-radius:14px;padding:14px;pointer-events:auto;
@@ -704,6 +718,11 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="btn" id="space-tether">Step out on tether</button>
       <button class="btn" id="space-land">Land here</button>
     </div>
+  </div>
+  <div id="give-card">
+    <b>Give <span id="give-who">a companion</span> to</b>
+    <div id="give-list"></div>
+    <button class="btn" id="give-cancel">Cancel</button>
   </div>
   <div id="offer-card">
     <div class="offer-who"><span class="offer-dot" id="offer-dot"></span>
@@ -1043,12 +1062,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
           <button class="btn" id="mode-survival">Survival</button>
           <button class="btn" id="mode-creative">Creative</button>
         </div></div>
-
-      <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small>
-        <div class="seg">
-          <button class="btn" id="pause-mic">&#127908; Microphone</button>
-          <button class="btn" id="pause-chat">&#128172; Chat</button>
-        </div></div>
+      <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small></div>
 
       <div class="setting"><b>Volume</b><small>Everything the game makes a sound about.</small>
         <input type="range" id="set-volume" min="0" max="100" step="1" value="60" /></div>
@@ -6111,6 +6125,9 @@ const UI = {
         Game.setMode('creative');
       }
     });
+    (($('#give-cancel') || { addEventListener() {} })).addEventListener('click', () => {
+      const c = $('#give-card'); if (c) c.classList.remove('show');
+    });
     (($('#offer-yes') || { addEventListener() {} })).addEventListener('click', () => Game.acceptOffer());
     (($('#offer-no') || { addEventListener() {} })).addEventListener('click', () => Game.declineOffer());
     (($('#bar-pause') || { addEventListener() {} })).addEventListener('click', () => this.pause());
@@ -6121,12 +6138,7 @@ const UI = {
       const box = $('#chat-input');
       if (box) { box.parentElement.classList.add('show'); box.focus(); }
     });
-    (($('#pause-mic') || { addEventListener() {} })).addEventListener('click', () => Game.voice.toggle());
-    (($('#pause-chat') || { addEventListener() {} })).addEventListener('click', () => {
-      this.closeAll();
-      const box = $('#chat-input');
-      if (box) { box.parentElement.classList.add('show'); box.focus(); }
-    });
+
     (($('#pause-map') || { addEventListener() {} })).addEventListener('click', () => {
       this.closeAll(); this.openMap();
     });
@@ -6466,6 +6478,29 @@ const UI = {
     });
   },
 
+  /* choose who gets the companion, from the people actually here */
+  showGivePicker(c) {
+    const card = $('#give-card'), list = $('#give-list');
+    if (!card || !list) return;
+    const people = Array.from(Game.net.peers.values());
+    $('#give-who').textContent = c.displayName;
+    if (!people.length) {
+      list.innerHTML = '<p class="lede">Nobody else is in this room yet.</p>';
+    } else {
+      list.innerHTML = '';
+      people.forEach(p => {
+        const b = document.createElement('button');
+        b.textContent = p.name || 'a player';
+        b.addEventListener('click', () => {
+          Game.offerCompanion(c, p.id);
+          card.classList.remove('show');
+        });
+        list.appendChild(b);
+      });
+    }
+    card.classList.add('show');
+  },
+
   showOffer(m, def) {
     const card = $('#offer-card');
     if (!card) return;
@@ -6600,16 +6635,7 @@ const UI = {
       give.className = 'btn';
       give.textContent = 'Give';
       give.style.display = (Game.net && Game.net.connected) ? '' : 'none';
-      give.addEventListener('click', () => {
-        const people = Array.from(Game.net.peers.values());
-        if (!people.length) { Game.toast('Nobody else is here to give it to.'); return; }
-        const who = people.length === 1 ? people[0]
-          : people[Math.max(0, people.findIndex(p =>
-              p.name === prompt('Give ' + c.displayName + ' to which player?\n' +
-                                people.map(x => x.name).join(', '))))];
-        if (!who) return;
-        Game.offerCompanion(c, who.id);
-      });
+      give.addEventListener('click', () => this.showGivePicker(c));
       const follow = document.createElement('button');
       follow.className = 'btn';
       follow.textContent = c.companion ? 'Following' : 'Follow';
@@ -6673,8 +6699,7 @@ const UI = {
         (Game.everCreative ? 'creative has been used' : 'clean survival') +
         ' \u00b7 ' + (Game.creatures ? Game.creatures.length : 0) + ' creatures nearby';
     }
-    const mic = $('#pause-mic');
-    if (mic) mic.classList.toggle('on', !!(Game.voice && Game.voice.on));
+
   },
 
   refreshModeButtons() {
@@ -10085,6 +10110,8 @@ Object.assign(Game, {
     }
     this.player.breath = 1;
     this.player.stamina = 1;
+    const meters = $('#meters');
+    if (meters) meters.style.display = (m === 'creative') ? 'none' : '';
     this.refreshHotbar();
     UI.refreshModeButtons();
   },
