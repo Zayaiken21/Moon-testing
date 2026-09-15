@@ -7204,6 +7204,7 @@ const Visits = {
     const q = '?ref=' + encodeURIComponent(document.referrer || 'direct') +
               '&account=' + encodeURIComponent(this.account()) +
               '&mode=' + encodeURIComponent(what || 'open') +
+              '&play=' + encodeURIComponent((typeof Game !== 'undefined' && Game.mode) || '') +
               '&standalone=' + (function () {
                 try { return matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches ? 1 : 0; }
                 catch (e) { return 0; }
@@ -7238,6 +7239,17 @@ const Visits = {
 
 // on arrival, and again when a world actually starts, so a cold server is caught
 try { Visits.ping('open'); } catch (e) {}
+/* a heartbeat while you are actually playing, so the count of people online is
+   real rather than a guess: once a minute, and nothing at all while paused */
+try {
+  setInterval(() => {
+    try {
+      if (typeof Game === 'undefined' || !Game.running) return;
+      if (document.hidden) return;
+      Visits.ping('alive');
+    } catch (e) {}
+  }, 60000);
+} catch (e) {}
 try { addEventListener('pageshow', () => { try { Visits.ping('open'); } catch (e) {} }); } catch (e) {}
 
 window.addEventListener('load', () => {
