@@ -235,6 +235,17 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #drive-hint b i#hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
   margin-left:auto;margin-right:8px}
 @media (orientation:landscape) and (max-height:560px){
+  #multiplayer .sheet{max-height:100dvh;overflow-y:auto;padding:10px 14px;
+    max-width:min(94vw,860px)}
+  #multiplayer h2{font-size:18px;margin-bottom:2px}
+  #multiplayer .lede{font-size:11px;margin-bottom:8px}
+  #multiplayer .field{margin-bottom:8px}
+  #multiplayer .field label{font-size:10.5px}
+  #multiplayer input,#multiplayer .btn{padding:7px 10px;font-size:12px}
+  #server-list,#room-list{max-height:30vh;overflow-y:auto}
+  #pause .sheet{max-height:100dvh;overflow-y:auto;padding:10px 16px}
+  .pause-quick{gap:7px;margin:10px 0 12px}
+  .pause-quick .setting{padding:8px 10px;gap:4px}
   /* the readouts you actually need, all on screen */
   #meters{display:flex !important;flex-direction:column;
     left:calc(8px + env(safe-area-inset-left)) !important;
@@ -373,6 +384,17 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .seg .btn{flex:1;padding:9px;min-width:0}
 .seg .btn.on{border-color:var(--moon);color:var(--moon);background:rgba(111,227,196,.16)}
 #set-volume{width:100%;accent-color:var(--moon)}
+#offer-card{position:absolute;left:50%;top:22%;transform:translate(-50%,0) scale(.96);
+  width:min(320px,88vw);background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--amethyst);border-radius:14px;padding:14px;pointer-events:auto;
+  opacity:0;visibility:hidden;transition:opacity .18s, transform .18s, visibility .18s;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);z-index:40}
+#offer-card.show{opacity:1;visibility:visible;transform:translate(-50%,0) scale(1)}
+.offer-who{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.offer-dot{width:34px;height:34px;border-radius:9px;border:2px solid var(--line);flex:none}
+#offer-name{font-family:var(--display);font-size:15px;display:block}
+#offer-from{color:var(--muted);font-size:11.5px}
+#offer-card p{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
   flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
 #chat-log.show{display:flex;opacity:1}
@@ -649,6 +671,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   <button id="fullscreen" title="Pause and options">❙❙</button>
   <div id="top-bar">
     <button id="mic-desktop" title="Microphone (V)">🎤 Mic</button>
+    <button id="bar-pause" title="Pause">❙❙</button>
     <button id="chat-desktop" title="Chat (T)">💬 Chat</button>
   </div>
   <div id="prompt"></div>
@@ -680,6 +703,15 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="btn" id="space-chart">Star chart</button>
       <button class="btn" id="space-tether">Step out on tether</button>
       <button class="btn" id="space-land">Land here</button>
+    </div>
+  </div>
+  <div id="offer-card">
+    <div class="offer-who"><span class="offer-dot" id="offer-dot"></span>
+      <div><b id="offer-name">A companion</b><small id="offer-from"></small></div></div>
+    <p id="offer-note"></p>
+    <div class="seg">
+      <button class="btn" id="offer-yes">Take it in</button>
+      <button class="btn" id="offer-no">No thanks</button>
     </div>
   </div>
   <div id="toast"></div>
@@ -1030,10 +1062,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
         <button class="btn" id="pause-settings">All settings</button>
         <button class="btn" id="pause-howto">How to play</button>
       </div>
-      <div class="seg">
-        <button class="btn" id="pause-map">Map</button>
-        <button class="btn" id="pause-companions">Companions</button>
-      </div>
+      <button class="btn" id="pause-companions">Companions and wallet</button>
     </div>
 
     <div class="field" style="margin-top:12px">
@@ -3436,6 +3465,7 @@ const Game = {
     this.player.pos.set(0.5, sy + 1.2, 0.5);
     this.spawnCreaturesNear(0, 0);
     this.running = true;
+    try { Visits.ping('play'); } catch (e) {}
     if (carried) {
       this.inventory = carried.inventory || this.inventory;
       this.hotbar = carried.hotbar || this.hotbar;
@@ -4211,6 +4241,7 @@ Object.assign(Game, {
     this.updateDrops(dt);
     this.repopulate(dt);
     this.updateLeashes(dt);
+    this.updateRope(dt);
     const seenNow = this.nearestCreature(9);
     if (seenNow && (seenNow.tamed || seenNow.companion)) this.noteSighting(seenNow.species, true);
     this.updateGuide();
@@ -4237,6 +4268,69 @@ Object.assign(Game, {
 
   /* a vehicle someone else put down, or moved */
   /* the room's answer about who is sitting where */
+  /* offering a companion to someone in the room */
+  offerCompanion(creature, toId) {
+    if (!this.net.connected) { this.toast('Trading needs a room.'); return; }
+    if (!creature || !creature.tamed) { this.toast('Only a tamed companion can be given.'); return; }
+    this.net.send({
+      t: 'offer', to: toId, species: creature.species,
+      nickname: creature.nickname || null,
+      key: (this.world ? this.world.seedText : 'w') + ':' + creature.spawnKey + ':' + creature.species,
+      trust: creature.trust, saddled: !!creature.saddled
+    });
+    this.pendingOffer = creature;
+    this.toast('Offered ' + creature.displayName + '. Waiting for an answer.');
+  },
+
+  /* somebody has offered you one */
+  receiveOffer(m) {
+    const def = ANIMALS[m.species];
+    if (!def) return;
+    this.incomingOffer = m;
+    UI.showOffer(m, def);
+  },
+
+  acceptOffer() {
+    const m = this.incomingOffer;
+    if (!m) return;
+    this.incomingOffer = null;
+    const p = this.player.pos;
+    const c = this.addCreature(m.species, p.x + 1.4, p.y, p.z, null, m.key);
+    c.tamed = true;
+    c.trust = 1;
+    c.nickname = m.nickname || null;
+    c.saddled = !!m.saddled;
+    c.claimed = true;                 // it has already paid its finder
+    this.setCompanion(c);
+    this.net.send({ t: 'offer-reply', to: m.from, ok: true, key: m.key });
+    this.toast(c.displayName + ' is yours now.');
+    UI.hideOffer();
+    if (window.VoxeliaWallet && window.VoxeliaWallet.transfer) {
+      window.VoxeliaWallet.transfer(m.key, window.VoxeliaWallet.account());
+    }
+  },
+
+  declineOffer() {
+    const m = this.incomingOffer;
+    this.incomingOffer = null;
+    if (m) this.net.send({ t: 'offer-reply', to: m.from, ok: false, key: m.key });
+    UI.hideOffer();
+  },
+
+  /* the other side accepted: the animal leaves you */
+  offerAccepted(m) {
+    const c = this.pendingOffer;
+    this.pendingOffer = null;
+    if (!c) return;
+    this.setCompanion(c.companion ? c : null);
+    const at = this.creatures.indexOf(c);
+    if (at >= 0) {
+      this.entityGroup.remove(c.model);
+      this.creatures.splice(at, 1);
+    }
+    this.toast(c.displayName + ' went to its new owner.');
+  },
+
   applySeat(m) {
     const v = this.vehicles.find(x => x.id === m.id);
     if (!v) { this.boardPending = null; return; }
@@ -4517,6 +4611,16 @@ Object.assign(Game, {
     if (lampBtn) lampBtn.style.display = this.gear.goggles ? '' : 'none';
 
     // this button always has a job, so it never vanishes on you
+    const v0 = this.riding || this.passengerIn;
+    const ropeBtn = $('#btn-lamp');
+    if (ropeBtn && v0 && v0.kind === 'rotor') {
+      const want = v0.ropeOut ? 'Retract' : 'Rope';
+      if (ropeBtn.textContent !== want) ropeBtn.textContent = want;
+      ropeBtn.dataset.act = 'rope';
+    } else if (ropeBtn && ropeBtn.dataset.act === 'rope') {
+      ropeBtn.dataset.act = '';
+      ropeBtn.textContent = 'Lamp';
+    }
     let altLabel;
     if (this.player.flying || this.mount || (this.riding && this.riding.kind !== 'cart')) altLabel = 'Down';
     else if (this.riding && this.riding.kind === 'sub') altLabel = 'Lamps';
@@ -4529,6 +4633,14 @@ Object.assign(Game, {
   },
 
   refreshGearBadge() {
+    const gb = $('#gear-badge');
+    if (gb && (this.riding || this.passengerIn || this.mount)) {
+      gb.textContent = '';
+      gb.classList.remove('on');
+      return;
+    }
+    const badge = $('#gear-badge');
+    if (badge && (this.riding || this.passengerIn)) { badge.textContent = ''; badge.classList.remove('on'); return; }
     const el = $('#gear-badge');
     if (!el) return;
     const g = this.gear, bits = [];
@@ -4569,7 +4681,31 @@ Object.assign(Game, {
   },
 
   /* quietly keeps a rolling save so nothing is ever lost */
+  /* keeps the account's copy of your companions in step, quietly */
+  syncCompanions() {
+    if (this.mode === 'creative') return;
+    const base = (typeof Visits !== 'undefined') ? Visits.base() : '';
+    const acc = (typeof Visits !== 'undefined') ? Visits.account() : '';
+    if (!base || !acc) return;
+    const tamed = this.creatures.filter(c => c.tamed).map(c => ({
+      key: (this.world ? this.world.seedText : 'w') + ':' + c.spawnKey + ':' + c.species,
+      species: c.species, name: c.displayName, since: c.tamedAt || Date.now()
+    }));
+    if (!tamed.length) return;
+    const sig = tamed.length + ':' + tamed.map(t => t.key).join('|');
+    if (sig === this._compSig) return;              // nothing has changed
+    this._compSig = sig;
+    try {
+      fetch(base + '/companions', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ account: acc, companions: tamed })
+      }).catch(() => {});
+    } catch (e) {}
+  },
+
   autosaveTick(dt) {
+    this.compTimer = (this.compTimer || 0) - dt;
+    if (this.compTimer <= 0) { this.compTimer = 45; this.syncCompanions(); }
     if (!Settings.autosave || !this.running || this.net.connected) return;
     this.autoTimer = (this.autoTimer === undefined ? Settings.autosaveMinutes * 60 : this.autoTimer) - dt;
     if (this.autoTimer > 0) return;
@@ -4819,6 +4955,7 @@ Object.assign(Game, {
 
   interact() {
     if (this.realm === 'space') { this.toggleTether(); return; }
+    if (!this.riding && !this.passengerIn && this.grabRope()) return;
     if (this.passengerIn) {
       this.toast('Hopped off the ' + this.passengerIn.def.name.toLowerCase() + '.');
       this.net.sendUnboard(this.passengerIn.id);
@@ -5944,7 +6081,11 @@ const UI = {
       Game.resize();
     });
 
-    $('#btn-lamp').addEventListener('touchstart', (e) => { e.preventDefault(); Game.toggleHeadlamp(); }, { passive: false });
+    $('#btn-lamp').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if ($('#btn-lamp').dataset.act === 'rope') Game.toggleRope();
+      else Game.toggleHeadlamp();
+    }, { passive: false });
     $('#slot-save').addEventListener('click', () => {
       const n = ($('#slot-name').value || '').trim() || 'quicksave';
       if (Game.saveToSlot(n)) this.renderSlots();
@@ -5969,6 +6110,16 @@ const UI = {
         'Creative mode is permanent for this world: it will never be able to earn again. Continue?')) {
         Game.setMode('creative');
       }
+    });
+    (($('#offer-yes') || { addEventListener() {} })).addEventListener('click', () => Game.acceptOffer());
+    (($('#offer-no') || { addEventListener() {} })).addEventListener('click', () => Game.declineOffer());
+    (($('#bar-pause') || { addEventListener() {} })).addEventListener('click', () => this.pause());
+    (($('#bar-mic') || { addEventListener() {} })).addEventListener('click', () => {
+      Game.voice.toggle().then(() => this.refreshSocialButtons());
+    });
+    (($('#bar-chat') || { addEventListener() {} })).addEventListener('click', () => {
+      const box = $('#chat-input');
+      if (box) { box.parentElement.classList.add('show'); box.focus(); }
     });
     (($('#pause-mic') || { addEventListener() {} })).addEventListener('click', () => Game.voice.toggle());
     (($('#pause-chat') || { addEventListener() {} })).addEventListener('click', () => {
@@ -6294,8 +6445,17 @@ const UI = {
     slots.forEach(sl => {
       const row = document.createElement('button');
       row.className = 'bind-row';
-      row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}</small></span><b>Play</b>`;
-      row.addEventListener('click', () => {
+      row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ` +
+        `${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}${sl.everCreative ? ' \u00b7 creative used' : ''}` +
+        `</small></span><b>Play</b><i class="slot-del" title="Delete this world">\u2715</i>`;
+      row.addEventListener('click', (ev) => {
+        if (ev.target && ev.target.classList && ev.target.classList.contains('slot-del')) {
+          ev.stopPropagation();
+          if (!confirm('Delete "' + sl.name + '" for good? This cannot be undone.')) return;
+          Game.deleteSlot(sl.name);
+          this.renderHomeSlots();
+          return;
+        }
         $('#home').classList.remove('open');
         this.closeAll();
         $('#hud').classList.add('on');
@@ -6306,7 +6466,32 @@ const UI = {
     });
   },
 
+  showOffer(m, def) {
+    const card = $('#offer-card');
+    if (!card) return;
+    $('#offer-dot').style.background = def.body;
+    $('#offer-dot').style.borderColor = def.accent;
+    $('#offer-name').textContent = m.nickname || def.name;
+    $('#offer-from').textContent = 'offered by ' + (m.name || 'another player');
+    $('#offer-note').textContent = def.name + ' \u00b7 ' + (def.abilityName || 'a companion') +
+      '. It has already earned its finder, so it pays nothing more.';
+    card.classList.add('show');
+  },
+
+  hideOffer() {
+    const card = $('#offer-card');
+    if (card) card.classList.remove('show');
+  },
+
   refreshSocialButtons() {
+    const live = !!(Game.net && Game.net.connected);
+    const m = $('#mic-desktop'), c = $('#chat-desktop');
+    if (m) { m.style.display = live ? '' : 'none'; m.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
+    if (c) c.style.display = live ? '' : 'none';
+    const online = !!(Game.net && Game.net.connected);
+    const mic = $('#bar-mic'), chat = $('#bar-chat');
+    if (mic) { mic.style.display = online ? '' : 'none'; mic.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
+    if (chat) chat.style.display = online ? '' : 'none';
     const on = !!(Game.net && Game.net.connected);
     const show = (sel, vis) => { const el = $(sel); if (el) el.style.display = vis ? '' : 'none'; };
     // talking to people only appears when there are people to talk to
@@ -6411,6 +6596,20 @@ const UI = {
       });
       const kind = document.createElement('small');
       kind.textContent = c.def.name + ' \u00b7 ' + c.def.abilityName;
+      const give = document.createElement('button');
+      give.className = 'btn';
+      give.textContent = 'Give';
+      give.style.display = (Game.net && Game.net.connected) ? '' : 'none';
+      give.addEventListener('click', () => {
+        const people = Array.from(Game.net.peers.values());
+        if (!people.length) { Game.toast('Nobody else is here to give it to.'); return; }
+        const who = people.length === 1 ? people[0]
+          : people[Math.max(0, people.findIndex(p =>
+              p.name === prompt('Give ' + c.displayName + ' to which player?\n' +
+                                people.map(x => x.name).join(', '))))];
+        if (!who) return;
+        Game.offerCompanion(c, who.id);
+      });
       const follow = document.createElement('button');
       follow.className = 'btn';
       follow.textContent = c.companion ? 'Following' : 'Follow';
@@ -6422,6 +6621,7 @@ const UI = {
       label.appendChild(kind);
       row.appendChild(dot);
       row.appendChild(label);
+      row.appendChild(give);
       row.appendChild(follow);
       list.appendChild(row);
     });
@@ -6971,35 +7171,74 @@ Object.assign(Game, {
    15. Boot
    --------------------------------------------------------------- */
 /* a single quiet ping so the owner can see how many people opened the game */
-(function countVisit() {
-  try {
+/* Counting an opening, made as hard to lose as possible.
+   A beacon first (survives the page closing, no preflight), then a plain GET
+   image (no preflight either), then fetch. Only a confirmed hit is remembered,
+   so a cold server on the first try is retried rather than lost. */
+const Visits = {
+  base() {
     const server = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
-    if (!server) return;
-    // once a day per device: enough to count players, light enough never to
-    // trouble a free tier or trip a rate limit
-    const today = new Date().toISOString().slice(0, 10);
+    if (!server) return '';
+    return (/^https?:\/\//.test(server) ? server
+      : (location.protocol === 'https:' ? 'https://' : 'http://') + server).replace(/\/$/, '');
+  },
+
+  account() {
+    try { return localStorage.getItem('voxelia.account') || ''; } catch (e) { return ''; }
+  },
+
+  seenToday() {
+    try { return localStorage.getItem('voxelia.counted') === new Date().toISOString().slice(0, 10); }
+    catch (e) { return false; }
+  },
+
+  remember() {
+    try { localStorage.setItem('voxelia.counted', new Date().toISOString().slice(0, 10)); } catch (e) {}
+  },
+
+  ping(what) {
+    const base = this.base();
+    if (!base) return;
+    if (what === 'open' && this.seenToday()) return;
+
+    const q = '?ref=' + encodeURIComponent(document.referrer || 'direct') +
+              '&account=' + encodeURIComponent(this.account()) +
+              '&mode=' + encodeURIComponent(what || 'open') +
+              '&standalone=' + (function () {
+                try { return matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches ? 1 : 0; }
+                catch (e) { return 0; }
+              })() +
+              '&t=' + Date.now();
+
+    // 1. a beacon: plain text, so no preflight, and it survives a closing tab
+    let sent = false;
     try {
-      if (localStorage.getItem('voxelia.counted') === today) return;
-    } catch (e) { /* private browsing: it pings once for this page load */ }
-    const base = /^https?:\/\//.test(server) ? server
-               : (location.protocol === 'https:' ? 'https://' : 'http://') + server;
-    fetch(base.replace(/\/$/, '') + '/visit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        ref: document.referrer || 'direct',
-        account: (function () { try { return localStorage.getItem('voxelia.account') || null; } catch (e) { return null; } })(),
-        standalone: matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches,
-        mode: 'open'
-      }),
-      keepalive: true
-    }).then((res) => {
-      // only remember it once the server has actually taken it, so a failed
-      // ping is retried next time instead of being silently swallowed
-      if (res && res.ok) { try { localStorage.setItem('voxelia.counted', today); } catch (e) {} }
-    }).catch(() => {});
-  } catch (e) {}
-})();
+      if (navigator.sendBeacon) {
+        sent = navigator.sendBeacon(base + '/visit' + q, new Blob([''], { type: 'text/plain' }));
+      }
+    } catch (e) {}
+
+    // 2. an image: works even where fetch is blocked outright
+    try {
+      const img = new Image();
+      img.onload = () => { if (what === 'open') this.remember(); };
+      img.src = base + '/visit' + q;
+    } catch (e) {}
+
+    // 3. fetch, as a last resort and to confirm
+    if (!sent) {
+      try {
+        fetch(base + '/visit' + q, { method: 'GET', mode: 'cors', keepalive: true })
+          .then((res) => { if (res && res.ok && what === 'open') this.remember(); })
+          .catch(() => {});
+      } catch (e) {}
+    }
+  }
+};
+
+// on arrival, and again when a world actually starts, so a cold server is caught
+try { Visits.ping('open'); } catch (e) {}
+try { addEventListener('pageshow', () => { try { Visits.ping('open'); } catch (e) {} }); } catch (e) {}
 
 window.addEventListener('load', () => {
   if (!window.THREE) {
@@ -7307,6 +7546,32 @@ Game.net = {
         Game.applyRemoteVehicle(m);
         break;
       }
+      case 'offer': {
+        if (m.to && m.to !== this.selfId) break;
+        Game.receiveOffer(Object.assign({}, m, { from: m.id }));
+        break;
+      }
+      case 'offer-reply': {
+        if (m.to && m.to !== this.selfId) break;
+        if (m.ok) Game.offerAccepted(m);
+        else { Game.pendingOffer = null; Game.toast('They said no thank you.'); }
+        break;
+      }
+      case 'rope': {
+        const v = Game.vehicles.find(x => x.id === m.id);
+        if (v) {
+          v.ropeOut = !!m.out;
+          v.ropeLength = m.length || 12;
+          if (!m.out && v.ropeLine) { Game.entityGroup.remove(v.ropeLine); v.ropeLine = null; }
+          if (m.out && !v.ropeLine) {
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3));
+            v.ropeLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xC9A96B }));
+            Game.entityGroup.add(v.ropeLine);
+          }
+        }
+        break;
+      }
       case 'seat': {
         Game.applySeat(m);
         break;
@@ -7452,7 +7717,7 @@ Game.net = {
     }
 
     this.vehTimer = (this.vehTimer || 0) + dt;
-    if (this.vehTimer > 0.06) {
+    if (this.vehTimer > 0.045) {
       this.vehTimer = 0;
       for (const v of Game.vehicles) {
         if (v.owner && v.owner !== this.selfId) continue;
@@ -10262,6 +10527,81 @@ Object.assign(Game, {
   },
 
   /* leaving your ship in orbit, and climbing back in */
+  /* the helicopter's winch: a rope you can put out, hang from and climb */
+  toggleRope() {
+    const v = this.riding || this.passengerIn;
+    if (!v || v.kind !== 'rotor') { this.toast('Only a helicopter carries a winch.'); return; }
+    if (v.ropeOut) {
+      v.ropeOut = false;
+      if (v.ropeLine) { this.entityGroup.remove(v.ropeLine); v.ropeLine = null; }
+      if (this.onRope === v.id) this.onRope = null;
+      this.net.send({ t: 'rope', id: v.id, out: false });
+      this.toast('Rope retracted.');
+    } else {
+      if (this.mode !== 'creative' && !this.count(I.ROPE)) {
+        this.toast('You need rope aboard first \u2014 three thatch makes four.');
+        return;
+      }
+      v.ropeOut = true;
+      v.ropeLength = Math.min(32, 8 + this.count(I.ROPE) * 2);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3));
+      v.ropeLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xC9A96B }));
+      this.entityGroup.add(v.ropeLine);
+      this.net.send({ t: 'rope', id: v.id, out: true, length: v.ropeLength });
+      this.toast('Rope out, ' + v.ropeLength + ' blocks. Anyone below can take hold.');
+    }
+    UI.refreshTouchButtons();
+  },
+
+  grabRope() {
+    if (this.onRope) {
+      this.onRope = null;
+      this.toast('Let go of the rope.');
+      return true;
+    }
+    let best = null, bestD = 6;
+    for (const v of this.vehicles) {
+      if (!v.ropeOut) continue;
+      const d = Math.hypot(this.player.pos.x - v.pos.x, this.player.pos.z - v.pos.z);
+      if (d < bestD && this.player.pos.y < v.pos.y) { best = v; bestD = d; }
+    }
+    if (!best) return false;
+    this.onRope = best.id;
+    this.ropeAt = Math.min(best.ropeLength, Math.max(2, best.pos.y - this.player.pos.y));
+    this.toast('Holding the rope. Jump to climb, crouch to slide down.');
+    return true;
+  },
+
+  updateRope(dt) {
+    for (const v of this.vehicles) {
+      if (!v.ropeOut || !v.ropeLine) continue;
+      const sway = Math.sin(performance.now() * 0.002) * Math.min(1.6, Math.abs(v.speed) * 0.14);
+      const arr = v.ropeLine.geometry.attributes.position.array;
+      arr[0] = v.pos.x; arr[1] = v.pos.y - 0.6; arr[2] = v.pos.z;
+      arr[3] = v.pos.x + sway; arr[4] = v.pos.y - 0.6 - v.ropeLength; arr[5] = v.pos.z + sway * 0.6;
+      v.ropeLine.geometry.attributes.position.needsUpdate = true;
+      if (v.ropeLine.geometry.computeBoundingSphere) v.ropeLine.geometry.computeBoundingSphere();
+    }
+    if (!this.onRope) return;
+    const v = this.vehicles.find(x => x.id === this.onRope);
+    if (!v || !v.ropeOut) { this.onRope = null; return; }
+    const climb = (Input.keys.Space || Input.buttons.jump ? -1 : 0) +
+                  ((Input.keys.ShiftLeft || Input.buttons.crouch) ? 1 : 0);
+    this.ropeAt = Math.max(1.4, Math.min(v.ropeLength, this.ropeAt + climb * 4 * dt));
+    const sway = Math.sin(performance.now() * 0.002) * Math.min(1.6, Math.abs(v.speed) * 0.14);
+    const t = this.ropeAt / Math.max(1, v.ropeLength);
+    this.player.pos.set(v.pos.x + sway * t, v.pos.y - 0.6 - this.ropeAt, v.pos.z + sway * t * 0.6);
+    this.player.vel.set(0, 0, 0);
+    this.player.onGround = false;
+    if (this.ropeAt <= 1.5) {
+      this.onRope = null;
+      if (this.net.connected) this.net.send({ t: 'board', id: v.id, seats: v.def.seats, item: v.itemId });
+      else { this.riding = v; v.owner = 'local'; }
+      this.toast('Climbed aboard.');
+    }
+  },
+
   toggleTether() {
     if (this.realm !== 'space') return;
     if (!this.count(I.TETHER)) { this.toast('You need a safety tether before stepping out.'); return; }
