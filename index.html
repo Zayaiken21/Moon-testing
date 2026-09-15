@@ -119,6 +119,10 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #ability-badge.on b{color:var(--amethyst)}
 #ability-badge span{color:var(--muted);font-size:11.5px;line-height:1.35;display:block;margin-top:2px}
 #meters{position:absolute;left:14px;bottom:118px;width:150px}
+@media (orientation:landscape){
+  #meters{top:calc(78px + env(safe-area-inset-top));bottom:auto;
+    left:calc(10px + env(safe-area-inset-left));width:calc(120px * var(--ui))}
+}
 .meter-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:10px;color:var(--muted);
   font-family:var(--display);letter-spacing:.05em}
 .meter{flex:1;height:5px;background:rgba(255,255,255,.13);border-radius:3px;overflow:hidden}
@@ -297,7 +301,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .map-marks .bind-row{cursor:pointer}
 #fps{position:absolute;left:50%;transform:translateX(-50%);top:6px;font-family:var(--display);font-size:11px;
   color:var(--muted);display:none}
-#fullscreen{position:absolute;left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top));
+#fullscreen{display:none !important;position:absolute;left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top));
   pointer-events:auto;background:rgba(20,18,28,.78);border:1px solid var(--line);border-radius:999px;
   width:calc(46px * var(--ui));height:calc(26px * var(--ui));font-size:calc(11px * var(--ui));
   letter-spacing:2px;color:var(--text);cursor:pointer;display:grid;place-items:center}
@@ -743,8 +747,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   <div class="pad">
     <div class="pad-strip">
       <button class="tbtn tiny" id="btn-bag">Bag</button>
-      <button class="tbtn tiny" id="btn-chat">Chat</button>
-      <button class="tbtn tiny" id="btn-voice">Mic</button>
       <button class="tbtn tiny" id="btn-drop">Drop</button>
       <button class="tbtn tiny" id="btn-alt">Fly</button>
       <button class="tbtn tiny" id="btn-lamp">Lamp</button>
@@ -792,6 +794,10 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <input type="checkbox" id="set-fps" /></div>
     <div class="setting"><b>Carve caves</b><small>Turn off for solid ground and faster generation.</small>
       <input type="checkbox" id="set-caves" /></div>
+    <div class="setting"><b>Sound</b><small>Blocks, footsteps, animals.</small>
+      <input type="range" id="set-sound2" min="0" max="100" step="1" /></div>
+    <div class="setting"><b>Music</b><small>Changes with where you are: home, grassland, harder country, other worlds, and the launch.</small>
+      <input type="range" id="set-music2" min="0" max="100" step="1" /></div>
     <div class="setting"><b>Save automatically</b><small>Keeps a rolling save of single player worlds.</small>
       <input type="checkbox" id="set-autosave" /></div>
     <div class="setting"><b>Adjust quality automatically</b><small>Drops view distance if frames get slow.</small>
@@ -1064,8 +1070,10 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
         </div></div>
       <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small></div>
 
-      <div class="setting"><b>Volume</b><small>Everything the game makes a sound about.</small>
-        <input type="range" id="set-volume" min="0" max="100" step="1" value="60" /></div>
+      <div class="setting"><b>Sound</b><small>Blocks, footsteps, animals, everything the world does.</small>
+        <input type="range" id="set-sound" min="0" max="100" step="1" value="60" /></div>
+      <div class="setting"><b>Music</b><small>The piece playing for wherever you are.</small>
+        <input type="range" id="set-music" min="0" max="100" step="1" value="50" /></div>
 
       <div class="setting"><b>Save automatically</b><small>Keeps a rolling save of this world.</small>
         <input type="checkbox" id="set-autosave2" /></div>
@@ -3284,6 +3292,22 @@ Pad.defaults = Object.assign({}, Pad.map);
    11. Game
    --------------------------------------------------------------- */
 const $ = (s) => document.querySelector(s);
+
+/* Every listener in the game goes through this. If the element is not on the
+   page the binding is simply skipped, so a missing button can never stop the
+   engine from starting. The same for styling an element that may not exist. */
+function on(sel, type, fn, opts) {
+  const el = (typeof sel === 'string') ? document.querySelector(sel) : sel;
+  if (!el || !el.addEventListener) return null;
+  el.addEventListener(type, fn, opts);
+  return el;
+}
+
+function setStyle(sel, prop, value) {
+  const el = (typeof sel === 'string') ? document.querySelector(sel) : sel;
+  if (el && el.style) el.style[prop] = value;
+}
+
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 /* every vehicle control can be reassigned from Settings */
@@ -3313,6 +3337,8 @@ const Settings = {
   voiceVolume: 1.0,
   showFps: false,
   autoQuality: true,
+  musicVolume: 0.5,
+  soundVolume: 0.6,
   autosave: true,
   autosaveMinutes: 3,
   caves: true,
@@ -3478,6 +3504,7 @@ const Game = {
     const sy = this.world.surfaceY(0, 0);
     this.player.pos.set(0.5, sy + 1.2, 0.5);
     this.spawnCreaturesNear(0, 0);
+    try { Music.follow(); } catch (e) {}
     this.running = true;
     try { Visits.ping('play'); } catch (e) {}
     if (carried) {
@@ -3919,15 +3946,15 @@ const Game = {
     };
     bind('#btn-jump', 'jump'); bind('#btn-place', 'place'); bind('#btn-mine', 'mine');
     // a quick double tap on jump turns flight on and off
-    $('#btn-jump').addEventListener('touchstart', () => {
+    on('#btn-jump', 'touchstart', () => {
       const now = performance.now();
       if (this._lastJumpTap && now - this._lastJumpTap < 320) { this._lastJumpTap = 0; this.toggleFly(); }
       else this._lastJumpTap = now;
     }, { passive: true });
-    $('#btn-interact').addEventListener('touchstart', (e) => { e.preventDefault(); this.interact(); }, { passive: false });
+    on('#btn-interact', 'touchstart', (e) => { e.preventDefault(); this.interact(); }, { passive: false });
     ['touchend', 'touchcancel'].forEach(ev =>
-      $('#btn-alt').addEventListener(ev, () => { Input.buttons.crouch = false; }, { passive: true }));
-    $('#btn-alt').addEventListener('touchstart', (e) => {
+      on('#btn-alt', ev, () => { Input.buttons.crouch = false; }, { passive: true }));
+    on('#btn-alt', 'touchstart', (e) => {
       e.preventDefault();
       const act = $('#btn-alt').dataset.act;
       if (act === 'Down') { Input.buttons.crouch = true; return; }   // held, released on touchend
@@ -4256,6 +4283,7 @@ Object.assign(Game, {
     this.repopulate(dt);
     this.updateLeashes(dt);
     this.updateRope(dt);
+    this.seatPassenger();
     const seenNow = this.nearestCreature(9);
     if (seenNow && (seenNow.tamed || seenNow.companion)) this.noteSighting(seenNow.species, true);
     this.updateGuide();
@@ -4469,20 +4497,24 @@ Object.assign(Game, {
   bindHintClose() {
     if (this.hintDelegate) return;
     this.hintDelegate = true;
-    const el = $('#drive-hint');
-    if (!el) return;
-    const shut = (ev) => {
+    // the card is rebuilt constantly, so listen on the document and catch the
+    // cross wherever it happens to be: this can never miss a press
+    const kill = (ev) => {
       const t = ev.target;
-      if (!t || !t.id || (t.id !== 'hint-close' && t.id !== 'hint-clock')) return;
+      if (!t) return;
+      const onX = (t.id === 'hint-close' || t.id === 'hint-clock' ||
+                   (t.closest && t.closest('#hint-close')));
+      if (!onX) return;
       ev.preventDefault();
       ev.stopPropagation();
-      el.classList.remove('show');
+      const el = $('#drive-hint');
+      if (el) el.classList.remove('show');
       this.hintTimer = 0;
       this.hintDismissed = true;
       clearInterval(this._hintTimer);
     };
-    el.addEventListener('click', shut);
-    el.addEventListener('touchstart', shut, { passive: false });
+    document.addEventListener('click', kill, true);
+    document.addEventListener('touchstart', kill, true);
   },
 
   clearVehicleHud() {
@@ -5186,7 +5218,8 @@ Object.assign(Game, {
     try {
       this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       this._master = this._audioCtx.createGain();
-      this._master.gain.value = Settings.sound ? Settings.volume : 0;
+      this._master.gain.value = Settings.sound
+        ? (Settings.soundVolume === undefined ? Settings.volume : Settings.soundVolume) : 0;
       this._master.connect(this._audioCtx.destination);
       this._musicGain = this._audioCtx.createGain();
       this._musicGain.gain.value = Settings.music;
@@ -5196,7 +5229,10 @@ Object.assign(Game, {
   },
 
   applyVolumes() {
-    if (this._master) this._master.gain.value = Settings.sound ? Settings.volume : 0;
+    if (this._master) {
+      this._master.gain.value = Settings.sound
+        ? (Settings.soundVolume === undefined ? Settings.volume : Settings.soundVolume) : 0;
+    }
     if (this._musicGain) this._musicGain.gain.value = Settings.music;
   },
 
@@ -5962,11 +5998,11 @@ const UI = {
     $('#seed-input').value = this.randomSeed();
     this.refreshPreview();
 
-    $('#seed-roll').addEventListener('click', () => {
+    on('#seed-roll', 'click', () => {
       $('#seed-input').value = this.randomSeed();
       this.refreshPreview();
     });
-    $('#seed-input').addEventListener('change', () => this.refreshPreview());
+    on('#seed-input', 'change', () => this.refreshPreview());
 
     $$('.mode-option').forEach(el => el.addEventListener('click', () => {
       $$('.mode-option').forEach(o => o.classList.remove('picked'));
@@ -5974,38 +6010,38 @@ const UI = {
       this.mode = el.dataset.mode;
     }));
 
-    $('#play').addEventListener('click', () => this.play());
-    $('#open-settings').addEventListener('click', () => this.toggle('settings'));
-    $('#open-character').addEventListener('click', () => { Game.drawCharacter(); this.toggle('character'); });
-    $('#open-guide').addEventListener('click', () => this.toggle('guide'));
+    on('#play', 'click', () => this.play());
+    on('#open-settings', 'click', () => this.toggle('settings'));
+    on('#open-character', 'click', () => { Game.drawCharacter(); this.toggle('character'); });
+    on('#open-guide', 'click', () => this.toggle('guide'));
     $$('.close-screen').forEach(b => b.addEventListener('click', () => this.closeAll()));
 
 
-    $('#resume').addEventListener('click', () => this.closeAll());
-    $('#save-world').addEventListener('click', () => { Game.saveToFile(); });
-    $('#load-file').addEventListener('change', (e) => this.readSaveFile(e.target.files[0]));
-    $('#load-file-home').addEventListener('change', (e) => this.readSaveFile(e.target.files[0]));
-    $('#open-multiplayer').addEventListener('click', () => this.toggle('multiplayer'));
-    $('#open-load').addEventListener('click', () => { this.renderHomeSlots(); this.toggle('loadgame'); });
-    $('#minimap-wrap').addEventListener('click', () => this.openMap());
-    $('#map-mark').addEventListener('click', () => { Game.addWaypoint(null); this.redrawMap(); });
-    $('#map-in').addEventListener('click', () => { this.mapZoom = Math.max(0.6, (this.mapZoom || 6) / 1.6); this.redrawMap(); });
-    $('#map-out').addEventListener('click', () => { this.mapZoom = Math.min(40, (this.mapZoom || 6) * 1.6); this.redrawMap(); });
-    $('#mp-host-btn').addEventListener('click', () => this.hostGame());
-    $('#mp-join-btn').addEventListener('click', () => this.joinByCode());
-    $('#mp-refresh').addEventListener('click', () => this.probeServers(true));
-    $('#mp-relay').addEventListener('change', () => {
+    on('#resume', 'click', () => this.closeAll());
+    on('#save-world', 'click', () => { Game.saveToFile(); });
+    on('#load-file', 'change', (e) => this.readSaveFile(e.target.files[0]));
+    on('#load-file-home', 'change', (e) => this.readSaveFile(e.target.files[0]));
+    on('#open-multiplayer', 'click', () => this.toggle('multiplayer'));
+    on('#open-load', 'click', () => { this.renderHomeSlots(); this.toggle('loadgame'); });
+    on('#minimap-wrap', 'click', () => this.openMap());
+    on('#map-mark', 'click', () => { Game.addWaypoint(null); this.redrawMap(); });
+    on('#map-in', 'click', () => { this.mapZoom = Math.max(0.6, (this.mapZoom || 6) / 1.6); this.redrawMap(); });
+    on('#map-out', 'click', () => { this.mapZoom = Math.min(40, (this.mapZoom || 6) * 1.6); this.redrawMap(); });
+    on('#mp-host-btn', 'click', () => this.hostGame());
+    on('#mp-join-btn', 'click', () => this.joinByCode());
+    on('#mp-refresh', 'click', () => this.probeServers(true));
+    on('#mp-relay', 'change', () => {
       const v = ($('#mp-relay').value || '').trim();
       if (v) { this.rememberServer(v); this.probeServers(); }
     });
     // leave is handled by the back button
-    if (false) $('#mp-leave').addEventListener('click', () => { Game.net.disconnect(); Game.toast('Left the server.'); });
+    if (false) on('#mp-leave', 'click', () => { Game.net.disconnect(); Game.toast('Left the server.'); });
     // on a phone this is the pause pill; on a computer it is fullscreen
-    $('#fullscreen').addEventListener('click', () => {
+    on('#fullscreen', 'click', () => {
       if (IS_TOUCH) this.pause(); else this.toggleFullscreen();
     });
     if (!IS_TOUCH) { $('#fullscreen').textContent = '\u26f6'; $('#fullscreen').title = 'Fullscreen'; }
-    $('#quit').addEventListener('click', () => this.quitToHome());
+    on('#quit', 'click', () => this.quitToHome());
 
     /* settings */
     const bindRange = (sel, key, fmt) => {
@@ -6048,16 +6084,16 @@ const UI = {
       if (read) read.textContent = craft.trim > 0.05 ? 'climbing'
         : craft.trim < -0.05 ? 'descending' : 'level';
     };
-    (($('#alt-up') || { addEventListener() {} })).addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) + 0.34));
-    (($('#alt-down') || { addEventListener() {} })).addEventListener('click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) - 0.34));
-    (($('#alt-level') || { addEventListener() {} })).addEventListener('click', () => setTrim(0));
+    on('#alt-up', 'click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) + 0.34));
+    on('#alt-down', 'click', () => setTrim((Game.riding ? Game.riding.trim || 0 : 0) - 0.34));
+    on('#alt-level', 'click', () => setTrim(0));
     ['touchstart', 'mousedown'].forEach(ev => {
-      (($('#alt-up') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
-      (($('#alt-down') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
-      (($('#alt-level') || { addEventListener() {} })).addEventListener(ev, (e) => e.stopPropagation());
+      on('#alt-up', ev, (e) => e.stopPropagation());
+      on('#alt-down', ev, (e) => e.stopPropagation());
+      on('#alt-level', ev, (e) => e.stopPropagation());
     });
     this.drawVKeys();
-    $('#vkey-reset').addEventListener('click', () => {
+    on('#vkey-reset', 'click', () => {
       Object.assign(VKEYS, VKEY_DEFAULTS);
       this.vkeyAwait = null;
       this.drawVKeys();
@@ -6082,7 +6118,7 @@ const UI = {
     const applyScale = () => document.documentElement.style.setProperty('--ui', Settings.uiScale);
     Settings.uiScale = autoScale();
     bindRange('#set-uiscale', 'uiScale', v => v.toFixed(2) + '\u00d7');
-    $('#set-uiscale').addEventListener('input', () => { this.uiScaleManual = true; applyScale(); });
+    on('#set-uiscale', 'input', () => { this.uiScaleManual = true; applyScale(); });
     applyScale();
     addEventListener('resize', () => {
       if (!this.uiScaleManual) {
@@ -6095,12 +6131,12 @@ const UI = {
       Game.resize();
     });
 
-    $('#btn-lamp').addEventListener('touchstart', (e) => {
+    on('#btn-lamp', 'touchstart', (e) => {
       e.preventDefault();
       if ($('#btn-lamp').dataset.act === 'rope') Game.toggleRope();
       else Game.toggleHeadlamp();
     }, { passive: false });
-    $('#slot-save').addEventListener('click', () => {
+    on('#slot-save', 'click', () => {
       const n = ($('#slot-name').value || '').trim() || 'quicksave';
       if (Game.saveToSlot(n)) this.renderSlots();
     });
@@ -6108,9 +6144,9 @@ const UI = {
     bindCheck('#set-sound', 'sound');
     bindRange('#set-volume', 'volume', v => Math.round(v * 100) + '%');
     bindRange('#set-music', 'music', v => Math.round(v * 100) + '%');
-    $('#set-volume').addEventListener('input', () => Game.applyVolumes());
-    $('#set-music').addEventListener('input', () => Game.applyVolumes());
-    $('#set-sound').addEventListener('change', () => Game.applyVolumes());
+    on('#set-volume', 'input', () => Game.applyVolumes());
+    on('#set-music', 'input', () => Game.applyVolumes());
+    on('#set-sound', 'change', () => Game.applyVolumes());
     bindCheck('#set-fps', 'showFps');
     bindCheck('#set-caves', 'caves');
     bindCheck('#set-auto', 'autoQuality');
@@ -6118,49 +6154,61 @@ const UI = {
     bindCheck('#set-autosave2', 'autosave');
 
     /* the pause menu's quick settings */
-    (($('#mode-survival') || { addEventListener() {} })).addEventListener('click', () => Game.setMode('survival'));
-    (($('#mode-creative') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#mode-survival', 'click', () => Game.setMode('survival'));
+    on('#mode-creative', 'click', () => {
       if (Game.everCreative || confirm(
         'Creative mode is permanent for this world: it will never be able to earn again. Continue?')) {
         Game.setMode('creative');
       }
     });
-    (($('#give-cancel') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#give-cancel', 'click', () => {
       const c = $('#give-card'); if (c) c.classList.remove('show');
     });
-    (($('#offer-yes') || { addEventListener() {} })).addEventListener('click', () => Game.acceptOffer());
-    (($('#offer-no') || { addEventListener() {} })).addEventListener('click', () => Game.declineOffer());
-    (($('#bar-pause') || { addEventListener() {} })).addEventListener('click', () => this.pause());
-    (($('#bar-mic') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#offer-yes', 'click', () => Game.acceptOffer());
+    on('#offer-no', 'click', () => Game.declineOffer());
+    on('#bar-pause', 'click', () => this.pause());
+    on('#bar-mic', 'click', () => {
       Game.voice.toggle().then(() => this.refreshSocialButtons());
     });
-    (($('#bar-chat') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#bar-chat', 'click', () => {
       const box = $('#chat-input');
       if (box) { box.parentElement.classList.add('show'); box.focus(); }
     });
 
-    (($('#pause-map') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#pause-map', 'click', () => {
       this.closeAll(); this.openMap();
     });
-    (($('#pause-companions') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#pause-companions', 'click', () => {
       this.closeAll(); this.openCompanions();
     });
-    (($('#pause-settings') || { addEventListener() {} })).addEventListener('click', () => { this.closeAll(); this.toggle('settings'); });
-    (($('#pause-howto') || { addEventListener() {} })).addEventListener('click', () => { this.closeAll(); this.toggle('guide'); });
-    const vol = $('#set-volume');
-    if (vol) vol.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
-    if (vol) vol.addEventListener('input', () => {
-      Settings.volume = parseInt(vol.value, 10) / 100;
-      saveSettings();
-      Game.blip(520);
+    on('#pause-settings', 'click', () => { this.closeAll(); this.toggle('settings'); });
+    on('#pause-howto', 'click', () => { this.closeAll(); this.toggle('guide'); });
+    /* two levels, kept in step wherever they are shown */
+    const levels = [['#set-sound', 'soundVolume', 0.6], ['#set-music', 'musicVolume', 0.5],
+                    ['#set-sound2', 'soundVolume', 0.6], ['#set-music2', 'musicVolume', 0.5]];
+    levels.forEach(([sel, key, fallback]) => {
+      const el = $(sel);
+      if (!el) return;
+      el.value = Math.round((Settings[key] === undefined ? fallback : Settings[key]) * 100);
+      el.addEventListener('input', () => {
+        Settings[key] = parseInt(el.value, 10) / 100;
+        saveSettings();
+        levels.forEach(([s2, k2]) => {
+          if (k2 !== key) return;
+          const other = $(s2);
+          if (other && other !== el) other.value = el.value;
+        });
+        if (key === 'musicVolume') Music.refresh();
+        else Game.blip(520);
+      });
     });
-    (($('#mp-roll') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#mp-roll', 'click', () => {
       $('#mp-seed').value = randomSeed();
     });
-    (($('#companion-close') || { addEventListener() {} })).addEventListener('click', () => this.closeCompanions());
-    (($('#space-chart') || { addEventListener() {} })).addEventListener('click', () => this.openStarChart());
-    (($('#space-tether') || { addEventListener() {} })).addEventListener('click', () => Game.toggleTether());
-    (($('#space-land') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#companion-close', 'click', () => this.closeCompanions());
+    on('#space-chart', 'click', () => this.openStarChart());
+    on('#space-tether', 'click', () => Game.toggleTether());
+    on('#space-land', 'click', () => {
       if (Game.landTarget) { this.closeAll(); Game.beginLanding(Game.landTarget.planet); }
     });
     addEventListener('keydown', (e) => {
@@ -6179,7 +6227,7 @@ const UI = {
         if (Game.hand) Game.attachHand();
       });
     });
-    $('#skin-name').addEventListener('input', (e) => { Game.skin.name = e.target.value; Game.saveSkin(); });
+    on('#skin-name', 'input', (e) => { Game.skin.name = e.target.value; Game.saveSkin(); });
     $$('.body-pick').forEach(b => b.addEventListener('click', () => {
       $$('.body-pick').forEach(o => o.classList.remove('picked'));
       b.classList.add('picked');
@@ -6207,7 +6255,7 @@ const UI = {
       Game.pushChat(who, msg);
       if (Game.net.connected) Game.net.send({ t: 'chat', msg });
     };
-    $('#chat-send').addEventListener('click', sendChat);
+    on('#chat-send', 'click', sendChat);
     chatBox.addEventListener('keydown', (e) => {
       if (e.code === 'Enter') { e.preventDefault(); sendChat(); }
       if (e.code === 'Escape') { chatBox.value = ''; chatBox.blur(); chatBox.parentElement.classList.remove('show'); }
@@ -6216,29 +6264,29 @@ const UI = {
       if (Input.typing() || !Game.running) return;
       if (e.code === 'KeyT' || e.code === 'Enter') { e.preventDefault(); openChat(); }
     });
-    $('#btn-chat').addEventListener('touchstart', (e) => {
+    on('#btn-chat', 'touchstart', (e) => {
       e.preventDefault(); e.stopPropagation();
       if (!Game.net.connected) { Game.toast('Chat works in multiplayer. Host or join a room first.'); return; }
       openChat();
     }, { passive: false });
 
-    $('#btn-drop').addEventListener('touchstart', (e) => { e.preventDefault(); Game.dropHeld(false); }, { passive: false });
-    $('#btn-voice').addEventListener('touchstart', (e) => {
+    on('#btn-drop', 'touchstart', (e) => { e.preventDefault(); Game.dropHeld(false); }, { passive: false });
+    on('#btn-voice', 'touchstart', (e) => {
       e.preventDefault(); e.stopPropagation();
       if (!Game.net.connected) { Game.toast('The microphone works in multiplayer. Host or join a room first.'); return; }
       Game.voice.toggle();
     }, { passive: false });
-    $('#voice-toggle').addEventListener('click', () => Game.voice.toggle());
+    on('#voice-toggle', 'click', () => Game.voice.toggle());
     bindRange('#set-voice', 'voiceVolume', v => Math.round(v * 100) + '%');
-    $('#set-voice').addEventListener('input', () => Game.voice.applyVolume());
-    (($('#mic-desktop') || { addEventListener() {} })).addEventListener('click', () => Game.voice.toggle());
+    on('#set-voice', 'input', () => Game.voice.applyVolume());
+    on('#mic-desktop', 'click', () => Game.voice.toggle());
     this.refreshSocialButtons();
-    (($('#chat-desktop') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#chat-desktop', 'click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
       box.focus();
     });
-    (($('#chat-desktop') || { addEventListener() {} })).addEventListener('click', () => {
+    on('#chat-desktop', 'click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
       box.focus();
@@ -6298,7 +6346,7 @@ const UI = {
     const syncDz = () => { Pad.deadzone = parseFloat(dz.value); dzOut.textContent = Pad.deadzone.toFixed(2); };
     dz.addEventListener('input', syncDz); syncDz();
 
-    $('#pad-reset').addEventListener('click', () => {
+    on('#pad-reset', 'click', () => {
       Object.assign(Pad.map, Pad.defaults);
       Pad.awaiting = null;
       this.drawBindings();
@@ -6498,6 +6546,29 @@ const UI = {
         list.appendChild(b);
       });
     }
+    const typed = document.createElement('div');
+    typed.style.cssText = 'display:flex;gap:6px;margin-top:8px';
+    const box = document.createElement('input');
+    box.placeholder = 'or type a player name';
+    box.style.cssText = 'flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);' +
+                        'border-radius:10px;padding:9px 11px;color:var(--text);font-family:var(--display);font-size:13px';
+    const go = document.createElement('button');
+    go.className = 'btn';
+    go.textContent = 'Give';
+    const send = () => {
+      const want = (box.value || '').trim().toLowerCase();
+      if (!want) return;
+      const hit = people.find(p => (p.name || '').toLowerCase() === want) ||
+                  people.find(p => (p.name || '').toLowerCase().indexOf(want) === 0);
+      if (!hit) { Game.toast('Nobody here is called that.'); return; }
+      Game.offerCompanion(c, hit.id);
+      card.classList.remove('show');
+    };
+    go.addEventListener('click', send);
+    box.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+    typed.appendChild(box);
+    typed.appendChild(go);
+    list.appendChild(typed);
     card.classList.add('show');
   },
 
@@ -6532,10 +6603,15 @@ const UI = {
     // talking to people only appears when there are people to talk to
     show('#mic-desktop', on && !IS_TOUCH);
     show('#chat-desktop', on && !IS_TOUCH);
-    show('#btn-voice', on);
-    show('#btn-chat', on);
+
     // and these are always on hand
     ['#btn-bag', '#btn-drop', '#btn-alt', '#btn-lamp'].forEach(sel => show(sel, true));
+    // the two that belong at the top, beside the pause pill
+    const bar = $('#top-bar');
+    if (bar) bar.style.display = '';
+    const m2 = $('#mic-desktop'), c2 = $('#chat-desktop');
+    if (m2) { m2.style.display = live ? '' : 'none'; m2.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
+    if (c2) c2.style.display = live ? '' : 'none';
   },
 
   refreshVoiceButton() {
@@ -6861,7 +6937,7 @@ const UI = {
         Game.net.pushEdits(save.edits || []);
       }
       $('#room-code').textContent = welcome.room;
-      $('#room-code-row').style.display = 'block';
+      setStyle('#room-code-row', 'display', 'block');
       $('#mp-status').innerHTML = ($('#mp-public').value === 'public')
         ? 'Open game. It is on the list now, and the code is <b>' + welcome.room + '</b>.'
         : 'Private game. Share the code <b>' + welcome.room + '</b> — it stays yours.';
@@ -6956,7 +7032,7 @@ const UI = {
       ? live.map(a => `<option value="${a}">${a}</option>`).join('')
       : '<option value="">no server yet</option>';
     // the address box stays visible until something actually answers
-    $('#server-field').style.display = live.length ? 'none' : 'block';
+    setStyle('#server-field', 'display', live.length ? 'none' : 'block');
     const hostBtn = $('#mp-host-btn');
     const joinBtn = $('#mp-join-btn');
     if (hostBtn) hostBtn.disabled = !live.length;
@@ -7159,7 +7235,7 @@ Object.assign(Game, {
         }
         UI.refreshSocialButtons();
         if (!UI.anyOpen()) this.drawMap($('#minimap'), 2.4, true);
-        $('#fps').style.display = Settings.showFps ? 'block' : 'none';
+        setStyle('#fps', 'display', Settings.showFps ? 'block' : 'none');
         if (Settings.showFps) $('#fps').textContent = Math.round(1 / Math.max(dt, 0.001)) + ' fps';
       }
       if (Settings.autoQuality) this.autoQuality(dt);
@@ -7279,7 +7355,7 @@ try { addEventListener('pageshow', () => { try { Visits.ping('open'); } catch (e
 
 window.addEventListener('load', () => {
   if (!window.THREE) {
-    $('#boot-error').style.display = 'block';
+    setStyle('#boot-error', 'display', 'block');
     return;
   }
   try {
@@ -7287,7 +7363,7 @@ window.addEventListener('load', () => {
     UI.init();
   } catch (err) {
     console.error(err);
-    $('#boot-error').style.display = 'block';
+    setStyle('#boot-error', 'display', 'block');
     $('#boot-error').textContent = 'The engine could not start: ' + err.message;
   }
 });
@@ -7963,12 +8039,12 @@ Object.assign(UI, {
       this.bagTab = t.dataset.tab;
       this.renderBag();
     }));
-    $('#bag-search').addEventListener('input', () => this.renderBag());
+    on('#bag-search', 'input', () => this.renderBag());
     addEventListener('keydown', (e) => {
       if (!Game.running || Input.typing()) return;
       if (e.code === 'KeyB' || e.code === 'Tab') { e.preventDefault(); this.toggleBag(); }
     });
-    $('#btn-bag').addEventListener('touchstart', (e) => { e.preventDefault(); this.toggleBag(); }, { passive: false });
+    on('#btn-bag', 'touchstart', (e) => { e.preventDefault(); this.toggleBag(); }, { passive: false });
   },
 
   toggleBag() {
@@ -7982,10 +8058,10 @@ Object.assign(UI, {
     const body = $('#bag-body');
     const q = ($('#bag-search').value || '').toLowerCase();
     $$('.bag-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === this.bagTab));
-    $('#bag-search').style.display = (this.bagTab === 'all' || this.bagTab === 'satchel' || this.bagTab === 'eggs') ? 'block' : 'none';
-    $('[data-tab="all"]').style.display = Game.mode === 'creative' ? 'inline-block' : 'none';
-    $('[data-tab="chest"]').style.display = this.chestAt ? 'inline-block' : 'none';
-    $('[data-tab="trade"]').style.display = Game.tradingWith ? 'inline-block' : 'none';
+    setStyle('#bag-search', 'display', (this.bagTab === 'all' || this.bagTab === 'satchel' || this.bagTab === 'eggs') ? 'block' : 'none');
+    setStyle('[data-tab="all"]', 'display', Game.mode === 'creative' ? 'inline-block' : 'none');
+    setStyle('[data-tab="chest"]', 'display', this.chestAt ? 'inline-block' : 'none');
+    setStyle('[data-tab="trade"]', 'display', Game.tradingWith ? 'inline-block' : 'none');
     body.innerHTML = '';
 
     const chip = (id, countText, onClick, note) => {
@@ -8752,7 +8828,7 @@ class Vehicle {
       this.netTarget.z += this.netVel.z * dt;
     }
     if (this.pos.distanceTo(this.netTarget) > 24) this.pos.copy(this.netTarget);
-    this.pos.lerp(this.netTarget, Math.min(1, dt * 14));
+    this.pos.lerp(this.netTarget, 1 - Math.exp(-18 * dt));
     let d = (this.netYaw || 0) - this.yaw;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
@@ -10219,6 +10295,14 @@ Object.assign(Game, {
   },
 
   enterSpace() {
+    // anyone riding with you comes up too
+    if (this.net.connected && this.riding) {
+      const crew = [this.net.selfId];
+      for (const p of this.net.peers.values()) {
+        if (p.aboard === this.riding.id) crew.push(p.id);
+      }
+      this.net.send({ t: 'crew', realm: 'space', planet: null, crew });
+    }
     if (this.riding && this.riding.def.space) {
       this.shipItem = this.riding.itemId;
       // the craft leaves the ground with you
@@ -10268,7 +10352,8 @@ Object.assign(Game, {
     const sys = this.ensureSystem();
     // a steady clock, shared by everyone in the room, so the sky does not jump
     this.orbitClock = (this.orbitClock || 0) + dt;
-    const t = this.dayTime * 600 + this.orbitClock * 0.05;
+    // the day clock jumps whenever the room corrects it, so orbits keep their own
+    const t = this.orbitClock * 0.05;
 
     for (const entry of this.planetMeshes) {
       const p = entry.planet;
@@ -10466,6 +10551,8 @@ Object.assign(Game, {
 
   /* a passenger being taken along by the pilot */
   followCrew(m) {
+    this.passengerIn = null;
+    this.clearVehicleHud();
     const sys = this.ensureSystem();
     if (m.realm === 'ground') { this.returnHome(); return; }
     const p = sys && sys.planets[m.planet];
@@ -10612,6 +10699,22 @@ Object.assign(Game, {
     return true;
   },
 
+  /* a passenger is placed after the craft has moved, every frame, so there is
+     never a gap between where the hull is and where the rider appears */
+  seatPassenger() {
+    const v = this.passengerIn;
+    if (!v || !v.parts) return;
+    const seat = (v.parts.seatOffsets && v.parts.seatOffsets[1]) ||
+                 { x: 0.6, y: v.def.seat, z: -0.7 };
+    const sc = v.def.scale || 1.3;
+    const cs = Math.cos(v.yaw), sn = Math.sin(v.yaw);
+    this.player.pos.set(v.pos.x + seat.x * sc * cs - seat.z * sc * sn,
+                        v.pos.y + v.def.seat,
+                        v.pos.z + seat.x * sc * sn + seat.z * sc * cs);
+    this.player.vel.set(0, 0, 0);
+    this.player.onGround = true;
+  },
+
   updateRope(dt) {
     for (const v of this.vehicles) {
       if (!v.ropeOut || !v.ropeLine) continue;
@@ -10669,7 +10772,7 @@ Object.assign(UI, {
       ? t.planet.name + ' \u00b7 ' + t.planet.label + ' \u00b7 ' + Math.round(
           t.mesh.position.distanceTo(Game.spacePos)) + ' out'
       : 'Open the star chart and pick a heading';
-    $('#space-land').style.display = t ? '' : 'none';
+    setStyle('#space-land', 'display', t ? '' : 'none');
     $('#space-tether').textContent = Game.tethered ? 'Back in ship' : 'Step out on tether';
   },
 
@@ -11123,6 +11226,138 @@ WORLD_TYPES.forEach(w => {
 });
 
 
+
+/* ---------------------------------------------------------------
+   40. Music — one piece per place, crossfading as you travel
+   Tracks live beside the page in audio/. If they are missing the
+   game is simply quiet; nothing here can stop it running.
+   --------------------------------------------------------------- */
+const MUSIC = {
+  home:   { file: 'Home_Screen_music',     gain: 0.85, loop: true  },
+  grass:  { file: 'Grass_land_music',      gain: 0.60, loop: true  },
+  land:   { file: 'Land_music',            gain: 0.60, loop: true  },
+  launch: { file: 'Space_blast_off_song',  gain: 0.90, loop: false },
+  alien:  { file: 'Other_planet',          gain: 0.65, loop: true  }
+};
+
+/* which biomes feel like which piece */
+const SOFT_BIOMES = ['vale', 'jungle', 'tidal', 'reef', 'lumen'];
+
+const Music = {
+  tracks: {},
+  current: null,
+  fading: null,
+  ready: false,
+
+  /* built on the first real tap, because browsers will not play before that */
+  prime() {
+    if (this.ready) return;
+    this.ready = true;
+    const canOgg = (() => {
+      try { return !!new Audio().canPlayType('audio/ogg; codecs=opus'); } catch (e) { return false; }
+    })();
+    for (const key of Object.keys(MUSIC)) {
+      try {
+        const spec = MUSIC[key];
+        const a = new Audio('audio/' + spec.file + (canOgg ? '.ogg' : '.m4a'));
+        a.loop = spec.loop;
+        a.preload = 'none';
+        a.volume = 0;
+        a.addEventListener('error', () => { this.tracks[key] = null; });
+        this.tracks[key] = a;
+      } catch (e) { this.tracks[key] = null; }
+    }
+  },
+
+  level() {
+    const m = Settings.musicVolume;
+    return (m === undefined ? 0.5 : m);
+  },
+
+  /* fade the old piece out while the new one comes up */
+  play(key) {
+    this.prime();
+    if (this.current === key) return;
+    const next = this.tracks[key];
+    const prevKey = this.current;
+    this.current = key;
+    const prev = prevKey ? this.tracks[prevKey] : null;
+
+    if (prev) {
+      const out = prev;
+      const step = () => {
+        out.volume = Math.max(0, out.volume - 0.04);
+        if (out.volume > 0.001) setTimeout(step, 60);
+        else { try { out.pause(); out.currentTime = 0; } catch (e) {} }
+      };
+      step();
+    }
+    if (!next) return;
+    const target = (MUSIC[key].gain || 0.6) * this.level();
+    if (target <= 0.001) { try { next.pause(); } catch (e) {} return; }
+    try {
+      next.volume = 0;
+      next.currentTime = 0;
+      const p = next.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { return; }
+    const rise = () => {
+      if (this.current !== key) return;
+      next.volume = Math.min(target, next.volume + 0.03);
+      if (next.volume < target - 0.001) setTimeout(rise, 60);
+    };
+    rise();
+  },
+
+  stop() {
+    for (const k of Object.keys(this.tracks)) {
+      const a = this.tracks[k];
+      if (a) { try { a.pause(); } catch (e) {} }
+    }
+    this.current = null;
+  },
+
+  /* the level slider takes effect immediately */
+  refresh() {
+    if (!this.current) return;
+    const a = this.tracks[this.current];
+    if (a) a.volume = (MUSIC[this.current].gain || 0.6) * this.level();
+  },
+
+  /* decide what should be playing, from where the player actually is */
+  follow() {
+    if (!Game.running) { this.play('home'); return; }
+    if (Game.realm === 'space' || Game.realm === 'landing') { this.play('launch'); return; }
+    if (Game.offworld) { this.play('alien'); return; }
+    const b = Game.world && Game.player
+      ? BIOMES[Game.world.biomeAt(Math.floor(Game.player.pos.x), Math.floor(Game.player.pos.z))]
+      : null;
+    this.play(b && SOFT_BIOMES.indexOf(b.key) >= 0 ? 'grass' : 'land');
+  }
+};
+
+Object.assign(Game, {
+  musicTick(dt) {
+    this.musicTimer = (this.musicTimer || 0) - dt;
+    if (this.musicTimer > 0) return;
+    this.musicTimer = 2;          // checked every couple of seconds, not every frame
+    try { Music.follow(); } catch (e) {}
+  }
+});
+
+/* browsers will not play a note until the player has touched the page, so the
+   title music starts on the first press, whatever it lands on */
+try {
+  const wake = () => {
+    try { Music.prime(); Music.follow(); } catch (e) {}
+    removeEventListener('pointerdown', wake);
+    removeEventListener('keydown', wake);
+    removeEventListener('touchstart', wake);
+  };
+  addEventListener('pointerdown', wake);
+  addEventListener('keydown', wake);
+  addEventListener('touchstart', wake);
+} catch (e) {}
 </script>
 </body>
 </html>

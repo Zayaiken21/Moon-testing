@@ -1,9 +1,12 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v2';
+const CACHE = 'voxelia-v3';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './audio/Home_Screen_music.ogg', './audio/Grass_land_music.ogg',
+  './audio/Land_music.ogg', './audio/Other_planet.ogg',
+  './audio/Space_blast_off_song.ogg',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
 ];
 
