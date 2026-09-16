@@ -306,24 +306,11 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   width:calc(46px * var(--ui));height:calc(26px * var(--ui));font-size:calc(11px * var(--ui));
   letter-spacing:2px;color:var(--text);cursor:pointer;display:grid;place-items:center}
 #fullscreen:hover{border-color:var(--moon);color:var(--moon)}
-#top-bar{position:absolute;left:50%;transform:translateX(-50%);
-  top:calc(6px + env(safe-area-inset-top));display:grid;
-  grid-template-columns:1fr auto 1fr;align-items:center;
-  gap:calc(8px * var(--ui));pointer-events:none;z-index:6}
+
 /* the pause pill is the middle column, so it stays centred whether or not
    the other two are showing */
-#top-bar > button{pointer-events:auto;min-width:calc(66px * var(--ui));
-  height:calc(34px * var(--ui));display:inline-flex;align-items:center;justify-content:center}
-#top-bar #mic-desktop{justify-self:end}
-#top-bar #bar-pause{justify-self:center;min-width:calc(52px * var(--ui))}
-#top-bar #chat-desktop{justify-self:start}
 /* the pause pill is the middle column, so it stays dead centre whether or not
    the mic and chat buttons are showing */
-#top-bar > #mic-desktop{justify-self:end}
-#top-bar > #bar-pause{justify-self:center}
-#top-bar > #chat-desktop{justify-self:start}
-#top-bar > button{pointer-events:auto;min-width:calc(66px * var(--ui));
-  height:calc(34px * var(--ui));display:inline-flex;align-items:center;justify-content:center}
 #top-bar button{background:rgba(20,18,28,.78);border:1px solid var(--line);border-radius:999px;
   padding:calc(5px * var(--ui)) calc(12px * var(--ui));font-size:calc(11px * var(--ui));
   font-family:var(--display);color:var(--muted);cursor:pointer}
@@ -428,6 +415,19 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #offer-card p{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px}
 /* belt and braces: in creative the meters are gone whatever else happens */
 #hud.creative #meters,#hud.creative #stamina-row,#hud.creative #breath-row{display:none !important}
+#top-bar{position:fixed;left:0;right:0;top:calc(6px + env(safe-area-inset-top));
+  display:flex;align-items:center;justify-content:center;gap:calc(8px * var(--ui));
+  pointer-events:none;z-index:40}
+#top-bar > button{pointer-events:auto;min-width:calc(68px * var(--ui));
+  height:calc(34px * var(--ui));display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(20,18,28,.86);border:1px solid var(--line);border-radius:999px;
+  padding:0 calc(12px * var(--ui));font-family:var(--display);
+  font-size:calc(11.5px * var(--ui));color:var(--muted);cursor:pointer;white-space:nowrap}
+#top-bar > button:hover{border-color:var(--moon);color:var(--moon)}
+#top-bar > button.on{border-color:var(--moon);color:var(--moon);background:rgba(111,227,196,.2)}
+#top-bar #bar-pause{min-width:calc(54px * var(--ui))}
+/* nothing else may sit where the bar is */
+#biome-card{max-width:min(30vw,260px)}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
   flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
 #chat-log.show{display:flex;opacity:1}
@@ -597,7 +597,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #minimap-wrap{left:auto;right:calc(6px + env(safe-area-inset-right));
     top:calc(6px + env(safe-area-inset-top));width:calc(56px * var(--ui));height:calc(56px * var(--ui))}
   #gear-badge{top:calc(4px + env(safe-area-inset-top));max-width:30vw}
-  #top-bar{top:calc(4px + env(safe-area-inset-top));left:calc(96px + env(safe-area-inset-left))}
+  
   #top-bar button{padding:3px 9px;font-size:calc(9.5px * var(--ui))}
   #biome-card{top:calc(28px + env(safe-area-inset-top));left:calc(6px + env(safe-area-inset-left));max-width:26vw}
   #ability-badge{display:none}
@@ -7246,12 +7246,8 @@ Object.assign(Game, {
         this.hudTick = 0;
         const p = this.player.pos;
         $('#coords').textContent = `${p.x.toFixed(0)} · ${p.y.toFixed(0)} · ${p.z.toFixed(0)}`;
-        const survival = this.mode !== 'creative';
-        const meters = $('#meters');
-        if (meters) meters.style.display = survival ? '' : 'none';
-        $('#stamina').style.width = (this.player.stamina * 100) + '%';
-        $('#breath').style.width = (this.player.breath * 100) + '%';
-        $('#breath-row').style.opacity = this.player.breath < 0.999 ? '1' : '0.25';
+        this.refreshMeters();
+        setStyle('#breath-row', 'opacity', this.player.breath < 0.999 ? '1' : '0.25');
         this.refreshGearBadge();
         this.refreshTouchButtons();
         if (!IS_TOUCH) {
