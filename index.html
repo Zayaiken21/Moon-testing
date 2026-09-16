@@ -11277,27 +11277,57 @@ const SOFT_BIOMES = ['vale', 'jungle', 'tidal', 'reef', 'lumen'];
 const Music = {
   tracks: {},
   current: null,
-  fading: null,
   ready: false,
+  unlocked: false,
 
-  /* built on the first real tap, because browsers will not play before that */
-  prime() {
-    if (this.ready) return;
-    this.ready = true;
+  /* The files may be sitting in audio/ or loose in the repo root, and may be
+     .ogg, .m4a or the original .wav. Rather than insist on one arrangement,
+     each track tries every sensible path in turn and keeps the first that
+     loads. Whatever you uploaded, it finds it. */
+  paths(file) {
+    const out = [];
     const canOgg = (() => {
       try { return !!new Audio().canPlayType('audio/ogg; codecs=opus'); } catch (e) { return false; }
     })();
-    for (const key of Object.keys(MUSIC)) {
-      try {
-        const spec = MUSIC[key];
-        const a = new Audio('audio/' + spec.file + (canOgg ? '.ogg' : '.m4a'));
-        a.loop = spec.loop;
-        a.preload = 'none';
-        a.volume = 0;
-        a.addEventListener('error', () => { this.tracks[key] = null; });
-        this.tracks[key] = a;
-      } catch (e) { this.tracks[key] = null; }
-    }
+    const canAac = (() => {
+      try { return !!new Audio().canPlayType('audio/mp4; codecs=mp4a.40.2'); } catch (e) { return false; }
+    })();
+    if (canOgg) out.push('audio/' + file + '.ogg', file + '.ogg');
+    if (canAac) out.push('audio/' + file + '.m4a', file + '.m4a');
+    out.push('audio/' + file + '.wav', file + '.wav');      // the originals, as uploaded
+    return out;
+  },
+
+  prime() {
+    if (this.ready) return;
+    this.ready = true;
+    for (const key of Object.keys(MUSIC)) this._load(key);
+  },
+
+  _load(key) {
+    const spec = MUSIC[key];
+    const candidates = this.paths(spec.file);
+    let at = 0;
+    const tryNext = () => {
+      if (at >= candidates.length) {
+        this.tracks[key] = null;
+        console.info('music: no file found for ' + spec.file);
+        return;
+      }
+      const src = candidates[at++];
+      let a;
+      try { a = new Audio(src); } catch (e) { return tryNext(); }
+      a.loop = !!spec.loop;
+      a.preload = 'auto';
+      a.volume = 0;
+      a.addEventListener('error', tryNext);
+      a.addEventListener('canplaythrough', () => {
+        // this one works: if it is what should be playing, start it
+        if (this.current === key && this.unlocked) this._start(key);
+      }, { once: true });
+      this.tracks[key] = a;
+    };
+    tryNext();
   },
 
   level() {
@@ -11305,39 +11335,47 @@ const Music = {
     return (m === undefined ? 0.5 : m);
   },
 
-  /* fade the old piece out while the new one comes up */
-  play(key) {
-    this.prime();
-    if (this.current === key) return;
-    const next = this.tracks[key];
-    const prevKey = this.current;
-    this.current = key;
-    const prev = prevKey ? this.tracks[prevKey] : null;
-
-    if (prev) {
-      const out = prev;
-      const step = () => {
-        out.volume = Math.max(0, out.volume - 0.04);
-        if (out.volume > 0.001) setTimeout(step, 60);
-        else { try { out.pause(); out.currentTime = 0; } catch (e) {} }
-      };
-      step();
-    }
-    if (!next) return;
+  _start(key) {
+    const a = this.tracks[key];
+    if (!a) return;
     const target = (MUSIC[key].gain || 0.6) * this.level();
-    if (target <= 0.001) { try { next.pause(); } catch (e) {} return; }
+    if (target <= 0.001) { try { a.pause(); } catch (e) {} return; }
     try {
-      next.volume = 0;
-      next.currentTime = 0;
-      const p = next.play();
-      if (p && p.catch) p.catch(() => {});
+      if (a.paused) { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); }
     } catch (e) { return; }
     const rise = () => {
       if (this.current !== key) return;
-      next.volume = Math.min(target, next.volume + 0.03);
-      if (next.volume < target - 0.001) setTimeout(rise, 60);
+      a.volume = Math.min(target, a.volume + 0.035);
+      if (a.volume < target - 0.001) setTimeout(rise, 60);
     };
     rise();
+  },
+
+  /* one piece fades out while the next fades in */
+  play(key) {
+    this.prime();
+    if (this.current === key) return;
+    const prevKey = this.current;
+    this.current = key;
+
+    const prev = prevKey ? this.tracks[prevKey] : null;
+    if (prev) {
+      const out = prev;
+      const fall = () => {
+        out.volume = Math.max(0, out.volume - 0.045);
+        if (out.volume > 0.001) setTimeout(fall, 60);
+        else { try { out.pause(); out.currentTime = 0; } catch (e) {} }
+      };
+      fall();
+    }
+    if (this.unlocked) this._start(key);
+  },
+
+  /* browsers stay silent until the player has touched the page */
+  unlock() {
+    this.unlocked = true;
+    this.prime();
+    if (this.current) this._start(this.current);
   },
 
   stop() {
@@ -11348,19 +11386,32 @@ const Music = {
     this.current = null;
   },
 
-  /* the level slider takes effect immediately */
   refresh() {
     if (!this.current) return;
     const a = this.tracks[this.current];
-    if (a) a.volume = (MUSIC[this.current].gain || 0.6) * this.level();
+    if (!a) return;
+    const target = (MUSIC[this.current].gain || 0.6) * this.level();
+    a.volume = target;
+    if (target > 0.001 && a.paused && this.unlocked) this._start(this.current);
+    if (target <= 0.001) { try { a.pause(); } catch (e) {} }
   },
 
-  /* decide what should be playing, from where the player actually is */
+  /* what should be playing, from where the player actually is */
   follow() {
     if (!Game.running) { this.play('home'); return; }
-    if (Game.realm === 'space' || Game.realm === 'landing') { this.play('launch'); return; }
-    if (Game.offworld) { this.play('alien'); return; }
-    const b = Game.world && Game.player
+
+    // climbing out of the sky, or coming down through it: the blast off piece
+    if (Game.realm === 'landing') { this.play('launch'); return; }
+    const craft = Game.riding;
+    if (craft && craft.kind === 'rocket' && craft.pos && Game.world &&
+        craft.pos.y > Game.world.surfaceY(Math.floor(craft.pos.x), Math.floor(craft.pos.z)) + 8) {
+      this.play('launch');
+      return;
+    }
+    // out among the planets, and on any world that is not this one
+    if (Game.realm === 'space' || Game.offworld) { this.play('alien'); return; }
+
+    const b = (Game.world && Game.player)
       ? BIOMES[Game.world.biomeAt(Math.floor(Game.player.pos.x), Math.floor(Game.player.pos.z))]
       : null;
     this.play(b && SOFT_BIOMES.indexOf(b.key) >= 0 ? 'grass' : 'land');
@@ -11371,7 +11422,7 @@ Object.assign(Game, {
   musicTick(dt) {
     this.musicTimer = (this.musicTimer || 0) - dt;
     if (this.musicTimer > 0) return;
-    this.musicTimer = 2;          // checked every couple of seconds, not every frame
+    this.musicTimer = 0.8;        // often enough to catch a launch, cheap enough to ignore
     try { Music.follow(); } catch (e) {}
   }
 });
@@ -11380,7 +11431,7 @@ Object.assign(Game, {
    title music starts on the first press, whatever it lands on */
 try {
   const wake = () => {
-    try { Music.prime(); Music.follow(); } catch (e) {}
+    try { Music.unlock(); Music.follow(); } catch (e) {}
     removeEventListener('pointerdown', wake);
     removeEventListener('keydown', wake);
     removeEventListener('touchstart', wake);
