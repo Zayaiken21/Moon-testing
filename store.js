@@ -18,6 +18,16 @@
    * ------------------------------------------------------------------ */
   const CATALOGUE = [
     {
+      id: 'membership',
+      name: 'Voxelia Membership',
+      price: '$4.99 / month',
+      blurb: 'Earn up to 25c a day instead of 5c, a member tag by your name, ' +
+             'and early access to new creatures. Cancel any time and you go back to 5c.',
+      swatch: '#7FFFD9',
+      subscription: true,
+      grants: { subscribed: true, dailyCap: 25 }
+    },
+    {
       id: 'supporter',
       name: 'Supporter Badge',
       price: '$2.99',
@@ -55,7 +65,26 @@
    * 2. Checkout. Point this at Stripe, Gumroad, Ko-fi, anything.        *
    *    Return true if the purchase went through.                        *
    * ------------------------------------------------------------------ */
+  /* A subscription is not a thing the browser can grant itself. The payment
+     provider tells the server, the server sets the flag, and the game asks the
+     server what the daily limit is. Nothing here can raise it. */
   async function CHECKOUT(item) {
+    if (item.subscription) {
+      const wallet = window.VoxeliaWallet;
+      if (!wallet || !wallet.signedIn || !wallet.signedIn()) {
+        window.alert('Create an account first — a membership belongs to an account, ' +
+                     'not to this device.\n\nTitle screen → Account.');
+        return false;
+      }
+      window.alert(
+        'Membership checkout is not connected to a payment provider yet.\n\n' +
+        item.name + ' — ' + item.price + '\n\n' +
+        'When you connect one, point it at POST /admin/accounts with\n' +
+        '{ action: "subscribe", id: "<account id>", on: true }\n' +
+        'so the server is what grants it, never this file.'
+      );
+      return false;
+    }
     // Replace this with your own payment link or API call, for example:
     //   window.open('https://buy.stripe.com/your-link?item=' + item.id, '_blank');
     //   return false;   // entitlement arrives from your webhook instead
@@ -149,8 +178,13 @@
   function render() {
     const grid = document.getElementById('store-grid');
     grid.innerHTML = '';
+    const wallet = window.VoxeliaWallet;
+    const acc = wallet && wallet.signedIn ? wallet.signedIn() : null;
     CATALOGUE.forEach((item) => {
-      const has = window.VoxeliaStore.owns(item.id);
+      // a subscription is only "owned" if the server says the account has one
+      const has = item.subscription
+        ? !!(acc && acc.subscribed)
+        : window.VoxeliaStore.owns(item.id);
       const el = document.createElement('div');
       el.className = 'store-item';
       el.innerHTML =
@@ -158,7 +192,7 @@
         '<div><strong>' + item.name + '</strong>' +
         '<small>' + item.blurb + '</small>' +
         '<button' + (has ? ' disabled' : '') + '>' +
-        (has ? 'Owned' : item.price) + '</button></div>';
+        (has ? (item.subscription ? 'Active' : 'Owned') : item.price) + '</button></div>';
       const btn = el.querySelector('button');
       if (!has) {
         btn.addEventListener('click', async () => {
