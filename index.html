@@ -185,8 +185,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #drive-hint span{font-size:calc(10.5px * var(--ui));color:var(--muted);display:flex;gap:6px;align-items:center}
 #drive-hint kbd{font-family:var(--display);background:var(--panel-2);border:1px solid var(--line);
   border-radius:4px;padding:0 5px;color:var(--text);font-size:calc(10px * var(--ui))}
-#minimap-wrap{position:absolute;right:calc(12px + env(safe-area-inset-right));
-  top:calc(10px + env(safe-area-inset-top));width:calc(92px * var(--ui));
+#minimap-wrap{position:absolute;right:calc(14px + env(safe-area-inset-right));
+  top:calc(58px + env(safe-area-inset-top));width:calc(92px * var(--ui));
   height:calc(92px * var(--ui));border-radius:50%;overflow:hidden;
   border:2px solid var(--line);background:var(--ink);padding:0;
   pointer-events:auto;cursor:pointer;z-index:5}
@@ -252,7 +252,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
     font-size:calc(10px * var(--ui));padding:0 calc(9px * var(--ui))}
   #top-bar::before{height:calc(38px * var(--ui));max-width:calc(250px * var(--ui))}
   #biome-card{max-width:24vw;padding:5px 9px}
-  #minimap-wrap{width:calc(62px * var(--ui));height:calc(62px * var(--ui))}
+  #minimap-wrap{width:calc(62px * var(--ui));height:calc(62px * var(--ui));
+    top:calc(44px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right))}
   #multiplayer .sheet{max-height:100dvh;overflow-y:auto;padding:10px 14px;
     max-width:min(94vw,860px)}
   #multiplayer h2{font-size:18px;margin-bottom:2px}
@@ -368,7 +369,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #ability-badge{top:calc(4px + env(safe-area-inset-top));right:calc(6px + env(safe-area-inset-right));
     max-width:26vw;padding:5px 9px}
   #gear-badge{top:calc(2px + env(safe-area-inset-top));max-width:34vw}
-  #minimap-wrap{top:calc(4px + env(safe-area-inset-top));right:auto;left:34vw;
+  #minimap-wrap{top:calc(46px + env(safe-area-inset-top));left:auto;right:calc(10px + env(safe-area-inset-right));
     width:calc(58px * var(--ui));height:calc(58px * var(--ui))}
   #hotbar{bottom:calc(4px + env(safe-area-inset-bottom));gap:3px;
     left:calc(50% - 60px);transform:translateX(-50%) scale(var(--ui))}
@@ -613,7 +614,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
     top:calc(52px + env(safe-area-inset-top));width:calc(88px * var(--ui))}
   #pouch{right:auto;left:calc(6px + env(safe-area-inset-left));
     bottom:calc(6px + env(safe-area-inset-bottom));max-width:26vw;font-size:calc(9.5px * var(--ui))}
-  #minimap-wrap{left:auto;right:calc(6px + env(safe-area-inset-right));
+  #minimap-wrap{left:auto;right:calc(10px + env(safe-area-inset-right));
     top:calc(6px + env(safe-area-inset-top));width:calc(56px * var(--ui));height:calc(56px * var(--ui))}
   #gear-badge{top:calc(4px + env(safe-area-inset-top));max-width:30vw}
   
@@ -655,7 +656,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   .biome-card p{display:none}
                       #chat-log{bottom:auto;top:calc(30px + env(safe-area-inset-top));max-width:40vw}
   #chat-bar{bottom:14%;width:70vw}
-  #minimap-wrap{top:calc(4px + env(safe-area-inset-top));right:auto;left:34vw;width:64px;height:64px}
+  #minimap-wrap{top:calc(46px + env(safe-area-inset-top));left:auto;right:calc(10px + env(safe-area-inset-right));width:64px;height:64px}
 }
 /* very short windows, e.g. a small desktop window */
 @media (max-width:420px){
@@ -3541,6 +3542,8 @@ const Game = {
     try { Music.follow(); } catch (e) {}
     this.running = true;
     try { Visits.ping('play'); } catch (e) {}
+    // entering a world is itself a gesture, so the browser will allow sound now
+    try { Music.unlock(); Music.follow(); } catch (e) {}
     if (carried) {
       this.inventory = carried.inventory || this.inventory;
       this.hotbar = carried.hotbar || this.hotbar;
@@ -3681,6 +3684,8 @@ const Game = {
       g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fill();
     }
     for (const p of this.net.peers.values()) {
+      // somebody on another world is not on this map
+      if ((p.realm || 'ground') !== (this.realm || 'ground')) continue;
       const sx = W / 2 + (p.model.position.x - px) / blocksPerPixel;
       const sy = H / 2 + (p.model.position.z - pz) / blocksPerPixel;
       if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
@@ -7827,7 +7832,16 @@ Game.net = {
       }
       const far = p.model.position.distanceTo(p.target);
       if (far > 24) p.model.position.copy(p.target);
-      else p.model.position.lerp(p.target, Math.min(1, dt * (far > 6 ? 9 : 6)));
+      else {
+        // the ground plane follows quickly; height follows gently, because a
+        // late packet arriving as a step up then down is what looked like a jump
+        const k = 1 - Math.exp(-(far > 6 ? 10 : 6) * dt);
+        p.model.position.x += (p.target.x - p.model.position.x) * k;
+        p.model.position.z += (p.target.z - p.model.position.z) * k;
+        const dy = p.target.y - p.model.position.y;
+        if (Math.abs(dy) > 2.6) p.model.position.y = p.target.y;   // a real fall or climb
+        else p.model.position.y += dy * (1 - Math.exp(-3.4 * dt));
+      }
       const moving = far > 0.05;
       p.step = (p.step || 0) + (moving ? dt * 7 : 0);
       if (moving) p.model.position.y += Math.abs(Math.sin(p.step)) * 0.06;
@@ -10326,6 +10340,8 @@ Object.assign(Game, {
         if (p.aboard === this.riding.id) crew.push(p.id);
       }
       this.net.send({ t: 'crew', realm: 'space', planet: null, crew });
+      // they are aboard, not standing on the ground, so take them out of the seat
+      for (const p of this.net.peers.values()) if (p.aboard === this.riding.id) p.aboard = null;
     }
     if (this.riding && this.riding.def.space) {
       this.shipItem = this.riding.itemId;
@@ -10575,7 +10591,10 @@ Object.assign(Game, {
 
   /* a passenger being taken along by the pilot */
   followCrew(m) {
+    // you are being carried: leave the seat and the craft behind
+    if (this.passengerIn) this.net.sendUnboard(this.passengerIn.id);
     this.passengerIn = null;
+    this.riding = null;
     this.clearVehicleHud();
     const sys = this.ensureSystem();
     if (m.realm === 'ground') { this.returnHome(); return; }
@@ -11304,7 +11323,11 @@ const Music = {
     const tryNext = () => {
       if (at >= candidates.length) {
         this.tracks[key] = null;
-        console.info('music: no file found for ' + spec.file);
+        console.warn('music: could not find ' + spec.file + '. Tried: ' + candidates.join(', '));
+        if (!Music.warned) {
+          Music.warned = true;
+          try { Game.toast('No music files found. Put the five tracks in the repo root or in audio/.'); } catch (e) {}
+        }
         return;
       }
       const src = candidates[at++];
@@ -11318,6 +11341,7 @@ const Music = {
       a.volume = 0;
       a.addEventListener('error', tryNext);
       a.addEventListener('canplaythrough', () => {
+        if (!Music.announced) { Music.announced = true; console.info('music: loaded ' + src); }
         // this one works: if it is what should be playing, start it
         if (this.current === key && this.unlocked) this._start(key);
       }, { once: true });
@@ -11346,6 +11370,14 @@ const Music = {
       if (a.volume < target - 0.001) setTimeout(rise, 60);
     };
     rise();
+    if (!Music.sounded) {
+      Music.sounded = true;
+      setTimeout(() => {
+        if (a.paused) {
+          try { Game.toast('The browser is holding the music back \u2014 tap the screen once. On iPhone, check the silent switch.'); } catch (e) {}
+        } else console.info('music: playing ' + a.src);
+      }, 1200);
+    }
   },
 
   /* one piece fades out while the next fades in */
@@ -11438,6 +11470,13 @@ const Music = {
 };
 
 Object.assign(Game, {
+  /* any press anywhere counts as permission to make a sound */
+  noteGesture() {
+    if (this._gestured) return;
+    this._gestured = true;
+    try { Music.unlock(); Music.follow(); } catch (e) {}
+  },
+
   musicTick(dt) {
     this.musicTimer = (this.musicTimer || 0) - dt;
     if (this.musicTimer > 0) return;
@@ -11455,14 +11494,13 @@ try {
   }, 2000);
 
   const wake = () => {
-    try { Music.unlock(); Music.follow(); } catch (e) {}
-    removeEventListener('pointerdown', wake);
-    removeEventListener('keydown', wake);
-    removeEventListener('touchstart', wake);
+    try { Music.unlock(); Music.follow(); Music.watchdog(); } catch (e) {}
   };
-  addEventListener('pointerdown', wake);
-  addEventListener('keydown', wake);
-  addEventListener('touchstart', wake);
+  // capture phase, on the document, so a handler that stops propagation
+  // further down cannot swallow the one gesture the browser is waiting for
+  ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'click'].forEach((ev) => {
+    document.addEventListener(ev, wake, true);
+  });
 } catch (e) {}
 </script>
 </body>
