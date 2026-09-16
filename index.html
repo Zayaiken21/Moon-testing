@@ -239,7 +239,15 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #drive-hint b i#hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
   margin-left:auto;margin-right:8px}
 @media (orientation:landscape) and (max-height:560px){
-  #top-bar{top:calc(5px + env(safe-area-inset-top));gap:calc(6px * var(--ui))}
+  /* the row at the top: centred on the viewport, above everything, and only
+   showing mic and chat once you are actually in a room */
+#hud #top-bar{position:fixed !important;left:50% !important;right:auto !important;
+  transform:translateX(-50%) !important;top:calc(8px + env(safe-area-inset-top)) !important;
+  display:flex !important;flex-direction:row !important;align-items:center !important;
+  justify-content:center !important;gap:calc(8px * var(--ui)) !important;
+  width:auto !important;pointer-events:none;z-index:60}
+#hud #top-bar #mic-desktop,#hud #top-bar #chat-desktop{display:none !important}
+#hud #top-bar.multi #mic-desktop,#hud #top-bar.multi #chat-desktop{display:inline-flex !important}
   #top-bar > button{min-width:calc(56px * var(--ui));height:calc(28px * var(--ui));
     font-size:calc(10px * var(--ui));padding:0 calc(9px * var(--ui))}
   #top-bar::before{height:calc(38px * var(--ui));max-width:calc(250px * var(--ui))}
@@ -6627,27 +6635,12 @@ const UI = {
 
   refreshSocialButtons() {
     const live = !!(Game.net && Game.net.connected);
-    const m = $('#mic-desktop'), c = $('#chat-desktop');
-    if (m) { m.style.display = live ? '' : 'none'; m.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
-    if (c) c.style.display = live ? '' : 'none';
-    const online = !!(Game.net && Game.net.connected);
-    const mic = $('#bar-mic'), chat = $('#bar-chat');
-    if (mic) { mic.style.display = online ? '' : 'none'; mic.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
-    if (chat) chat.style.display = online ? '' : 'none';
-    const on = !!(Game.net && Game.net.connected);
-    const show = (sel, vis) => { const el = $(sel); if (el) el.style.display = vis ? '' : 'none'; };
-    // talking to people only appears when there are people to talk to
-    show('#mic-desktop', on && !IS_TOUCH);
-    show('#chat-desktop', on && !IS_TOUCH);
-
-    // and these are always on hand
-    ['#btn-bag', '#btn-drop', '#btn-alt', '#btn-lamp'].forEach(sel => show(sel, true));
-    // the two that belong at the top, beside the pause pill
     const bar = $('#top-bar');
-    if (bar) bar.style.display = '';
-    const m2 = $('#mic-desktop'), c2 = $('#chat-desktop');
-    if (m2) { m2.style.display = live ? '' : 'none'; m2.classList.toggle('on', !!(Game.voice && Game.voice.on)); }
-    if (c2) c2.style.display = live ? '' : 'none';
+    if (bar) bar.classList.toggle('multi', live);      // the CSS does the rest
+    const m = $('#mic-desktop');
+    if (m) m.classList.toggle('on', !!(Game.voice && Game.voice.on));
+    // these four are always there
+    ['#btn-bag', '#btn-drop', '#btn-alt', '#btn-lamp'].forEach(sel => setStyle(sel, 'display', ''));
   },
 
   refreshVoiceButton() {
@@ -11318,6 +11311,9 @@ const Music = {
       let a;
       try { a = new Audio(src); } catch (e) { return tryNext(); }
       a.loop = !!spec.loop;
+      a.addEventListener('ended', () => {
+        if (spec.loop && this.current === key) { try { a.currentTime = 0; a.play(); } catch (e) {} }
+      });
       a.preload = 'auto';
       a.volume = 0;
       a.addEventListener('error', tryNext);
@@ -11338,6 +11334,7 @@ const Music = {
   _start(key) {
     const a = this.tracks[key];
     if (!a) return;
+    this.want = key;
     const target = (MUSIC[key].gain || 0.6) * this.level();
     if (target <= 0.001) { try { a.pause(); } catch (e) {} return; }
     try {
@@ -11376,6 +11373,28 @@ const Music = {
     this.unlocked = true;
     this.prime();
     if (this.current) this._start(this.current);
+  },
+
+  /* Browsers refuse to play until they trust the page, and a refusal is
+     silent. So every couple of seconds we check whether the piece that should
+     be sounding actually is, and try again if it is not. */
+  watchdog() {
+    if (!this.unlocked || !this.current) return;
+    const a = this.tracks[this.current];
+    if (!a) return;
+    const target = (MUSIC[this.current].gain || 0.6) * this.level();
+    if (target <= 0.001) return;
+    if (a.paused || a.currentTime === 0) {
+      try {
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) {}
+    }
+    // a piece that is meant to loop but has run to the end gets restarted
+    if (MUSIC[this.current].loop && a.ended) {
+      try { a.currentTime = 0; a.play(); } catch (e) {}
+    }
+    if (a.volume < target - 0.02 && !a.paused) a.volume = Math.min(target, a.volume + 0.05);
   },
 
   stop() {
@@ -11423,13 +11442,18 @@ Object.assign(Game, {
     this.musicTimer = (this.musicTimer || 0) - dt;
     if (this.musicTimer > 0) return;
     this.musicTimer = 0.8;        // often enough to catch a launch, cheap enough to ignore
-    try { Music.follow(); } catch (e) {}
+    try { Music.follow(); Music.watchdog(); } catch (e) {}
   }
 });
 
 /* browsers will not play a note until the player has touched the page, so the
    title music starts on the first press, whatever it lands on */
 try {
+  // and a slow pulse for the title screen, where the game loop is not running
+  setInterval(() => {
+    try { if (!Game.running) { Music.follow(); Music.watchdog(); } } catch (e) {}
+  }, 2000);
+
   const wake = () => {
     try { Music.unlock(); Music.follow(); } catch (e) {}
     removeEventListener('pointerdown', wake);
