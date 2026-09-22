@@ -266,7 +266,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   .pause-quick{gap:7px;margin:10px 0 12px}
   .pause-quick .setting{padding:8px 10px;gap:4px}
   /* the readouts you actually need, all on screen */
-  #meters{display:flex !important;flex-direction:column;
+  #meters{flex-direction:column;
     left:calc(8px + env(safe-area-inset-left)) !important;
     top:calc(46px + env(safe-area-inset-top)) !important;bottom:auto !important;
     width:calc(104px * var(--ui)) !important;z-index:5}
@@ -448,6 +448,40 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #top-bar #bar-pause{min-width:calc(54px * var(--ui))}
 /* nothing else may sit where the bar is */
 #biome-card{max-width:min(30vw,260px)}
+#char-frame-wrap{position:fixed;inset:0;z-index:95;display:none;
+  background:radial-gradient(120% 100% at 50% 0%, rgba(40,26,80,.92), rgba(8,8,16,.97))}
+#char-frame-wrap.open{display:block}
+#char-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
+#char-frame-close{position:absolute;z-index:2;top:calc(10px + env(safe-area-inset-top));
+  right:calc(12px + env(safe-area-inset-right));width:44px;height:44px;border-radius:50%;
+  background:rgba(20,18,28,.85);border:1px solid var(--line);color:var(--text);font-size:18px;cursor:pointer}
+/* split screen: a divider down the middle and player two's line of text */
+#split-panel{display:none}
+body.desktop #split-panel{display:flex}
+#split-pads{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.pad-row{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:8px 10px}
+.pad-row b{font-family:var(--display);font-size:12.5px}
+.pad-row small{display:block;color:var(--muted);font-size:10.5px;line-height:1.35;word-break:break-all}
+.pad-row .btn{margin-left:auto;padding:6px 10px;font-size:11px;min-width:0}
+.pad-row.lit{border-color:var(--moon);box-shadow:0 0 0 2px rgba(111,227,196,.25)}
+.split-assign{display:flex;gap:8px;flex-wrap:wrap}
+.split-assign label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1;min-width:130px}
+.split-assign select{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:7px;color:var(--text);font-family:var(--display);font-size:12px}
+#split-divider,#p2-hud{display:none}
+body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50%;width:3px;
+  transform:translateX(-50%);background:linear-gradient(180deg,var(--moon),var(--amethyst));z-index:30;
+  box-shadow:0 0 14px rgba(111,227,196,.4);pointer-events:none}
+body.split-on #p2-hud{display:block;position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));
+  z-index:31;background:rgba(20,18,28,.82);border:1px solid var(--line);border-left:3px solid var(--amethyst);
+  border-radius:12px;padding:8px 12px;font-family:var(--display);font-size:12.5px;color:var(--text);
+  pointer-events:none}
+/* player one's HUD keeps to the left half */
+body.split-on #hotbar{left:25% !important}
+body.split-on #minimap-wrap{right:calc(50% + 14px) !important}
+/* creative has no stamina or breath: this wins over every layout rule */
+body.creative-mode #meters{display:none !important}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
   flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
 #chat-log.show{display:flex;opacity:1}
@@ -665,6 +699,44 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #meters,#pouch{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ================= a sharper, richer HUD =================
+   Glass panels with a lit edge, a little depth, and the accent colours
+   carried through, so the interface reads as part of the game. */
+#biome-card,#meters,#pouch,#ability-badge,#gear-badge,#p2-hud,#drive-hint,#offer-card,#give-card{
+  background:linear-gradient(160deg, rgba(34,30,52,.86), rgba(14,12,22,.86)) !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07) !important;
+  backdrop-filter:blur(10px) saturate(1.3);-webkit-backdrop-filter:blur(10px) saturate(1.3)}
+#biome-card{border-left:3px solid var(--moon) !important}
+#biome-name{letter-spacing:.01em;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+#hud #top-bar > button{
+  background:linear-gradient(180deg, rgba(46,40,70,.92), rgba(18,16,28,.92)) !important;
+  border:1px solid rgba(255,255,255,.1) !important;
+  box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1)}
+#hud #top-bar > button:hover{border-color:var(--moon) !important;color:var(--moon) !important;
+  box-shadow:0 0 0 3px rgba(111,227,196,.18), 0 6px 18px rgba(0,0,0,.45)}
+#hotbar .slot{background:linear-gradient(180deg, rgba(40,36,60,.82), rgba(16,14,24,.82));
+  border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+#hotbar .slot.active,#hotbar .slot.on{border-color:var(--moon);
+  box-shadow:0 0 0 2px rgba(111,227,196,.35), 0 0 22px rgba(111,227,196,.35), inset 0 1px 0 rgba(255,255,255,.12)}
+.meter{background:rgba(255,255,255,.08);overflow:hidden;border-radius:999px}
+#stamina{background:linear-gradient(90deg,#FFB347,#FF7A3D) !important;box-shadow:0 0 10px rgba(255,138,76,.55)}
+#breath{background:linear-gradient(90deg,#7FE3FF,#6FE3C4) !important;box-shadow:0 0 10px rgba(111,227,196,.5)}
+#minimap-wrap{box-shadow:0 0 0 3px rgba(111,227,196,.25), 0 10px 26px rgba(0,0,0,.5) !important}
+.tbtn{background:radial-gradient(120% 120% at 30% 20%, rgba(70,62,104,.95), rgba(18,16,28,.95)) !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  box-shadow:0 8px 20px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12) !important}
+.tbtn:active,.tbtn.held{box-shadow:0 0 0 3px rgba(111,227,196,.35), 0 4px 12px rgba(0,0,0,.4) !important}
+#toast{background:linear-gradient(160deg, rgba(34,30,52,.94), rgba(14,12,22,.94)) !important;
+  border:1px solid rgba(255,255,255,.1) !important;box-shadow:0 14px 40px rgba(0,0,0,.5) !important}
+.screen .sheet{background:linear-gradient(165deg, #211c33 0%, #15121f 60%, #120f1b 100%) !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  box-shadow:0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06) !important}
+.btn{transition:transform .08s ease, border-color .15s ease, box-shadow .15s ease}
+.btn:hover{box-shadow:0 0 0 3px rgba(111,227,196,.14)}
+.btn:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.btn,.tbtn{transition:none}}
 </style>
 </head>
 <body>
@@ -772,6 +844,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
       <button class="btn" id="offer-no">No thanks</button>
     </div>
   </div>
+  <div id="p2-hud"></div>
+  <div id="split-divider"></div>
   <div id="toast"></div>
   <div id="fps"></div>
 </div>
@@ -882,7 +956,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
         <div class="field">
           <label>Body</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="body-pick picked" data-body="neutral">Neutral</button>
             <button class="body-pick" data-body="female">Female</button>
             <button class="body-pick" data-body="male">Male</button>
           </div>
@@ -1120,6 +1193,18 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
         <button class="btn" id="pause-howto">How to play</button>
       </div>
       <button class="btn" id="pause-companions">Companions and wallet</button>
+      <div class="setting" id="split-panel"><b>Split screen</b>
+        <small>Two players on this computer. Each needs a controller, or one can use the keyboard and mouse.</small>
+        <div id="split-pads"></div>
+        <div class="split-assign">
+          <label>Player 1 <select id="split-p1"></select></label>
+          <label>Player 2 <select id="split-p2"></select></label>
+        </div>
+        <div class="seg">
+          <button class="btn" id="split-start">Start split screen</button>
+          <button class="btn" id="split-stop">Stop</button>
+        </div>
+      </div>
     </div>
 
     <div class="field" style="margin-top:12px">
@@ -1143,6 +1228,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- optional: drop store.js beside this file and a Store button appears on the title screen -->
 <script src="rewards.js" onerror="console.info('rewards.js not present, carrying on without it')"></script>
+<script src="voxelia-avatars.js" onerror="console.info('voxelia-avatars.js missing: using block characters')"></script>
 <script src="store.js" onerror="console.info('store.js not present, carrying on without it')"></script>
 <script>
   /* keep a copy on the device so the game runs with no connection at all */
@@ -3275,9 +3361,53 @@ const Input = {
     return !!(b && (b.pressed || b.value > 0.35));
   },
 
+  /* In split screen each player is pinned to one controller: forcePad is that
+     controller's index, or -1 for "keyboard and mouse only". */
+  forcePad: undefined,
+
   activePad() {
+    if (this.forcePad === -1) return null;
+    if (typeof this.forcePad === 'number') {
+      const p = this.rawPads()[this.forcePad];
+      return p && p.connected ? p : null;
+    }
     for (const p of this.rawPads()) if (p && p.connected) return p;
     return null;
+  },
+
+  /** Every controller the browser can see, described plainly. */
+  listPads() {
+    const out = [];
+    for (const p of this.rawPads()) {
+      if (!p || !p.connected) continue;
+      const id = String(p.id || '');
+      const brand = /xbox|xinput|045e/i.test(id) ? 'Xbox'
+        : /dualsense|dualshock|playstation|054c/i.test(id) ? 'PlayStation'
+        : /nintendo|pro controller|joy-con|057e/i.test(id) ? 'Nintendo'
+        : /8bitdo/i.test(id) ? '8BitDo' : 'Controller';
+      const vendor = (id.match(/vendor:\s*([0-9a-f]{4})/i) || id.match(/^([0-9a-f]{4})-/i) || [])[1] || '';
+      const product = (id.match(/product:\s*([0-9a-f]{4})/i) || id.match(/^[0-9a-f]{4}-([0-9a-f]{4})/i) || [])[1] || '';
+      out.push({
+        index: p.index, id, brand,
+        name: id.replace(/\s*\(.*\)\s*/, '').replace(/^[0-9a-f]{4}-[0-9a-f]{4}-/i, '').trim() || brand,
+        vendor, product, mapping: p.mapping || 'non-standard',
+        buttons: p.buttons.length, axes: p.axes.length,
+        rumble: !!(p.vibrationActuator)
+      });
+    }
+    return out;
+  },
+
+  /** A short buzz and the index in a toast, so you know which one is which. */
+  identifyPad(index) {
+    const p = this.rawPads()[index];
+    if (!p) return false;
+    try {
+      if (p.vibrationActuator && p.vibrationActuator.playEffect) {
+        p.vibrationActuator.playEffect('dual-rumble', { duration: 450, strongMagnitude: 0.9, weakMagnitude: 0.6 });
+      }
+    } catch (e) {}
+    return true;
   },
 
   pollGamepad() {
@@ -3464,6 +3594,14 @@ const Game = {
     this.scene.add(this.highlight);
 
     addEventListener('resize', () => this.resize());
+    addEventListener('message', (e) => {
+      if (e && e.data && e.data.type === 'voxelia-character') this.acceptCharacter(e.data.data);
+    });
+    this.loadCharacter();
+    // a rotation reports its new size late, so measure again once it settles
+    const settle = () => { this.resize(); setTimeout(() => this.resize(), 120); setTimeout(() => this.resize(), 450); };
+    addEventListener('orientationchange', settle);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.resize());
     Input.bindKeyboard();
     this.bindHintClose();
     this.bindMouse();
@@ -3473,13 +3611,21 @@ const Game = {
   },
 
   resize() {
+    // measure what is really visible: on a phone the visual viewport is the
+    // truth, and after a rotation innerWidth can still hold the old size
+    const vv = window.visualViewport;
+    const W = Math.round(vv ? vv.width : innerWidth);
+    const H = Math.round(vv ? vv.height : innerHeight);
+    this.renderer.domElement.style.width = W + 'px';
+    this.renderer.domElement.style.height = H + 'px';
     // a short wide window needs a wider lens or you only see your own boots
-    const aspect = innerWidth / Math.max(1, innerHeight);
+    const aspect = W / Math.max(1, H);
     const wide = Math.max(0, Math.min(14, (aspect - 1.6) * 12));
     this.camera.fov = Math.min(100, Settings.fov + wide);
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.setSize(W, H, false);
+    if (Split.on) { this.camera.aspect = (W / 2) / Math.max(1, H); this.camera.updateProjectionMatrix(); }
   },
 
   /* ---------- world lifecycle ---------- */
@@ -4721,6 +4867,7 @@ Object.assign(Game, {
   /* the meters belong to survival only, wherever you came from */
   refreshMeters() {
     const survival = this.mode !== 'creative';
+    document.body.classList.toggle('creative-mode', !survival);
     setStyle('#meters', 'display', survival ? '' : 'none');
     const st = $('#stamina'), br = $('#breath');
     if (st) st.style.width = (this.player.stamina * 100) + '%';
@@ -6059,9 +6206,28 @@ const UI = {
       this.mode = el.dataset.mode;
     }));
 
-    on('#play', 'click', () => this.play());
+    on('#char-frame-close', 'click', () => Game.closeCharacterScreen());
+    on('#split-start', 'click', () => {
+      const p1 = parseInt(($('#split-p1') || {}).value || '-1', 10);
+      const p2 = parseInt(($('#split-p2') || {}).value || '0', 10);
+      if (p2 === -1 && p1 === -1) { Game.toast('Only one player can use the keyboard. Give Player 2 a controller.'); return; }
+      if (Split.start(p1, p2)) this.closeAll();
+    });
+    on('#split-stop', 'click', () => { Split.stop(); this.closeAll(); });
+    addEventListener('gamepadconnected', () => this.renderSplitPanel());
+    addEventListener('gamepaddisconnected', (e) => {
+      this.renderSplitPanel();
+      if (Split.on && e.gamepad && (e.gamepad.index === Split.p1Pad || e.gamepad.index === Split.p2Pad)) {
+        Game.toast('A player\'s controller disconnected. Plug it back in to carry on.');
+      }
+    });
+    on('#play', 'click', () => {
+      // an old save that was Neutral asks once, rather than guessing
+      if (Game.needsBodyChoice) { Game.toast('Pick Female or Male for your character first.'); Game.openCharacterScreen(); return; }
+      this.play();
+    });
     on('#open-settings', 'click', () => this.toggle('settings'));
-    on('#open-character', 'click', () => { Game.drawCharacter(); this.toggle('character'); });
+    on('#open-character', 'click', () => Game.openCharacterScreen());
     on('#open-guide', 'click', () => this.toggle('guide'));
     $$('.close-screen').forEach(b => b.addEventListener('click', () => this.closeAll()));
 
@@ -6074,7 +6240,7 @@ const UI = {
     on('#open-load', 'click', () => { this.renderHomeSlots(); this.toggle('loadgame'); });
     on('#minimap-wrap', 'click', () => this.openMap());
     on('#map-mark', 'click', () => { Game.addWaypoint(null); this.redrawMap(); });
-    on('#map-in', 'click', () => { this.mapZoom = Math.max(0.6, (this.mapZoom || 6) / 1.6); this.redrawMap(); });
+    on('#map-in', 'click', () => { this.mapZoom = Math.max(0.12, (this.mapZoom || 6) / 1.6); this.redrawMap(); });
     on('#map-out', 'click', () => { this.mapZoom = Math.min(40, (this.mapZoom || 6) * 1.6); this.redrawMap(); });
     on('#mp-host-btn', 'click', () => this.hostGame());
     on('#mp-join-btn', 'click', () => this.joinByCode());
@@ -6526,7 +6692,7 @@ const UI = {
                            e.touches[0].clientY - e.touches[1].clientY);
       const ratio = pinch / d;
       pinch = d;
-      this.mapZoom = Math.max(0.6, Math.min(60, (this.mapZoom || 6) * ratio));
+      this.mapZoom = Math.max(0.12, Math.min(60, (this.mapZoom || 6) * ratio));
       this.redrawMap();
     }, { passive: false });
     c.addEventListener('touchend', () => { pinch = 0; }, { passive: true });
@@ -6812,6 +6978,82 @@ const UI = {
 
   },
 
+  renderSplitPanel() {
+    const box = $('#split-pads');
+    if (!box) return;
+    document.body.classList.toggle('desktop', !IS_TOUCH);
+    const pads = Input.listPads();
+    box.innerHTML = '';
+    if (!pads.length) {
+      const p = document.createElement('small');
+      p.textContent = 'No controllers found. Plug one in and press any button on it \u2014 browsers only show a controller after it has been pressed.';
+      box.appendChild(p);
+    }
+    pads.forEach((pd) => {
+      const row = document.createElement('div');
+      row.className = 'pad-row';
+      const info = document.createElement('div');
+      const title = document.createElement('b');
+      title.textContent = 'Controller ' + (pd.index + 1) + ' \u00b7 ' + pd.brand;
+      const detail = document.createElement('small');
+      detail.textContent = pd.name + (pd.vendor ? '  \u00b7  vendor ' + pd.vendor : '') +
+        (pd.product ? '  product ' + pd.product : '') + '  \u00b7  ' + pd.mapping + ' layout, ' +
+        pd.buttons + ' buttons, ' + pd.axes + ' axes' + (pd.rumble ? ', rumble' : '');
+      info.appendChild(title); info.appendChild(detail);
+      const id = document.createElement('button');
+      id.className = 'btn';
+      id.textContent = 'Which is this?';
+      id.addEventListener('click', () => {
+        Input.identifyPad(pd.index);
+        row.classList.add('lit');
+        setTimeout(() => row.classList.remove('lit'), 900);
+        Game.toast('Controller ' + (pd.index + 1) + (pd.rumble ? ' is the one that buzzed.' : ' \u2014 this one has no rumble; press a button on it to see it light up here.'));
+      });
+      row.appendChild(info); row.appendChild(id);
+      box.appendChild(row);
+      row.dataset.index = pd.index;
+    });
+
+    // who plays with what
+    const fill = (sel, dflt) => {
+      const el = $(sel);
+      if (!el) return;
+      const keep = el.value;
+      el.innerHTML = '';
+      const kb = document.createElement('option');
+      kb.value = '-1'; kb.textContent = 'Keyboard and mouse';
+      el.appendChild(kb);
+      pads.forEach((pd) => {
+        const o = document.createElement('option');
+        o.value = String(pd.index);
+        o.textContent = 'Controller ' + (pd.index + 1) + ' (' + pd.brand + ')';
+        el.appendChild(o);
+      });
+      el.value = keep && Array.from(el.options).some(o => o.value === keep) ? keep : String(dflt);
+    };
+    fill('#split-p1', -1);
+    fill('#split-p2', pads.length ? pads[pads.length > 1 ? 1 : 0].index : -1);
+    if (pads.length > 1) {
+      const p1 = $('#split-p1');
+      if (p1 && p1.value === '-1') p1.value = String(pads[0].index);
+    }
+    const start = $('#split-start'), stop = $('#split-stop');
+    if (start) start.style.display = Split.on ? 'none' : '';
+    if (stop) stop.style.display = Split.on ? '' : 'none';
+  },
+
+  /* a controller lights up in the list while its buttons are pressed */
+  tickPadHighlight() {
+    const rows = document.querySelectorAll('#split-pads .pad-row');
+    if (!rows.length) return;
+    const pads = Input.rawPads();
+    rows.forEach((row) => {
+      const p = pads[+row.dataset.index];
+      const busy = p && p.buttons && p.buttons.some((b) => b && (b.pressed || b.value > 0.5));
+      if (busy) row.classList.add('lit'); else if (!row._flash) row.classList.remove('lit');
+    });
+  },
+
   refreshModeButtons() {
     const s = $('#mode-survival'), c = $('#mode-creative'), note = $('#mode-note');
     if (!s || !c) return;
@@ -6912,7 +7154,11 @@ const UI = {
       for (const c of Game.world.chunks.values()) { c.generated = false; Game.world.generate(c); c.dirty = true; }
     }
     if (typeof welcome.time === 'number') Game.dayTime = welcome.time;
-    if (welcome.mode) Game.mode = welcome.mode;   // the room decides survival or creative
+    if (welcome.mode) {
+      Game.mode = welcome.mode;                      // the room decides survival or creative
+      if (Game.mode === 'survival') Game.player.flying = false;
+      Game.refreshMeters();
+    }
     if (Array.isArray(welcome.vehicles)) {
       // every craft already standing in this room
       for (const v of welcome.vehicles) {
@@ -7195,6 +7441,7 @@ const UI = {
     $('#pause').classList.add('open');
     this.refreshModeButtons();
     this.refreshPauseDetail();
+    this.renderSplitPanel();
     this.refreshModeButtons();
     const v = $('#set-volume');
     if (v) v.value = Math.round((Settings.volume === undefined ? 0.6 : Settings.volume) * 100);
@@ -7230,6 +7477,7 @@ Object.assign(Game, {
   loop() {
     requestAnimationFrame(() => this.loop());
     UI.tickPadBinding();
+    if (UI.anyOpen()) UI.tickPadHighlight();
     const now = performance.now();
     let dt = (now - this.clock) / 1000;
     this.clock = now;
@@ -7241,13 +7489,17 @@ Object.assign(Game, {
       this.readLook(dt);
       this.updateSpace(dt);
     } else if (this.running && !UI.anyOpen()) {
+      if (Split.on) Input.forcePad = Split.p1Pad;
       this.update(dt);
+      if (Split.on && this.realm !== 'space') Split.updateP2(dt);
     } else if (this.running) {
       Input.buttons.mine = Input.buttons.place = false;
     }
 
     if (this.running && this.realm === 'space') {
       this.renderer.render(this.spaceScene, this.camera);
+    } else if (this.running && Split.on) {
+      Split.render();
     } else if (this.running) {
       this.renderer.render(this.scene, this.camera);
       this.hudTick = (this.hudTick || 0) + dt;
@@ -7306,6 +7558,197 @@ Object.assign(Game, {
    A beacon first (survives the page closing, no preflight), then a plain GET
    image (no preflight either), then fetch. Only a confirmed hit is remembered,
    so a cold server on the first try is retried rather than lost. */
+
+/* ===================================================================
+   Split screen — two players on one computer.
+
+   The game was written around one player, so rather than duplicate all of
+   that, player two borrows it: for their half of each frame the game's
+   per-player state (body, camera, inventory, seat, controller) is swapped to
+   theirs, the same update runs, and it is swapped back. The world itself —
+   creatures, weather, crops, saving, the network — ticks once, for player one.
+   =================================================================== */
+const Split = {
+  on: false,
+  p1Pad: -1,          // keyboard and mouse by default
+  p2Pad: 0,
+  p2: null,
+  bodies: null,
+
+  /* the fields that belong to a player, not to the world */
+  FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
+           'mount', 'onRope', 'ropeAt', 'prevJump', 'prevInteract', 'prevPadFly', 'prevPadMenu',
+           'prevSlotNext', 'prevSlotPrev', 'camDist', 'breakProgress', 'lastHit', 'swingT',
+           'swingLoop', 'placeCooldown', 'bucketed', 'hintTimer'],
+
+  /* world-wide work that must happen once per frame, not once per player */
+  WORLD_ONLY: ['animateHand', 'applySky', 'autosaveTick', 'growCrops', 'repopulate', 'settleWater',
+               'showTips', 'updateLeashes', 'updateMusic', 'updateWeather', 'questTick',
+               'updatePrompt', 'updateGuide', 'noteSighting', 'updateHeld', 'refreshHotbar',
+               'musicTick'],
+
+  available() { return !IS_TOUCH; },
+
+  start(p1Pad, p2Pad) {
+    if (!this.available()) { Game.toast('Split screen is for a computer.'); return false; }
+    if (!Game.running) { Game.toast('Enter a world first, then start split screen.'); return false; }
+    if (Game.net && Game.net.connected) { Game.toast('Leave the room first: split screen is local play.'); return false; }
+    this.p1Pad = (p1Pad === undefined) ? -1 : p1Pad;
+    this.p2Pad = (p2Pad === undefined) ? 0 : p2Pad;
+    if (this.p1Pad === this.p2Pad && this.p2Pad !== -1) {
+      Game.toast('Each player needs their own controller.');
+      return false;
+    }
+
+    // player two starts beside player one, with their own everything
+    const me = Game.player;
+    const cam = new THREE.PerspectiveCamera(Game.camera.fov, 1, 0.1, Game.camera.far);
+    const body = Object.assign(Object.create(Object.getPrototypeOf(me)), JSON.parse(JSON.stringify({
+      yaw: me.yaw + Math.PI, pitch: 0, flying: false, onGround: true,
+      breath: 1, stamina: 1, jumpsLeft: 1
+    })));
+    for (const k of Object.keys(me)) {
+      if (body[k] !== undefined) continue;
+      const v = me[k];
+      if (v && v.isVector3) body[k] = v.clone();
+      else if (typeof v !== 'function' && (v === null || typeof v !== 'object')) body[k] = v;
+    }
+    body.pos = me.pos.clone().add(new THREE.Vector3(1.6, 0, 0));
+    body.vel = new THREE.Vector3();
+
+    this.p2 = {
+      player: body, camera: cam, slot: 0,
+      hotbar: [null, null, null, null, null, null, null, null, null],
+      inventory: Object.create(null),
+      gear: {}, riding: null, passengerIn: null, mount: null, onRope: null,
+      bucketed: [], camDist: undefined, breakProgress: 0, lastHit: null
+    };
+    // in creative, player two gets the same free hand
+    if (Game.mode === 'creative') this.p2.hotbar = Game.hotbar.slice();
+
+    // each can see the other
+    this.bodies = { p1: this.makeBody('Player 1'), p2: this.makeBody('Player 2') };
+    this.on = true;
+    document.body.classList.add('split-on');
+    Game.resize();
+    Game.toast('Split screen on. Player 2 is on the right.');
+    UI.renderSplitPanel && UI.renderSplitPanel();
+    return true;
+  },
+
+  stop() {
+    if (!this.on) return;
+    this.on = false;
+    if (this.bodies) {
+      Game.entityGroup.remove(this.bodies.p1);
+      Game.entityGroup.remove(this.bodies.p2);
+    }
+    this.bodies = null;
+    this.p2 = null;
+    Input.forcePad = undefined;
+    document.body.classList.remove('split-on');
+    if (Game.renderer) Game.renderer.setScissorTest(false);
+    Game.resize();
+    Game.toast('Split screen off.');
+    UI.renderSplitPanel && UI.renderSplitPanel();
+  },
+
+  makeBody(name) {
+    const peer = Game.net.addPeer('split-' + name, name, Game.skin);
+    Game.net.peers.delete('split-' + name);      // local only: never sent, never ticked by the network
+    return peer.model;
+  },
+
+  swap() {
+    for (const k of this.FIELDS) {
+      const mine = Game[k];
+      Game[k] = this.p2[k];
+      this.p2[k] = mine;
+    }
+  },
+
+  /* player two's turn: their state, their controller, no keyboard, no world ticks */
+  updateP2(dt) {
+    const savedKeys = Input.keys, savedButtons = Input.buttons;
+    const savedMove = Input.moveStick, savedLook = Input.lookStick;
+    const savedDX = Input.mouseDX, savedDY = Input.mouseDY;
+    const savedPressed = Input.pressed;
+    const savedNet = Game.net;
+    const savedToast = Game.toast;
+    const stubs = {};
+    this.swap();
+    try {
+      Input.keys = Object.create(null);
+      Input.pressed = Object.create(null);
+      Input.buttons = { jump: false, place: false, mine: false, interact: false, crouch: false };
+      Input.moveStick = { x: 0, y: 0, active: false }; Input.lookStick = { x: 0, y: 0, active: false };
+      Input.mouseDX = 0; Input.mouseDY = 0;
+      Input.forcePad = this.p2Pad;
+      Game.net = Object.assign(Object.create(savedNet), { tick() {}, send() {} });
+      Game.toast = (msg) => savedToast.call(Game, 'Player 2: ' + msg);
+      for (const f of this.WORLD_ONLY) { if (typeof Game[f] === 'function') { stubs[f] = Game[f]; Game[f] = () => {}; } }
+      Game.update(dt);
+    } catch (e) {
+      console.warn('split screen: player two update failed', e);
+    } finally {
+      for (const f of Object.keys(stubs)) Game[f] = stubs[f];
+      Game.toast = savedToast;
+      Game.net = savedNet;
+      Input.keys = savedKeys; Input.buttons = savedButtons;
+      Input.moveStick = savedMove; Input.lookStick = savedLook;
+      Input.mouseDX = savedDX; Input.mouseDY = savedDY;
+      Input.pressed = savedPressed;
+      this.swap();
+      Input.forcePad = this.p1Pad;
+    }
+  },
+
+  /* each half of the screen, drawn from its own camera */
+  render() {
+    const r = Game.renderer;
+    const size = r.getSize(new THREE.Vector2());
+    const halfW = Math.floor(size.x / 2), H = size.y;
+    const p2cam = this.p2.camera;
+
+    // keep the two bodies where the players are
+    const place = (model, pl) => {
+      model.position.set(pl.pos.x, pl.pos.y, pl.pos.z);
+      model.rotation.y = pl.yaw + Math.PI;
+    };
+    place(this.bodies.p1, Game.player);
+    place(this.bodies.p2, this.p2.player);
+
+    r.setScissorTest(true);
+
+    // left: player one, who sees player two
+    this.bodies.p1.visible = false; this.bodies.p2.visible = true;
+    Game.camera.aspect = halfW / H; Game.camera.updateProjectionMatrix();
+    r.setViewport(0, 0, halfW, H); r.setScissor(0, 0, halfW, H);
+    r.render(Game.scene, Game.camera);
+
+    // right: player two, who sees player one
+    this.bodies.p1.visible = true; this.bodies.p2.visible = false;
+    p2cam.fov = Game.camera.fov;
+    p2cam.aspect = halfW / H; p2cam.updateProjectionMatrix();
+    r.setViewport(halfW, 0, size.x - halfW, H); r.setScissor(halfW, 0, size.x - halfW, H);
+    r.render(Game.scene, p2cam);
+
+    r.setScissorTest(false);
+    r.setViewport(0, 0, size.x, H);
+    this.drawP2Hud();
+  },
+
+  drawP2Hud() {
+    const el = document.getElementById('p2-hud');
+    if (!el || !this.p2) return;
+    const id = this.p2.hotbar[this.p2.slot];
+    const name = id == null ? 'Empty hand' : (typeof thingName === 'function' ? thingName(id) : 'Item');
+    const pl = this.p2.player;
+    el.textContent = 'Player 2  \u00b7  ' + name + '  \u00b7  ' +
+      Math.round(pl.pos.x) + ' ' + Math.round(pl.pos.y) + ' ' + Math.round(pl.pos.z);
+  }
+};
+
 const Visits = {
   base() {
     const server = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
@@ -7735,6 +8178,12 @@ Game.net = {
         }
         break;
       }
+      case 'avatar': {
+        if (m.id === this.selfId) return;
+        const peer = this.peers.get(m.id) || this.addPeer(m.id, 'Player', null);
+        Game.dressPeer(peer, m.avatar);
+        break;
+      }
       case 'move': {
         if (m.id === this.selfId) return;
         let p = this.peers.get(m.id);
@@ -7743,6 +8192,7 @@ Game.net = {
         p.target.set(m.x, m.y, m.z);
         p.yaw = m.yaw;
         p.aboard = m.riding || null;
+        p.anim = m.anim || 0;
         if (m.realm) {
           p.realm = m.realm;
           p.model.visible = (m.realm === Game.realm);
@@ -7830,21 +8280,48 @@ Game.net = {
           p.yaw = craft.yaw;
         }
       }
-      const far = p.model.position.distanceTo(p.target);
-      if (far > 24) p.model.position.copy(p.target);
-      else {
+      /* Where the body really is, kept apart from the walk bob. The bob used
+         to be added into the position every frame, which crept upward and was
+         then pulled back by the smoothing: that was the twitch while standing. */
+      if (!p.body) p.body = { x: p.model.position.x, y: p.model.position.y, z: p.model.position.z };
+      const far = Math.hypot(p.target.x - p.body.x, p.target.y - p.body.y, p.target.z - p.body.z);
+      if (far > 24) {
+        p.body.x = p.target.x; p.body.y = p.target.y; p.body.z = p.target.z;
+      } else {
         // the ground plane follows quickly; height follows gently, because a
-        // late packet arriving as a step up then down is what looked like a jump
+        // late packet arriving as a step up then down reads as a jump
         const k = 1 - Math.exp(-(far > 6 ? 10 : 6) * dt);
-        p.model.position.x += (p.target.x - p.model.position.x) * k;
-        p.model.position.z += (p.target.z - p.model.position.z) * k;
-        const dy = p.target.y - p.model.position.y;
-        if (Math.abs(dy) > 2.6) p.model.position.y = p.target.y;   // a real fall or climb
-        else p.model.position.y += dy * (1 - Math.exp(-3.4 * dt));
+        p.body.x += (p.target.x - p.body.x) * k;
+        p.body.z += (p.target.z - p.body.z) * k;
+        const dyy = p.target.y - p.body.y;
+        if (Math.abs(dyy) > 2.6) p.body.y = p.target.y;            // a real fall or climb
+        else p.body.y += dyy * (1 - Math.exp(-3.4 * dt));
       }
-      const moving = far > 0.05;
-      p.step = (p.step || 0) + (moving ? dt * 7 : 0);
-      if (moving) p.model.position.y += Math.abs(Math.sin(p.step)) * 0.06;
+
+      /* Are they actually walking? Measured from ground speed over time, with a
+         gap between starting and stopping, so network noise cannot start the
+         walk cycle on someone who is stood still. */
+      const groundStep = Math.hypot(p.body.x - (p.wasX === undefined ? p.body.x : p.wasX),
+                                    p.body.z - (p.wasZ === undefined ? p.body.z : p.wasZ));
+      p.wasX = p.body.x; p.wasZ = p.body.z;
+      const speed = dt > 0 ? groundStep / dt : 0;
+      p.speedAvg = (p.speedAvg || 0) * 0.82 + speed * 0.18;
+      if (!p.walking && p.speedAvg > 0.7) p.walking = true;        // clearly moving
+      else if (p.walking && p.speedAvg < 0.25) p.walking = false;  // clearly stopped
+      const moving = p.walking;
+      p.step = (p.step || 0) + (moving ? dt * Math.min(11, 4 + p.speedAvg) : 0);
+      const bob = moving ? Math.abs(Math.sin(p.step)) * 0.06 : 0;
+      p.model.position.set(p.body.x, p.body.y + (p.avatar ? 0 : bob), p.body.z);
+      // somebody inside a craft is inside it: their body is not drawn at all
+      const onThisWorld = (p.realm || 'ground') === (Game.realm || 'ground');
+      p.model.visible = onThisWorld && !p.aboard;
+      if (p.avatar) {
+        const a = p.anim || 0;
+        p.avatar.update(dt, {
+          speed: p.speedAvg || 0, grounded: !!(a & 1) || !(a & 2),
+          flying: !!(a & 2), mining: !!(a & 4), swimming: !!(a & 8), inVehicle: !!(a & 16)
+        });
+      }
       let dy = p.yaw - p.model.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
@@ -7884,7 +8361,16 @@ Game.net = {
     if (this.outTimer < 0.033) return;   // thirty updates a second
     this.outTimer = 0;
     const p = (Game.realm === 'space' && Game.spacePos) ? Game.spacePos : Game.player.pos;
-    this.send({ t: 'move', x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
+    // bits: 1 on the ground, 2 flying, 4 mining, 8 swimming, 16 in a vehicle
+    const pl = Game.player;
+    const anim = (pl.onGround ? 1 : 0) | (pl.flying ? 2 : 0) | (Input.buttons.mine || Input.mouseMine ? 4 : 0) |
+                 (pl.inWater ? 8 : 0) | ((Game.riding || Game.passengerIn) ? 16 : 0);
+    // the character itself is sent once on joining and whenever it changes
+    if (Game.character && this.sentAvatar !== Game.characterStamp) {
+      this.sentAvatar = Game.characterStamp;
+      this.send({ t: 'avatar', avatar: Game.character });
+    }
+    this.send({ t: 'move', anim, x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
                 riding: Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null),
                 realm: Game.realm,
                 skin: Object.assign({}, Game.skin, {
@@ -9216,11 +9702,13 @@ Game.voice = {
     for (const [id, entry] of this.peers) {
       const have = entry.pc.getSenders().some(s2 => s2.track && s2.track.kind === 'audio');
       if (!have) this.stream.getTracks().forEach(t => entry.pc.addTrack(t, this.stream));
+      if (entry.pc.signalingState !== 'stable') continue;     // a negotiation is already underway
       try {
+        entry.makingOffer = true;
         const offer = await entry.pc.createOffer();
         await entry.pc.setLocalDescription(offer);
         Game.net.send({ t: 'signal', to: id, data: { sdp: entry.pc.localDescription } });
-      } catch (e) { /* a later signal will settle it */ }
+      } catch (e) { /* a later signal will settle it */ } finally { entry.makingOffer = false; }
     }
   },
 
@@ -9278,15 +9766,28 @@ Game.voice = {
   },
 
   makePeer(id) {
+    /* STUN finds a direct path between two players, which works on most home
+       wifi. Phones on mobile data are often behind networks that forbid a
+       direct path, and without a relay those two players simply cannot hear
+       each other. The TURN entries relay audio when nothing else works. */
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' }
-      ]
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443',
+                 'turn:openrelay.metered.ca:443?transport=tcp'],
+          username: 'openrelayproject', credential: 'openrelayproject' }
+      ].concat(Array.isArray(window.VOXELIA_TURN) ? window.VOXELIA_TURN : [])
     });
     // always be ready to receive, even with our own microphone off
     try { pc.addTransceiver('audio', { direction: this.stream ? 'sendrecv' : 'recvonly' }); } catch (e) {}
-    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') this.drop(id); };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState !== 'failed') return;
+      // try once more from scratch before giving up on this pair
+      const tried = this.retried || (this.retried = new Set());
+      this.drop(id);
+      if (!tried.has(id) && (this.on || Game.net.connected)) { tried.add(id); setTimeout(() => this.call(id), 1500); }
+    };
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
     pc.onicecandidate = (e) => {
       if (e.candidate) Game.net.send({ t: 'signal', to: id, data: { ice: e.candidate } });
@@ -9300,8 +9801,9 @@ Game.voice = {
         entry.audio.playsInline = true;
         document.body.appendChild(entry.audio);
       }
-      entry.audio.srcObject = e.streams[0];
+      entry.audio.srcObject = e.streams[0] || new MediaStream([e.track]);
       entry.audio.volume = Settings.voiceVolume;
+      try { const pl = entry.audio.play(); if (pl && pl.catch) pl.catch(() => {}); } catch (err) {}
     };
     const entry = { pc, audio: null };
     this.peers.set(id, entry);
@@ -9311,11 +9813,21 @@ Game.voice = {
   async call(id) {
     if (!id || id === Game.net.selfId) return;
     if (this.peers.has(id)) { await this.ensureTracks(); return; }
-    const { pc } = this.makePeer(id);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    Game.net.send({ t: 'signal', to: id, data: { sdp: pc.localDescription } });
+    const entry = this.makePeer(id);
+    const pc = entry.pc;
+    try {
+      entry.makingOffer = true;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      Game.net.send({ t: 'signal', to: id, data: { sdp: pc.localDescription } });
+    } catch (e) {} finally { entry.makingOffer = false; }
   },
+
+  /* When two players turn their microphones on together, both send an offer and
+     each refuses the other's. The fix is the standard one: one side of every
+     pair is "polite" and backs down, decided by comparing ids, so both players
+     always agree which of them it is. */
+  polite(id) { return String(Game.net.selfId || '') < String(id || ''); },
 
   async onSignal(from, data) {
     let entry = this.peers.get(from);
@@ -9323,6 +9835,12 @@ Game.voice = {
     const pc = entry.pc;
     try {
       if (data.sdp) {
+        const clash = data.sdp.type === 'offer' &&
+                      (entry.makingOffer || pc.signalingState !== 'stable');
+        if (clash && !this.polite(from)) return;             // the other side will back down
+        if (clash) {
+          try { await pc.setLocalDescription({ type: 'rollback' }); } catch (e) {}
+        }
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         if (data.sdp.type === 'offer') {
           const answer = await pc.createAnswer();
@@ -10212,6 +10730,84 @@ VEHICLES[I.STARLINER] = {
    --------------------------------------------------------------- */
 Object.assign(Game, {
   /* switching between the two, with the record kept honestly */
+  /* ---------------- the character: chosen once, worn everywhere ---------------- */
+
+  /** Whoever you picked on the character screen, checked and tidied. */
+  loadCharacter() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('voxeliaCharacterV2') || 'null');
+      const ok = window.VoxeliaAvatars ? VoxeliaAvatars.validate(raw) : raw;
+      if (ok) { this.character = ok; this.characterStamp = JSON.stringify(ok); }
+    } catch (e) {}
+    // an old save still on the three-way body choice is not guessed at: the
+    // screen opens once so the player picks Female or Male themselves
+    if (!this.character && this.skin && this.skin.body === 'neutral') this.needsBodyChoice = true;
+    this.applyCharacterToHand();
+  },
+
+  /** Your first-person arm takes its colours from the chosen character. */
+  applyCharacterToHand() {
+    const c = this.character && this.character.colors;
+    if (!c || !this.skin) return;
+    if (c.skin) this.skin.skin = c.skin;
+    if (c.hair) this.skin.hair = c.hair;
+    if (c.shirt) this.skin.shirt = c.shirt;
+    if (c.shirtSecondary) this.skin.trim = c.shirtSecondary;
+    if (c.pants) this.skin.legs = c.pants;
+    // long sleeves colour the forearm; bare arms stay skin
+    this.skin.arms = c.sleeves || c.skin || this.skin.arms;
+    try { this.attachHand(); } catch (e) {}
+  },
+
+  openCharacterScreen() {
+    const wrap = document.getElementById('char-frame-wrap');
+    const frame = document.getElementById('char-frame');
+    if (!wrap || !frame) { this.drawCharacter(); UI.toggle('character'); return; }
+    if (!frame.src) frame.src = 'character-select.html';
+    wrap.classList.add('open');
+    wrap.setAttribute('aria-hidden', 'false');
+  },
+
+  closeCharacterScreen() {
+    const wrap = document.getElementById('char-frame-wrap');
+    if (wrap) { wrap.classList.remove('open'); wrap.setAttribute('aria-hidden', 'true'); }
+  },
+
+  /** The screen said "use this one". */
+  acceptCharacter(cfg) {
+    const ok = window.VoxeliaAvatars ? VoxeliaAvatars.validate(cfg) : null;
+    if (!ok) { this.toast('That character could not be used.'); return; }
+    this.character = ok;
+    this.characterStamp = JSON.stringify(ok);
+    this.needsBodyChoice = false;
+    try { localStorage.setItem('voxeliaCharacterV2', JSON.stringify(ok)); } catch (e) {}
+    const nameBox = document.getElementById('player-name');
+    if (nameBox && ok.name) nameBox.value = ok.name;
+    this.applyCharacterToHand();
+    this.closeCharacterScreen();
+    this.toast(ok.name + ' is ready.');
+  },
+
+  /** Put another player into their chosen model, falling back to blocks until it loads. */
+  dressPeer(peer, cfg) {
+    if (!peer || !window.VoxeliaAvatars) return;
+    const ok = VoxeliaAvatars.validate(Object.assign({ name: peer.name }, cfg || {}));
+    if (!ok) return;
+    const stamp = JSON.stringify(ok);
+    if (peer.avatarStamp === stamp) return;
+    peer.avatarStamp = stamp;
+    VoxeliaAvatars.create(ok).then((av) => {
+      if (peer.avatarStamp !== stamp) { av.dispose(); return; }   // they changed again meanwhile
+      if (peer.avatar) peer.avatar.dispose();
+      // keep the name tag, swap the body
+      const tag = peer.model.children.find((c) => c.isSprite);
+      peer.model.children.slice().forEach((c) => { if (c !== tag) peer.model.remove(c); });
+      av.object.scale.setScalar(1.0);
+      peer.model.add(av.object);
+      peer.avatar = av;
+    }).catch(() => { /* the block body stays: a missing model is never fatal */ });
+  },
+
   setMode(m) {
     if (m === this.mode) return;
     this.mode = m;
@@ -10225,6 +10821,12 @@ Object.assign(Game, {
     }
     this.player.breath = 1;
     this.player.stamina = 1;
+    if (m === 'survival' && this.player.flying) {
+      // survival has no flight: you fall from wherever you were
+      this.player.flying = false;
+      this.player.vel.y = 0;
+      this.toast('Flight off \u2014 survival has gravity.');
+    }
     this.refreshMeters();
     this.refreshHotbar();
     UI.refreshModeButtons();
@@ -11503,5 +12105,9 @@ try {
   });
 } catch (e) {}
 </script>
+<div id="char-frame-wrap" aria-hidden="true">
+  <button id="char-frame-close" aria-label="Close the character screen">&#x2715;</button>
+  <iframe id="char-frame" title="Choose your character"></iframe>
+</div>
 </body>
 </html>
