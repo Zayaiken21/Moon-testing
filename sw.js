@@ -1,8 +1,9 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v4';
+const CACHE = 'voxelia-v5';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
+  './voxelia-avatars.js', './character-select.html', './character-select.css', './character-select.js',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   // whichever way the music was uploaded, one of these will exist
   './audio/Home_Screen_music.ogg', './Home_Screen_music.wav',

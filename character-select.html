@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VOXELIA Character Selector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="character-select.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="bg-grid"></div>
+
+  <main class="app-shell" id="voxeliaCharacterSelector">
+    <header class="topbar glass">
+      <div class="brand-wrap">
+        <div class="brand-mark">V</div>
+        <div>
+          <div class="eyebrow">VOXELIA</div>
+          <h1>Choose Your Character</h1>
+        </div>
+      </div>
+      <button class="ghost-btn" id="randomCharacterBtn" type="button">✦ Random Character</button>
+    </header>
+
+    <section class="selector-layout">
+      <aside class="preview-panel glass">
+        <div class="preview-topline">
+          <span class="chip" id="activeSexChip">Male</span>
+          <span class="chip subtle" id="activePresetChip">Explorer</span>
+        </div>
+
+        <div class="avatar-stage" aria-live="polite">
+          <div class="stage-glow"></div>
+          <div id="largeAvatar" class="avatar avatar-large" aria-label="Selected character preview"></div>
+        </div>
+
+        <div class="selected-copy">
+          <div>
+            <p class="label">Selected</p>
+            <h2 id="selectedName">Explorer</h2>
+            <p id="selectedId">male_01_explorer</p>
+          </div>
+          <button id="rotatePreviewBtn" class="icon-btn" type="button" aria-label="Rotate preview">↻</button>
+        </div>
+
+        <div class="name-control">
+          <label for="playerName">Display Name</label>
+          <input id="playerName" maxlength="18" value="Player" autocomplete="off" />
+        </div>
+
+        <div class="action-row">
+          <button class="secondary-btn" id="resetBtn" type="button">Reset</button>
+          <button class="primary-btn" id="confirmBtn" type="button">Use Character</button>
+        </div>
+      </aside>
+
+      <section class="controls-panel glass">
+        <div class="section-head">
+          <div>
+            <p class="label">Body</p>
+            <h3>Choose a style</h3>
+          </div>
+          <div class="segmented" role="group" aria-label="Body selection">
+            <button type="button" data-sex="female" aria-pressed="false">Female</button>
+            <button type="button" data-sex="male" class="active" aria-pressed="true">Male</button>
+          </div>
+        </div>
+
+        <div class="preset-section">
+          <div class="section-head compact">
+            <div>
+              <p class="label">Presets</p>
+              <h3>Pick your character</h3>
+            </div>
+            <span class="count-badge" id="presetCount">10</span>
+          </div>
+          <div class="preset-grid" id="presetGrid" role="listbox" aria-label="Character presets"></div>
+        </div>
+
+        <details class="customizer" open>
+          <summary>
+            <span>
+              <span class="label">Customize</span>
+              <strong>Make it yours</strong>
+            </span>
+            <span class="summary-icon">⌄</span>
+          </summary>
+
+          <div class="customizer-inner">
+            <div class="color-grid" id="colorGrid"></div>
+            <button class="secondary-btn wide" id="randomColorsBtn" type="button">🎨 Randomize Colors</button>
+          </div>
+        </details>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="character-select.js"></script>
+</body>
+</html>
