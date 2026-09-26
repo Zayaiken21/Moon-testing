@@ -1,0 +1,410 @@
+{
+  "rigVersion": 1,
+  "characterVersion": 2,
+  "heightMeters": 1.8,
+  "facing": "+Z",
+  "upAxis": "+Y",
+  "clips": {
+    "idle": {
+      "loop": true,
+      "duration": 7.854
+    },
+    "walk": {
+      "loop": true,
+      "duration": 0.8727
+    },
+    "run": {
+      "loop": true,
+      "duration": 0.5712
+    },
+    "sprint": {
+      "loop": true,
+      "duration": 0.4833
+    },
+    "jumpAnticipation": {
+      "loop": false,
+      "duration": 0.16
+    },
+    "airborne": {
+      "loop": true,
+      "duration": 1.2
+    },
+    "land": {
+      "loop": false,
+      "duration": 0.22
+    },
+    "mine": {
+      "loop": true,
+      "duration": 0.6614
+    },
+    "place": {
+      "loop": false,
+      "duration": 0.28
+    },
+    "interact": {
+      "loop": false,
+      "duration": 0.32
+    },
+    "swim": {
+      "loop": true,
+      "duration": 1.122
+    },
+    "climb": {
+      "loop": true,
+      "duration": 1.0833
+    },
+    "fly": {
+      "loop": true,
+      "duration": 3.1416
+    },
+    "sitVehicle": {
+      "loop": true,
+      "duration": 3.0
+    },
+    "wave": {
+      "loop": true,
+      "duration": 1.6
+    },
+    "feed": {
+      "loop": true,
+      "duration": 2.4
+    }
+  },
+  "firstPersonClips": {
+    "fpIdle": {
+      "loop": true,
+      "duration": 1.0
+    },
+    "fpWalk": {
+      "loop": true,
+      "duration": 1.2566
+    },
+    "fpMine": {
+      "loop": true,
+      "duration": 0.6283
+    },
+    "fpPlace": {
+      "loop": false,
+      "duration": 0.28
+    },
+    "fpInteract": {
+      "loop": false,
+      "duration": 0.32
+    }
+  },
+  "characters": [
+    {
+      "id": "male_01_explorer",
+      "sex": "male",
+      "model": "models/male_01_explorer.glb",
+      "firstPerson": "models/first_person/male_01_explorer_fp.glb",
+      "hairBones": [],
+      "triangles": 8382,
+      "sizeKB": 859,
+      "colors": {
+        "skin": "#E8A878",
+        "hair": "#6B3F22",
+        "shirt": "#2D4A8A",
+        "pants": "#8A8458"
+      }
+    },
+    {
+      "id": "female_01_explorer",
+      "sex": "female",
+      "model": "models/female_01_explorer.glb",
+      "firstPerson": "models/first_person/female_01_explorer_fp.glb",
+      "hairBones": [],
+      "triangles": 9014,
+      "sizeKB": 912,
+      "colors": {
+        "skin": "#E9A87C",
+        "hair": "#6E4024",
+        "shirt": "#2D4A8A",
+        "pants": "#8A8458"
+      }
+    },
+    {
+      "id": "male_02_ranger",
+      "sex": "male",
+      "model": "models/male_02_ranger.glb",
+      "firstPerson": "models/first_person/male_02_ranger_fp.glb",
+      "hairBones": [],
+      "triangles": 9396,
+      "sizeKB": 944,
+      "colors": {
+        "skin": "#F0B98E",
+        "hair": "#5A3620",
+        "shirt": "#3E6038",
+        "pants": "#4E5A3E"
+      }
+    },
+    {
+      "id": "female_02_ranger",
+      "sex": "female",
+      "model": "models/female_02_ranger.glb",
+      "firstPerson": "models/first_person/female_02_ranger_fp.glb",
+      "hairBones": [
+        "ponytail"
+      ],
+      "triangles": 8706,
+      "sizeKB": 898,
+      "colors": {
+        "skin": "#EDB58C",
+        "hair": "#5E3A22",
+        "shirt": "#3E6038",
+        "pants": "#4E5A3E"
+      }
+    },
+    {
+      "id": "male_03_builder",
+      "sex": "male",
+      "model": "models/male_03_builder.glb",
+      "firstPerson": "models/first_person/male_03_builder_fp.glb",
+      "hairBones": [],
+      "triangles": 9370,
+      "sizeKB": 942,
+      "colors": {
+        "skin": "#E3A070",
+        "hair": "#4A2E1C",
+        "shirt": "#B8502C",
+        "pants": "#3E4048"
+      }
+    },
+    {
+      "id": "female_03_builder",
+      "sex": "female",
+      "model": "models/female_03_builder.glb",
+      "firstPerson": "models/first_person/female_03_builder_fp.glb",
+      "hairBones": [],
+      "triangles": 9610,
+      "sizeKB": 962,
+      "colors": {
+        "skin": "#B0714A",
+        "hair": "#2E1C14",
+        "shirt": "#B8502C",
+        "pants": "#3E4048"
+      }
+    },
+    {
+      "id": "male_04_scout",
+      "sex": "male",
+      "model": "models/male_04_scout.glb",
+      "firstPerson": "models/first_person/male_04_scout_fp.glb",
+      "hairBones": [],
+      "triangles": 7858,
+      "sizeKB": 815,
+      "colors": {
+        "skin": "#F2BE93",
+        "hair": "#6A3E26",
+        "shirt": "#2FA39A",
+        "pants": "#232A44"
+      }
+    },
+    {
+      "id": "female_04_scout",
+      "sex": "female",
+      "model": "models/female_04_scout.glb",
+      "firstPerson": "models/first_person/female_04_scout_fp.glb",
+      "hairBones": [
+        "hairLeft",
+        "hairRight"
+      ],
+      "triangles": 7398,
+      "sizeKB": 799,
+      "colors": {
+        "skin": "#F0BA90",
+        "hair": "#5E3822",
+        "shirt": "#2FA39A",
+        "pants": "#232A44"
+      }
+    },
+    {
+      "id": "male_05_pilot",
+      "sex": "male",
+      "model": "models/male_05_pilot.glb",
+      "firstPerson": "models/first_person/male_05_pilot_fp.glb",
+      "hairBones": [],
+      "triangles": 7800,
+      "sizeKB": 810,
+      "colors": {
+        "skin": "#EAAE82",
+        "hair": "#4A2A1A",
+        "shirt": "#6E1E26",
+        "pants": "#3A2E26"
+      }
+    },
+    {
+      "id": "female_05_pilot",
+      "sex": "female",
+      "model": "models/female_05_pilot.glb",
+      "firstPerson": "models/first_person/female_05_pilot_fp.glb",
+      "hairBones": [
+        "ponytail"
+      ],
+      "triangles": 7748,
+      "sizeKB": 817,
+      "colors": {
+        "skin": "#E8AC80",
+        "hair": "#6A3A22",
+        "shirt": "#6E1E26",
+        "pants": "#3A2E26"
+      }
+    },
+    {
+      "id": "male_06_scholar",
+      "sex": "male",
+      "model": "models/male_06_scholar.glb",
+      "firstPerson": "models/first_person/male_06_scholar_fp.glb",
+      "hairBones": [],
+      "triangles": 7064,
+      "sizeKB": 748,
+      "colors": {
+        "skin": "#F3C49E",
+        "hair": "#4E3222",
+        "shirt": "#2E4270",
+        "pants": "#6E6E72"
+      }
+    },
+    {
+      "id": "female_06_scholar",
+      "sex": "female",
+      "model": "models/female_06_scholar.glb",
+      "firstPerson": "models/first_person/female_06_scholar_fp.glb",
+      "hairBones": [],
+      "triangles": 6910,
+      "sizeKB": 735,
+      "colors": {
+        "skin": "#F1C29C",
+        "hair": "#4A2E20",
+        "shirt": "#2E4270",
+        "pants": "#6E6E72"
+      }
+    },
+    {
+      "id": "male_07_farmhand",
+      "sex": "male",
+      "model": "models/male_07_farmhand.glb",
+      "firstPerson": "models/first_person/male_07_farmhand_fp.glb",
+      "hairBones": [],
+      "triangles": 7602,
+      "sizeKB": 793,
+      "colors": {
+        "skin": "#EDB083",
+        "hair": "#6B3E20",
+        "shirt": "#E6D6B8",
+        "pants": "#6E7A48"
+      }
+    },
+    {
+      "id": "female_07_gardener",
+      "sex": "female",
+      "model": "models/female_07_gardener.glb",
+      "firstPerson": "models/first_person/female_07_gardener_fp.glb",
+      "hairBones": [
+        "braid"
+      ],
+      "triangles": 7644,
+      "sizeKB": 809,
+      "colors": {
+        "skin": "#F0B58A",
+        "hair": "#6E3F22",
+        "shirt": "#E6D6B8",
+        "pants": "#6E7A48"
+      }
+    },
+    {
+      "id": "male_08_coastwalker",
+      "sex": "male",
+      "model": "models/male_08_coastwalker.glb",
+      "firstPerson": "models/first_person/male_08_coastwalker_fp.glb",
+      "hairBones": [],
+      "triangles": 7228,
+      "sizeKB": 762,
+      "colors": {
+        "skin": "#D99A6C",
+        "hair": "#5A3620",
+        "shirt": "#7CC4C0",
+        "pants": "#E8E0CC"
+      }
+    },
+    {
+      "id": "female_08_coastwalker",
+      "sex": "female",
+      "model": "models/female_08_coastwalker.glb",
+      "firstPerson": "models/first_person/female_08_coastwalker_fp.glb",
+      "hairBones": [
+        "hairBack"
+      ],
+      "triangles": 8490,
+      "sizeKB": 880,
+      "colors": {
+        "skin": "#E3A57A",
+        "hair": "#6E4428",
+        "shirt": "#7CC4C0",
+        "pants": "#E8E0CC"
+      }
+    },
+    {
+      "id": "male_09_starfarer",
+      "sex": "male",
+      "model": "models/male_09_starfarer.glb",
+      "firstPerson": "models/first_person/male_09_starfarer_fp.glb",
+      "hairBones": [],
+      "triangles": 8064,
+      "sizeKB": 833,
+      "colors": {
+        "skin": "#E3A274",
+        "hair": "#1E2230",
+        "shirt": "#1E2232",
+        "pants": "#1E2232"
+      }
+    },
+    {
+      "id": "female_09_starfarer",
+      "sex": "female",
+      "model": "models/female_09_starfarer.glb",
+      "firstPerson": "models/first_person/female_09_starfarer_fp.glb",
+      "hairBones": [],
+      "triangles": 7430,
+      "sizeKB": 780,
+      "colors": {
+        "skin": "#C98B62",
+        "hair": "#232838",
+        "shirt": "#1E2232",
+        "pants": "#1E2232"
+      }
+    },
+    {
+      "id": "male_10_wanderer",
+      "sex": "male",
+      "model": "models/male_10_wanderer.glb",
+      "firstPerson": "models/first_person/male_10_wanderer_fp.glb",
+      "hairBones": [],
+      "triangles": 8318,
+      "sizeKB": 853,
+      "colors": {
+        "skin": "#EDB48A",
+        "hair": "#5A3822",
+        "shirt": "#3A3040",
+        "pants": "#2E2834"
+      }
+    },
+    {
+      "id": "female_10_wanderer",
+      "sex": "female",
+      "model": "models/female_10_wanderer.glb",
+      "firstPerson": "models/first_person/female_10_wanderer_fp.glb",
+      "hairBones": [
+        "hairBack"
+      ],
+      "triangles": 8924,
+      "sizeKB": 916,
+      "colors": {
+        "skin": "#E8AC84",
+        "hair": "#4A2A2E",
+        "shirt": "#3A3040",
+        "pants": "#2E2834"
+      }
+    }
+  ]
+}
