@@ -884,6 +884,11 @@ body.split-on #hud #top-bar{left:25% !important}
 body.split-on #biome-card{left:calc(12px + env(safe-area-inset-left));max-width:20vw}
 body.split-on #ability-badge{display:none}
 
+/* A thing's picture: the flat one, with its model over the top once it has
+   arrived. Both sit in the same square so nothing jumps as it swaps. */
+.pic{position:relative;display:grid;place-items:center;line-height:0}
+.pic canvas{grid-area:1/1}
+
 /* Being asked over by a friend. Always a question, never a shove. */
 #summon-card{position:fixed;left:50%;transform:translateX(-50%);
   top:calc(96px + env(safe-area-inset-top));z-index:72;display:none;
@@ -1496,6 +1501,7 @@ body.split-on #ability-badge{display:none}
 <!-- optional: drop store.js beside this file and a Store button appears on the title screen -->
 <script src="rewards.js" onerror="console.info('rewards.js not present, carrying on without it')"></script>
 <script src="voxelia-avatars.js" onerror="console.info('voxelia-avatars.js missing: using block characters')"></script>
+<script src="voxelia-things.js" onerror="console.info('voxelia-things.js missing: using flat pictures')"></script>
 <script src="store.js" onerror="console.info('store.js not present, carrying on without it')"></script>
 <script>
   /* keep a copy on the device so the game runs with no connection at all */
@@ -3934,6 +3940,15 @@ const Game = {
       if (e && e.data && e.data.type === 'voxelia-character') this.acceptCharacter(e.data.data);
     });
     this.loadCharacter();
+    // the list of models, so the bag and the hotbar can use them
+    try {
+      if (window.VoxeliaThings) {
+        VoxeliaThings.ready().then(() => {
+          this.refreshHotbar();
+          this.updateHeld(true);
+        });
+      }
+    } catch (e) {}
     // a rotation reports its new size late, so measure again once it settles
     const settle = () => { this.resize(); setTimeout(() => this.resize(), 120); setTimeout(() => this.resize(), 450); };
     addEventListener('orientationchange', settle);
@@ -6145,6 +6160,30 @@ function tileSwatch(tile, size, trueColor) {
   return c;
 }
 
+/* The picture of a thing, for the hotbar and the bag.
+
+   A block that has a model of its own is drawn as that model — a bluebell
+   looks like a bluebell rather than a blue square. Everything else keeps the
+   picture it always had. The model arrives a moment later than the page, so
+   the flat picture is shown first and quietly swapped when the model lands. */
+function thingPicture(id, size) {
+  const flat = isItem(id)
+    ? itemSwatch(itemDef(id), size)
+    : tileSwatch(BLOCKS[id].top, size, BLOCKS[id].tint);
+  if (!window.VoxeliaThings || !VoxeliaThings.has(id)) return flat;
+  const box = document.createElement('span');
+  box.className = 'pic';
+  box.appendChild(flat);
+  const three = VoxeliaThings.icon(id, size, () => {
+    if (box.contains(flat)) box.removeChild(flat);
+  });
+  if (three) {
+    box.appendChild(three);
+    if (three.dataset.drawn) { if (box.contains(flat)) box.removeChild(flat); }
+  }
+  return box;
+}
+
 Object.assign(Game, {
   refreshHotbar() {
     const bar = $('#hotbar');
@@ -6158,7 +6197,7 @@ Object.assign(Game, {
       } else if (isItem(id)) {
         const d = itemDef(id);
         slot.title = d.name;
-        slot.appendChild(itemSwatch(d, 40));
+        slot.appendChild(thingPicture(id, 40));
         const n = document.createElement('em');
         n.textContent = this.inventory[id] || 0;
         slot.appendChild(n);
@@ -6166,7 +6205,7 @@ Object.assign(Game, {
       } else {
         const b = BLOCKS[id];
         slot.title = b.name;
-        slot.appendChild(tileSwatch(b.top, 40, b.tint));
+        slot.appendChild(thingPicture(id, 40));
         const n = document.createElement('em');
         n.textContent = this.inventory[id] || 0;
         slot.appendChild(n);
@@ -6749,6 +6788,22 @@ Object.assign(Game, {
     this.heldFish = null;
     const id = this.heldId();
     if (id === null || id === undefined) return;
+
+    /* A block that has a model of its own is held as that model — you carry a
+       door rather than a cube with a door painted on it. The cube is put in
+       your hand first so there is never an empty hand while the model loads,
+       and swapped for the model the moment it arrives. */
+    if (window.VoxeliaThings && VoxeliaThings.has(id)) {
+      const want = id;
+      VoxeliaThings.mesh(id).then((m) => {
+        if (this._heldId !== want || !this.heldMount) return;
+        while (this.heldMount.children.length) this.heldMount.remove(this.heldMount.children[0]);
+        m.scale.setScalar(0.42);
+        m.position.set(0, -0.14, 0);
+        m.rotation.set(0, 0.7, 0);
+        this.heldMount.add(m);
+      }).catch(() => { /* the cube stays */ });
+    }
 
     if (!isItem(id)) {
       const b = BLOCKS[id];
@@ -8873,8 +8928,7 @@ const Split = {
           slot.className = 'slot' + (i === this.p2.slot ? ' active' : '') + (hid === null ? ' empty' : '');
           if (hid !== null) {
             try {
-              if (isItem(hid)) slot.appendChild(itemSwatch(itemDef(hid), 30));
-              else slot.appendChild(tileSwatch(BLOCKS[hid].top, 30, BLOCKS[hid].tint));
+              slot.appendChild(thingPicture(hid, 30));
               const n = document.createElement('em');
               n.textContent = this.p2.inventory[hid] || 0;
               slot.appendChild(n);
@@ -10248,8 +10302,7 @@ Object.assign(UI, {
     const chip = (id, countText, onClick, note) => {
       const el = document.createElement('button');
       el.className = 'block-chip';
-      el.appendChild(isItem(id) ? itemSwatch(itemDef(id), 34)
-                                : tileSwatch(BLOCKS[id].top, 34, BLOCKS[id].tint));
+      el.appendChild(thingPicture(id, 34));
       const label = document.createElement('div');
       label.innerHTML = `<strong>${thingName(id)}</strong><small>${note || countText || ''}</small>`;
       el.appendChild(label);
