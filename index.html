@@ -31,8 +31,16 @@
   --body:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;max-width:100vw;background:var(--ink);color:var(--text);
+/* The page fills whatever it is given, on every device.
+
+   100vh on a phone means "the window with the address bar hidden", which is
+   taller than what you can actually see, so the bottom row of controls sat
+   below the edge of the screen. 100dvh is the part you can really see, and it
+   follows the bar as it slides away. */
+html,body{height:100%;height:100dvh;margin:0;overflow:hidden;max-width:100vw;
+  background:var(--ink);color:var(--text);
   font-family:var(--body);-webkit-font-smoothing:antialiased;overscroll-behavior:none;touch-action:none}
+#stage,#stage canvas{image-rendering:auto}
 button,input,select{font:inherit;color:inherit}
 h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #stage{position:fixed;inset:0}
@@ -772,6 +780,114 @@ body.creative-mode #meters{display:none !important}
 .btn:hover{box-shadow:0 0 0 3px rgba(111,227,196,.14)}
 .btn:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){.btn,.tbtn{transition:none}}
+
+/* =================================================================
+   Big screens.
+
+   On a desktop the game used to be laid out as though it were on a phone:
+   the same small panels floating in the middle of a very wide window, with
+   everything else empty. These give the picture the whole window, keep the
+   readouts near the corners where they belong, and let the panels grow with
+   the screen instead of staying letterbox-narrow.
+   ================================================================= */
+@media (min-width:1100px) and (pointer:fine){
+  :root{--ui:1.05}
+  .sheet{max-width:min(860px, 74vw);padding:28px 32px}
+  .sheet h2{font-size:26px}
+  .sheet p.lede{font-size:15px}
+  .home-wrap{max-width:min(1500px, 94vw);gap:clamp(20px,3vw,44px)}
+  #hotbar{bottom:max(22px,env(safe-area-inset-bottom))}
+  .slot{width:58px;height:58px;border-radius:13px}
+  .slot canvas{width:44px;height:44px}
+  #minimap-wrap{width:132px;height:132px}
+  #biome-card{padding:10px 15px}
+  #meters{width:170px}
+}
+@media (min-width:1700px) and (pointer:fine){
+  :root{--ui:1.15}
+  .sheet{max-width:min(1000px, 66vw)}
+  #minimap-wrap{width:158px;height:158px}
+  .slot{width:64px;height:64px}
+  .slot canvas{width:48px;height:48px}
+}
+/* Fullscreen on a computer: no browser furniture, so the game can use the
+   very edges of the screen instead of holding a phone-sized margin. */
+@media (display-mode:fullscreen) and (pointer:fine),
+       (display-mode:standalone) and (pointer:fine){
+  #biome-card{top:16px;left:18px}
+  #ability-badge{top:16px;right:18px}
+  #minimap-wrap{top:64px;right:18px}
+  #hotbar{bottom:22px}
+}
+/* Sharp edges on the blocky picture, whatever the browser would rather do. */
+#minimap{image-rendering:-webkit-optimize-contrast}
+.slot canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* A plain word when the room cannot be reached, so nobody plays on thinking
+   their friends can still see them. */
+#link-state{position:fixed;left:50%;transform:translateX(-50%);
+  top:calc(52px + env(safe-area-inset-top));z-index:70;display:none;
+  background:rgba(120,42,42,.94);border:1px solid rgba(255,160,160,.5);color:#FFE8E8;
+  border-radius:999px;padding:5px 14px;font-family:var(--display);font-size:12px;
+  pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+#link-state.show{display:block}
+@media (orientation:landscape) and (max-height:560px){
+  #link-state{top:calc(6px + env(safe-area-inset-top));font-size:10.5px;padding:3px 10px}
+}
+
+/* =================================================================
+   Sideways phones: nothing cut off at the top.
+
+   A phone held sideways reports no top inset — the notch has moved to
+   the side — so a panel anchored to the top sat under the status bar
+   and its first row was lost. Every full screen now keeps a real gap
+   at the top, scrolls to its own beginning, and keeps clear of the
+   notch on whichever side it is on.
+   ================================================================= */
+@media (orientation:landscape) and (max-height:620px){
+  .screen{
+    padding-top:calc(10px + env(safe-area-inset-top));
+    padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    padding-left:max(14px, env(safe-area-inset-left));
+    padding-right:max(14px, env(safe-area-inset-right));
+    -webkit-overflow-scrolling:touch;
+    scroll-padding-top:12px}
+  /* the panel starts at the top of the scroll area, never above it */
+  .screen > *{margin-top:0}
+  .sheet{padding:14px 16px;border-radius:16px;max-width:min(96vw,780px)}
+  .sheet h2{font-size:18px}
+  .sheet p.lede{font-size:12px;margin-bottom:12px}
+  .home-wrap{padding-top:4px;max-width:98vw;gap:12px;
+    grid-template-columns:minmax(240px,360px) 1fr}
+  .wordmark{margin-bottom:2px}
+  .wordmark h1{font-size:clamp(26px,5.2vw,40px)}
+  .wordmark span{font-size:11px;padding-bottom:3px}
+  /* the buttons and the biome rail each scroll on their own so the
+     page itself never has to be pushed off the top */
+  .biome-rail,#biome-list{max-height:calc(100dvh - 24px);overflow-y:auto}
+}
+/* very short windows: give the home screen its own scroll from the top */
+@media (orientation:landscape) and (max-height:460px){
+  .home-wrap{grid-template-columns:minmax(220px,320px) 1fr}
+  .wordmark h1{font-size:26px}
+  .sheet{padding:10px 12px}
+}
+
+/* The character screen sits in a frame, with the close button floating over
+   it. The button used to land on top of the selector's own top-right button;
+   the frame now keeps a corner clear for it. */
+#char-frame-wrap{padding-top:env(safe-area-inset-top);
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+  padding-bottom:env(safe-area-inset-bottom)}
+#char-frame{position:absolute;inset:env(safe-area-inset-top) env(safe-area-inset-right)
+  env(safe-area-inset-bottom) env(safe-area-inset-left);width:auto;height:auto}
+#char-frame-close{top:calc(8px + env(safe-area-inset-top));
+  right:calc(10px + env(safe-area-inset-right));z-index:3;
+  box-shadow:0 4px 16px rgba(0,0,0,.55)}
+@media (orientation:landscape) and (max-height:620px){
+  #char-frame-close{width:36px;height:36px;font-size:15px;
+    top:calc(5px + env(safe-area-inset-top))}
+}
 </style>
 </head>
 <body>
@@ -879,6 +995,7 @@ body.creative-mode #meters{display:none !important}
       <button class="btn" id="offer-no">No thanks</button>
     </div>
   </div>
+  <div id="link-state" role="status" aria-live="polite"></div>
   <div id="p2-hud"></div>
   <div id="p2-join" aria-hidden="true">
     <h3>Player 2</h3>
@@ -948,19 +1065,21 @@ body.creative-mode #meters{display:none !important}
       <input type="range" id="set-music" min="0" max="1" step="0.05" /><output id="set-music-out"></output></div>
     <div class="setting"><b>Voices</b><small>How loud other players sound.</small>
       <input type="range" id="set-voice" min="0" max="1" step="0.05" /><output id="set-voice-out"></output></div>
-    <div class="setting"><b>Microphone</b><small>Talk to everyone in your room. Needs an https page and permission.</small>
+    <div class="setting"><b>Microphone</b><small>Talk out loud to your friends in the same room. Your device will ask if it is allowed to listen the first time.</small>
       <button class="btn" id="voice-toggle">Turn the microphone on</button></div>
-    <div class="setting"><b>Show frame rate</b><small>Useful when tuning view distance.</small>
+    <div class="setting"><b>Picture sharpness</b><small>Higher is crisper on a big screen; lower gives more speed on a slower computer.</small>
+      <input type="range" id="set-sharp" min="0.6" max="1.4" step="0.05" /><output id="set-sharp-out"></output></div>
+    <div class="setting"><b>Show frame rate</b><small>Shows how smoothly the game is running, in the corner.</small>
       <input type="checkbox" id="set-fps" /></div>
-    <div class="setting"><b>Carve caves</b><small>Turn off for solid ground and faster generation.</small>
+    <div class="setting"><b>Dig out caves</b><small>Turn this off if you would rather have solid ground everywhere.</small>
       <input type="checkbox" id="set-caves" /></div>
     <div class="setting"><b>Sound</b><small>Blocks, footsteps, animals.</small>
       <input type="range" id="set-sound2" min="0" max="100" step="1" /></div>
     <div class="setting"><b>Music</b><small>Changes with where you are: home, grassland, harder country, other worlds, and the launch.</small>
       <input type="range" id="set-music2" min="0" max="100" step="1" /></div>
-    <div class="setting"><b>Save automatically</b><small>Keeps a rolling save of single player worlds.</small>
+    <div class="setting"><b>Save automatically</b><small>Keeps your own worlds saved as you play, so nothing is lost.</small>
       <input type="checkbox" id="set-autosave" /></div>
-    <div class="setting"><b>Adjust quality automatically</b><small>Drops view distance if frames get slow.</small>
+    <div class="setting"><b>Adjust quality automatically</b><small>Makes the world show a little less far away if the game starts to feel slow.</small>
       <input type="checkbox" id="set-auto" /></div>
     <h3 style="margin:26px 0 6px;font-size:16px">Vehicles</h3>
     <div class="setting"><b>Vehicle speed</b><small>Scales boats, carts, gliders and the submarine.</small>
@@ -1388,7 +1507,11 @@ function makeNoise(seed) {
 /* ---------------------------------------------------------------
    2. Procedural texture atlas — every block texture is drawn in code
    --------------------------------------------------------------- */
-const TILE = 32, ATLAS_DIM = 16, ATLAS_PX = TILE * ATLAS_DIM;
+/* The texture sheet. It held 16x16 = 256 tiles and 211 were already in use:
+   the forty-fifth new block would have silently landed on the last tile and
+   every block after it would have worn the wrong texture. 24x24 leaves room
+   for hundreds more. */
+const TILE = 32, ATLAS_DIM = 24, ATLAS_PX = TILE * ATLAS_DIM;
 const atlasCanvas = document.createElement('canvas');
 atlasCanvas.width = atlasCanvas.height = ATLAS_PX;
 const actx = atlasCanvas.getContext('2d');
@@ -1412,7 +1535,9 @@ function paintTile(style, color, accent) {
 
   const speck = (count, spread, size) => {
     for (let k = 0; k < count; k++) {
-      const amt = ((rnd() * 2 - 1) * spread) | 0;
+      // rounded, not truncated: truncating pulled every texture slightly
+      // darker than the colour the block says it is
+      const amt = Math.round((rnd() * 2 - 1) * spread);
       actx.fillStyle = shade(base, amt);
       actx.fillRect(ox + ((rnd() * TILE) | 0), oy + ((rnd() * TILE) | 0), size, size);
     }
@@ -2310,13 +2435,26 @@ const FACES = [
   { dir: [0, 0,  1], shade: 0.86, corners: [[0,0,1,0,0],[1,0,1,1,0],[0,1,1,0,1],[1,1,1,1,1]] }
 ];
 
+/* How the world's texture is sampled.
+
+   Close up every block should be crisp and square, which is what nearest
+   sampling gives. Far away, nearest sampling on its own is the thing that
+   made distant ground crawl and sparkle as you walked — the picture was
+   being point-sampled from a texture far smaller on screen than it is in
+   memory. Smaller copies (mipmaps) plus the card's angled filtering fix that
+   without softening anything you are stood next to. */
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
-atlasTexture.magFilter = THREE.NearestFilter;
-atlasTexture.minFilter = THREE.NearestFilter;
-atlasTexture.generateMipmaps = false;
+atlasTexture.magFilter = THREE.NearestFilter;              // crisp up close
+atlasTexture.minFilter = THREE.NearestMipmapLinearFilter;  // calm in the distance
+atlasTexture.generateMipmaps = true;
+atlasTexture.anisotropy = 8;                               // trimmed to the card below
+atlasTexture.needsUpdate = true;
 
 const UV_STEP = 1 / ATLAS_DIM;
-const UV_PAD = 0.5 / ATLAS_PX;
+/* Two texels of breathing room around each tile. Smaller copies of the sheet
+   blur neighbouring tiles into one another at the edges, and without this gap
+   a hint of the tile next door showed up along distant block seams. */
+const UV_PAD = 2 / ATLAS_PX;
 function tileUV(tile, u, v) {
   const col = tile % ATLAS_DIM, row = (tile / ATLAS_DIM) | 0;
   const u0 = col * UV_STEP + UV_PAD, u1 = (col + 1) * UV_STEP - UV_PAD;
@@ -3582,6 +3720,7 @@ const DEFAULT_SERVER = 'moon-testing-multiplayer.onrender.com';
 
 const Settings = {
   renderDistance: IS_TOUCH ? 3 : 5,
+  sharpness: 1.0,           // how much of the screen's own sharpness to use
   fov: 82,
   sensitivity: 1.0,
   invertY: false,
@@ -3657,8 +3796,16 @@ const Game = {
   },
 
   init() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: !IS_TOUCH, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.75));
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !IS_TOUCH, powerPreference: 'high-performance',
+      stencil: false, depth: true
+    });
+    this.applyPixelRatio();
+    // as sharp as the card will go, so distant ground does not shimmer
+    try {
+      const max = this.renderer.capabilities.getMaxAnisotropy();
+      if (max) { atlasTexture.anisotropy = Math.min(8, max); atlasTexture.needsUpdate = true; }
+    } catch (e) {}
     this.renderer.setSize(innerWidth, innerHeight);
     // if the stage is ever missing, draw straight into the page rather than
     // refusing to start at all
@@ -3702,7 +3849,30 @@ const Game = {
     requestAnimationFrame(() => this.loop());
   },
 
+  /* How many real pixels to draw for each page pixel.
+
+     A desktop screen is sharp, and drawing at less than its own resolution is
+     what made the game look soft and jagged in a big window or fullscreen. A
+     phone is given a little less, because it has to be. */
+  applyPixelRatio() {
+    if (!this.renderer) return;
+    const dpr = window.devicePixelRatio || 1;
+    let cap;
+    if (IS_TOUCH) cap = 1.5;
+    else {
+      // a very large window costs more per pixel, so ease off on huge screens
+      const px = innerWidth * innerHeight;
+      cap = px > 4200000 ? 1.75 : 2;
+    }
+    const want = Math.min(dpr, cap) * (Settings.sharpness || 1);
+    const use = Math.max(0.6, Math.min(3, want));
+    if (Math.abs((this.pixelRatio || 0) - use) < 0.01) return;
+    this.pixelRatio = use;
+    this.renderer.setPixelRatio(use);
+  },
+
   resize() {
+    this.applyPixelRatio();
     // measure what is really visible: on a phone the visual viewport is the
     // truth, and after a rotation innerWidth can still hold the old size
     const vv = window.visualViewport;
@@ -4596,7 +4766,11 @@ Object.assign(Game, {
       p.vel.y -= 26 * (this.gravityScale || 1) * dt;
       if (p.onGround) { p.jumpsLeft = has('doubleJump') ? 2 : 1; }
       if (jumpTap && p.jumpsLeft > 0) {
-        p.vel.y = 8.4 / Math.max(0.6, Math.sqrt(this.gravityScale || 1));
+        /* The same push off the ground everywhere. Low gravity then does the
+           rest on its own: a long, floaty hop on a small world and a normal
+           one at home. It used to also boost the push, which sent you fifteen
+           blocks into the air and off the map. */
+        p.vel.y = 8.4;
         p.jumpsLeft--; p.onGround = false; this.blip(340);
       }
       if (has('glide') && jumpHeld && p.vel.y < -1.6) p.vel.y = -1.6;
@@ -5799,13 +5973,71 @@ function itemSwatch(def, size) {
   return c;
 }
 
-function tileSwatch(tile, size) {
+/* The little picture of a block, for the hotbar and the bag.
+
+   It is the block's own texture, nudged so that what you see in your pocket
+   averages out to exactly the colour the block really is. Without this an ore
+   read as plain grey — a gold vein is mostly stone with a thread of gold
+   through it, so the average of its texture is stone — and a white block came
+   out faintly grey. The texture detail is kept; only the overall cast moves. */
+const swatchCache = new Map();
+function tileAverage(tile) {
+  const k = 'avg' + tile;
+  if (swatchCache.has(k)) return swatchCache.get(k);
+  let avg = null;
+  try {
+    const col = tile % ATLAS_DIM, row = (tile / ATLAS_DIM) | 0;
+    const d = actx.getImageData(col * TILE, row * TILE, TILE, TILE).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 8) continue;
+      r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+    }
+    if (n) avg = { r: r / n, g: g / n, b: b / n };
+  } catch (e) { avg = null; }     // a tainted canvas: leave the texture alone
+  swatchCache.set(k, avg);
+  return avg;
+}
+
+function tileSwatch(tile, size, trueColor) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
+  if (!g) return c;
   g.imageSmoothingEnabled = false;
   const col = tile % ATLAS_DIM, row = (tile / ATLAS_DIM) | 0;
   g.drawImage(atlasCanvas, col * TILE, row * TILE, TILE, TILE, 0, 0, size, size);
+
+  const want = /^#[0-9a-fA-F]{6}$/.test(trueColor || '') ? hex2rgb(trueColor) : null;
+  const avg = want ? tileAverage(tile) : null;
+  if (want && avg) {
+    let have = [avg.r, avg.g, avg.b];
+    if (Math.abs(want[0] - have[0]) + Math.abs(want[1] - have[1]) + Math.abs(want[2] - have[2]) > 12) {
+      try {
+        const img = g.getImageData(0, 0, size, size);
+        const d = img.data;
+        /* Three passes. A single shift is not enough on its own for a colour
+           near black or near white: some pixels run off the end of the scale
+           and stop there, so the picture lands short of where it was aimed.
+           Measuring again after each nudge closes that gap. */
+        for (let pass = 0; pass < 3; pass++) {
+          const dr = want[0] - have[0], dg = want[1] - have[1], db = want[2] - have[2];
+          if (Math.abs(dr) + Math.abs(dg) + Math.abs(db) < 3) break;
+          let r = 0, gg = 0, bb = 0, n = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] < 8) continue;
+            d[i]     = Math.max(0, Math.min(255, d[i] + dr));
+            d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + dg));
+            d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + db));
+            r += d[i]; gg += d[i + 1]; bb += d[i + 2]; n++;
+          }
+          if (!n) break;
+          have = [r / n, gg / n, bb / n];
+        }
+        g.putImageData(img, 0, 0);
+      } catch (e) { /* leave it as the plain texture */ }
+    }
+  }
   return c;
 }
 
@@ -5830,7 +6062,7 @@ Object.assign(Game, {
       } else {
         const b = BLOCKS[id];
         slot.title = b.name;
-        slot.appendChild(tileSwatch(b.top, 40));
+        slot.appendChild(tileSwatch(b.top, 40, b.tint));
         const n = document.createElement('em');
         n.textContent = this.inventory[id] || 0;
         slot.appendChild(n);
@@ -6581,10 +6813,12 @@ const UI = {
         Settings[key] = parseFloat(el.value);
         if (out) out.textContent = fmt ? fmt(Settings[key]) : Settings[key];
         if (key === 'fov' && Game.camera) { Game.camera.fov = Settings.fov; Game.camera.updateProjectionMatrix(); }
+        if (key === 'sharpness' && Game.renderer) { Game.pixelRatio = 0; Game.resize(); }
       };
       el.addEventListener('input', sync); sync();
     };
     bindRange('#set-render', 'renderDistance', v => v + ' chunks');
+    bindRange('#set-sharp', 'sharpness', v => Math.round(v * 100) + '%');
     bindRange('#set-fov', 'fov', v => v + '°');
     bindRange('#set-sens', 'sensitivity', v => v.toFixed(2) + '×');
     bindRange('#set-touch', 'touchScale', v => v.toFixed(2) + '×');
@@ -7813,10 +8047,15 @@ Object.assign(Game, {
 
     if (this.running && this.realm === 'space') {
       this.renderer.render(this.spaceScene, this.camera);
-    } else if (this.running && Split.on) {
-      Split.render();
     } else if (this.running) {
-      this.renderer.render(this.scene, this.camera);
+      if (Split.on) Split.render();
+      else this.renderer.render(this.scene, this.camera);
+      /* The readouts, the map and the hotbar.
+
+         These used to sit inside the single-screen branch, so the moment
+         split screen started the map stopped being drawn and every number
+         froze where it was — which is the map "glitching". They belong to
+         the game, not to one way of drawing it. */
       this.hudTick = (this.hudTick || 0) + dt;
       if (this.hudTick > 0.2) {
         this.hudTick = 0;
@@ -7835,7 +8074,7 @@ Object.assign(Game, {
         setStyle('#fps', 'display', Settings.showFps ? 'block' : 'none');
         if (Settings.showFps) $('#fps').textContent = Math.round(1 / Math.max(dt, 0.001)) + ' fps';
       }
-      if (Settings.autoQuality) this.autoQuality(dt);
+      if (Settings.autoQuality && !Split.on) this.autoQuality(dt);
     } else if (this.previewScene) {
       this.previewAngle = (this.previewAngle || 0) + dt * 0.12;
       const r = 46;
@@ -8497,35 +8736,114 @@ Game.net = {
 
   connect(url, onReady, onFail, hello) {
     this.disconnect();
+    this.wantOn = true;
+    this.tries = 0;
+    this.openSocket(url, onReady, onFail, hello);
+  },
+
+  openSocket(url, onReady, onFail, hello) {
     let ws;
     try { ws = new WebSocket(url); } catch (e) { onFail && onFail(e.message); return; }
     this.socket = ws;
     this.url = url;
+    if (hello) this.hello = hello;
+    if (!this.hello) this.hello = { t: 'join', name: Game.skin.name || 'Wanderer', skin: Game.skin };
+    this.onReady = onReady;
+    this.onFail = onFail;
 
-    this.hello = hello || { t: 'join', name: Game.skin.name || 'Wanderer', skin: Game.skin };
-    ws.onopen = () => { ws.send(JSON.stringify(this.hello)); };
+    ws.onopen = () => {
+      this.tries = 0;
+      this.sentSkin = null; this.sentRealm = null; this.sentAvatar = null; this.lastOut = null;
+      ws.send(JSON.stringify(this.hello));
+    };
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-      this.handle(m, onReady);
+      this.handle(m, this.rejoining ? null : onReady);
     };
-    ws.onerror = () => { onFail && onFail('Could not reach that host.'); };
+    ws.onerror = () => { if (!this.rejoining) onFail && onFail('Could not reach that host.'); };
     ws.onclose = () => {
-      if (this.connected && !this.hostGone) Game.toast('Disconnected from the server.');
-      this.hostGone = false;
+      const wasOn = this.connected;
       this.connected = false;
       this.clearPeers();
+      if (this.hostGone || !this.wantOn) { this.hostGone = false; return; }
+      /* A phone that has been swiped away closes the socket without telling
+         the page, and the game carried on playing to itself while everyone
+         else moved on. Now it quietly goes back, in the same room, and says
+         so on screen while it does. */
+      if (wasOn) Game.toast('Lost the connection — going back to the room…');
+      this.showLink('waiting');
+      this.scheduleRetry();
     };
   },
 
+  scheduleRetry() {
+    if (!this.wantOn || this.retryAt) return;
+    const wait = Math.min(8000, 400 * Math.pow(1.7, Math.min(6, this.tries++)));
+    this.retryAt = setTimeout(() => {
+      this.retryAt = null;
+      if (!this.wantOn || this.connected) return;
+      this.rejoining = true;
+      // go back into the same room, as the same player
+      this.openSocket(this.url, this.onReady, this.onFail, this.rejoinHello());
+    }, wait);
+  },
+
+  /** How to ask for the same room back. */
+  rejoinHello() {
+    const h = this.hello || {};
+    if (h.t === 'host' && this.roomCode) {
+      return Object.assign({}, h, { code: this.roomCode });
+    }
+    if (this.roomCode) {
+      return { t: 'join', room: this.roomCode, name: Game.skin.name || 'Wanderer', skin: Game.skin };
+    }
+    return h;
+  },
+
+  /** Tell the player, plainly, whether the room is reachable. */
+  showLink(state) {
+    const el = document.getElementById('link-state');
+    if (!el) return;
+    if (state === 'ok') { el.classList.remove('show'); return; }
+    el.textContent = state === 'waiting' ? 'Reconnecting…' : 'Offline';
+    el.classList.add('show');
+  },
+
+  /** Coming back to the game after it was swiped away or the screen slept. */
+  wake() {
+    if (!this.wantOn) return;
+    const live = this.socket && this.socket.readyState === 1;
+    if (live) {
+      // the socket may be a ghost: a ping that gets no answer proves it
+      this.send({ t: 'ping' });
+      this.wokeAt = performance.now();
+      return;
+    }
+    if (this.socket && this.socket.readyState === 0) return;   // already on its way
+    this.tries = 0;
+    this.scheduleRetry();
+  },
+
   handle(m, onReady) {
+    this.lastHeard = performance.now();
     switch (m.t) {
       case 'welcome':
         this.connected = true;
         this.selfId = m.you;
+        this.roomCode = m.room;
+        this.showLink('ok');
+        if (this.rejoining) { this.rejoining = false; Game.toast('Back in the room.'); }
+        this.lastHeard = performance.now();
         this.isHost = !!m.host;          // the host owns the wildlife
         if (Array.isArray(m.players)) {
+          // everyone already here, with their name and their look, before
+          // their first step arrives
           for (const pl of m.players) {
-            if (pl.realm) { const ex = this.peers.get(pl.id); if (ex) ex.realm = pl.realm; }
+            if (pl.id === m.you) continue;
+            const peer = this.peers.get(pl.id) || this.addPeer(pl.id, pl.name || 'Player', pl.skin);
+            peer.name = pl.name || peer.name;
+            peer.realm = pl.realm || 'ground';
+            if (typeof pl.x === 'number') { peer.target.set(pl.x, pl.y, pl.z); peer.yaw = pl.yaw || 0; }
           }
         }
         onReady && onReady(m);
@@ -8553,6 +8871,15 @@ Game.net = {
         break;
       case 'weather':
         Game.setWeather(m.weather);
+        break;
+      case 'mode':
+        // the host changed how the room plays
+        if (m.mode && m.mode !== Game.mode) {
+          Game.setMode(m.mode, true);
+          Game.toast(m.mode === 'creative'
+            ? 'The host turned creative on for everyone.'
+            : 'The host turned survival on for everyone.');
+        }
         break;
       case 'hostleft':
         Game.toast('The host left. Going back to the title \u2014 your spot is saved.');
@@ -8654,7 +8981,39 @@ Game.net = {
         Game.dressPeer(peer, m.avatar);
         break;
       }
+      case 'ms': {
+        /* The whole room's positions in one message. */
+        const now = performance.now();
+        for (const row of (m.a || [])) {
+          const id = row[0];
+          if (id === this.selfId) continue;
+          let p = this.peers.get(id);
+          if (!p) p = this.addPeer(id, 'Player', null);
+          p.lastAt = now;
+          p.target.set(row[1], row[2], row[3]);
+          p.yaw = row[4];
+          p.anim = row[5] | 0;
+          p.aboard = row[6] || null;
+        }
+        break;
+      }
+      case 'realms': {
+        // who is on which world, repeated now and then so it cannot drift
+        for (const row of (m.r || [])) {
+          const p = this.peers.get(row[0]);
+          if (p) p.realm = row[1];
+        }
+        break;
+      }
+      case 'look': {
+        // somebody changed what they are wearing
+        if (m.id === this.selfId) return;
+        const p = this.peers.get(m.id);
+        if (p && m.skin) Game.reskinPeer(p, m.skin);
+        break;
+      }
       case 'move': {
+        // the older, chattier form, kept so a stale page still works
         if (m.id === this.selfId) return;
         let p = this.peers.get(m.id);
         if (!p) p = this.addPeer(m.id, m.name || 'Player', m.skin);
@@ -8807,6 +9166,16 @@ Game.net = {
     this.pingTimer = (this.pingTimer || 0) + dt;
     if (this.pingTimer > 4) { this.pingTimer = 0; this.send({ t: 'ping' }); }
 
+    /* A socket that has quietly died looks exactly like a healthy one from
+       here — which is how the game carried on playing to itself after a
+       phone had been swiped away. Nothing heard for twelve seconds, with a
+       ping going out every four, means it is gone. */
+    if (this.lastHeard && performance.now() - this.lastHeard > 12000) {
+      this.lastHeard = performance.now();
+      this.showLink('waiting');
+      try { this.socket.close(); } catch (e) {}   // onclose starts the reconnect
+    }
+
     // a parked craft is re-announced every few seconds, so anyone who joined
     // late, or missed the packet, still sees it and can climb in
     this.reannounce = (this.reannounce || 0) + dt;
@@ -8832,25 +9201,51 @@ Game.net = {
       }
     }
 
+    /* Telling the room where you are.
+
+       Twenty times a second, and only the numbers that matter: six of them,
+       packed into a list. Your name, your outfit and which world you are on
+       are sent when they change, not with every step — they used to ride
+       along with every packet, which made each one six times bigger than it
+       needed to be and was most of the reason other players stuttered.
+
+       Standing still costs nothing: if nothing has moved, nothing is sent. */
     this.outTimer += dt;
-    if (this.outTimer < 0.033) return;   // thirty updates a second
+    if (this.outTimer < 0.05) return;    // twenty times a second
     this.outTimer = 0;
+
     const p = (Game.realm === 'space' && Game.spacePos) ? Game.spacePos : Game.player.pos;
     // bits: 1 on the ground, 2 flying, 4 mining, 8 swimming, 16 in a vehicle
     const pl = Game.player;
     const anim = (pl.onGround ? 1 : 0) | (pl.flying ? 2 : 0) | (Input.buttons.mine || Input.mouseMine ? 4 : 0) |
                  (pl.inWater ? 8 : 0) | ((Game.riding || Game.passengerIn) ? 16 : 0);
+    const seat = Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null);
+
     // the character itself is sent once on joining and whenever it changes
     if (Game.character && this.sentAvatar !== Game.characterStamp) {
       this.sentAvatar = Game.characterStamp;
       this.send({ t: 'avatar', avatar: Game.character });
     }
-    this.send({ t: 'move', anim, x: p.x, y: p.y, z: p.z, yaw: Game.player.yaw,
-                riding: Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null),
-                realm: Game.realm,
-                skin: Object.assign({}, Game.skin, {
-                  goggles: Game.gear.goggles, scuba: Game.gear.scuba, jetpack: Game.gear.jetpack
-                }) });
+    // how you look, only when it actually changes
+    const worn = Object.assign({}, Game.skin, {
+      goggles: Game.gear.goggles, scuba: Game.gear.scuba, jetpack: Game.gear.jetpack
+    });
+    const wornStamp = JSON.stringify(worn);
+    if (this.sentSkin !== wornStamp) { this.sentSkin = wornStamp; this.send({ t: 'look', skin: worn }); }
+    // which world you are on, only when it changes
+    if (this.sentRealm !== Game.realm) { this.sentRealm = Game.realm; this.send({ t: 'realm', realm: Game.realm }); }
+
+    const x = Math.round(p.x * 100) / 100, y = Math.round(p.y * 100) / 100, z = Math.round(p.z * 100) / 100;
+    const yaw = Math.round(Game.player.yaw * 1000) / 1000;
+    const last = this.lastOut;
+    if (last && last[0] === x && last[1] === y && last[2] === z && last[3] === yaw &&
+        last[4] === anim && last[5] === seat) {
+      this.stillFor = (this.stillFor || 0) + 0.05;
+      if (this.stillFor < 1) return;      // nothing has changed: say nothing
+    }
+    this.stillFor = 0;
+    this.lastOut = [x, y, z, yaw, anim, seat];
+    this.send({ t: 'm', a: [x, y, z, yaw, anim, seat] });
   },
 
   send(obj) {
@@ -8909,12 +9304,29 @@ Game.net = {
   },
 
   disconnect() {
+    this.wantOn = false;                     // a deliberate leave: do not go back
+    if (this.retryAt) { clearTimeout(this.retryAt); this.retryAt = null; }
     if (this.socket) { try { this.socket.close(); } catch (e) {} }
     this.socket = null;
     this.connected = false;
+    this.roomCode = null;
     this.clearPeers();
+    this.showLink('ok');
   }
 };
+
+/* Coming back to the game.
+
+   A phone that has been swiped away, or locked, stops the page and usually
+   drops the connection without the page ever hearing about it. These put the
+   room back together the moment the game is looked at again. */
+addEventListener('visibilitychange', () => {
+  if (!document.hidden) { try { Game.net.wake(); } catch (e) {} }
+});
+addEventListener('pageshow', () => { try { Game.net.wake(); } catch (e) {} });
+addEventListener('focus', () => { try { Game.net.wake(); } catch (e) {} });
+addEventListener('online', () => { try { Game.net.wake(); } catch (e) {} });
+addEventListener('offline', () => { try { Game.net.showLink('waiting'); } catch (e) {} });
 
 /* ---------------------------------------------------------------
    18. Items, tools and crafting
@@ -9076,7 +9488,8 @@ Object.assign(UI, {
     const chip = (id, countText, onClick, note) => {
       const el = document.createElement('button');
       el.className = 'block-chip';
-      el.appendChild(isItem(id) ? itemSwatch(itemDef(id), 34) : tileSwatch(BLOCKS[id].top, 34));
+      el.appendChild(isItem(id) ? itemSwatch(itemDef(id), 34)
+                                : tileSwatch(BLOCKS[id].top, 34, BLOCKS[id].tint));
       const label = document.createElement('div');
       label.innerHTML = `<strong>${thingName(id)}</strong><small>${note || countText || ''}</small>`;
       el.appendChild(label);
@@ -10198,7 +10611,7 @@ Game.voice = {
 
   async toggle() {
     if (this.on) { this.stop(); return false; }
-    if (!this.supported()) { Game.toast('This browser will not open a microphone here.'); return false; }
+    if (!this.supported()) { Game.toast('This browser will not let the game use a microphone.'); return false; }
     if (!Game.net.connected) { Game.toast('The microphone is for multiplayer. Join or host a room first.'); return false; }
     try {
       const raw = await navigator.mediaDevices.getUserMedia({
@@ -11144,13 +11557,16 @@ function buildSystem(seedText) {
       moons.push({ name: name + ' ' + ['I', 'II', 'III'][m], radius: 6 + r() * 6, dist: 26 + m * 16 + r() * 10 });
     }
 
-    planets.push({
+    const world = {
       id: i,
       name,
       type: type.key,
       label: type.label,
       colors: type,
-      gravity: Math.round(type.grav * (0.8 + r() * 0.4) * 100) / 100,
+      /* Every other world pulls more gently than home, and a bigger world
+         pulls harder than a small one. Before this some planets were heavier
+         than home, so landing on one felt like nothing had changed. */
+      gravity: 0,        // filled in below, once the radius is known
       radius: 30 + r() * 40,
       orbit: 170 + i * 78 + r() * 40,
       angle: r() * Math.PI * 2,
@@ -11159,7 +11575,15 @@ function buildSystem(seedText) {
       hasWater: type.key === 'ocean' || r() < 0.4,
       dayLength: Math.round(6 + r() * 30),
       note: null
-    });
+    };
+    /* Between a sixth and about two thirds of home gravity, scaled by how big
+       the world is: a small moon-ish world is the floatiest, the largest are
+       still clearly lighter than home. Every planet is noticeably lighter, so
+       stepping off the ship always feels different. */
+    const size = Math.max(0, Math.min(1, (world.radius - 30) / 40));
+    world.gravity = Math.round((0.16 + size * 0.42 + r() * 0.06) *
+                               (type.grav >= 1 ? 1.06 : 0.92) * 100) / 100;
+    planets.push(world);
   }
   planets.forEach(p => {
     p.note = [
@@ -11362,12 +11786,34 @@ Object.assign(Game, {
     this.toast(ok.name + ' is ready.');
   },
 
+  /** Somebody changed their gear: rebuild their block body, keep everything else. */
+  reskinPeer(peer, skin) {
+    if (!peer || !skin) return;
+    const worn = (skin.goggles ? 1 : 0) + (skin.scuba ? 2 : 0) + (skin.jetpack ? 4 : 0);
+    const named = skin.name || peer.name;
+    if (peer.worn === worn && peer.name === named) return;
+    const keepAvatar = peer.avatar;
+    const at = peer.model.position.clone();
+    this.entityGroup.remove(peer.model);
+    const fresh = this.net.addPeer(peer.id, named, skin);
+    this.net.peers.delete(peer.id);           // addPeer registered a second copy
+    peer.model = fresh.model;
+    peer.name = named;
+    peer.worn = worn;
+    peer.model.position.copy(at);
+    if (keepAvatar) { peer.avatarStamp = null; }   // the rigged model goes back on
+    this.entityGroup.add(peer.model);
+    this.net.peers.set(peer.id, peer);
+    if (keepAvatar && peer.character) this.dressPeer(peer, peer.character);
+  },
+
   /** Put another player into their chosen model, falling back to blocks until it loads. */
   dressPeer(peer, cfg) {
     if (!peer || !window.VoxeliaAvatars) return;
     const ok = VoxeliaAvatars.validate(Object.assign({ name: peer.name }, cfg || {}));
     if (!ok) return;
     const stamp = JSON.stringify(ok);
+    peer.character = ok;
     if (peer.avatarStamp === stamp) return;
     peer.avatarStamp = stamp;
     VoxeliaAvatars.create(ok).then((av) => {
@@ -11449,9 +11895,20 @@ Object.assign(Game, {
     try { this.attachHand(); } catch (e) {}
   },
 
-  setMode(m) {
+  setMode(m, fromRoom) {
     if (m === this.mode) return;
+    /* In a room the host decides. Anyone else asking is told so, rather than
+       quietly changing their own game and drifting out of step with everybody
+       else's. */
+    if (!fromRoom && this.net && this.net.connected && !this.net.isHost) {
+      this.toast('The host decides whether this room is creative or survival.');
+      UI.refreshModeButtons();
+      return;
+    }
     this.mode = m;
+    if (!fromRoom && this.net && this.net.connected && this.net.isHost) {
+      this.net.send({ t: 'mode', mode: m });
+    }
     if (m === 'creative') {
       this.everCreative = true;
       this.toast('Creative on. This world can no longer earn — that is permanent.');
@@ -11582,9 +12039,20 @@ Object.assign(Game, {
        passengers being left on the pad. */
     let crew = null;
     if (this.net.connected && this.riding && !this.asCrew) {
+      /* Who is actually in this ship.
+
+         This used to be worked out from each player's own movement packets,
+         which say where they are a fraction of a second ago — so somebody who
+         had only just sat down was missed and got left on the pad. The room
+         itself keeps the seat list, and that is what is used now, so it is
+         right every time rather than most of the time. */
       crew = [this.net.selfId];
+      for (const rid of (this.riding.riders || [])) {
+        if (rid !== this.net.selfId && crew.indexOf(rid) < 0) crew.push(rid);
+      }
+      // anyone the seat list has not caught up with yet, but who says they are aboard
       for (const p of this.net.peers.values()) {
-        if (p.aboard === this.riding.id) crew.push(p.id);
+        if (p.aboard === this.riding.id && crew.indexOf(p.id) < 0) crew.push(p.id);
       }
       // they are aboard, not standing on the ground, so take them out of the seat
       for (const p of this.net.peers.values()) if (p.aboard === this.riding.id) p.aboard = null;
@@ -11610,6 +12078,7 @@ Object.assign(Game, {
     this.spaceVel = new THREE.Vector3();
     this.tethered = false;
     this.pendingCrew = crew;
+    if (!this.asCrew) { this.spacePilotId = null; this.wasCarried = false; }  // you are flying
     // who came up with you, so they come down with you as well
     this.crewWith = (crew || []).filter((cid) => cid !== (this.net && this.net.selfId));
     if (this.riding) { this.spaceShip = this.riding; }
@@ -11628,8 +12097,15 @@ Object.assign(Game, {
     if (this.net.connected) {
       const crewList = this.pendingCrew;
       if (crewList && crewList.length > 1) {
-        this.net.send({ t: 'crew', realm: 'space', planet: null, crew: crewList,
-                        site: { x: this.spacePos.x, y: this.spacePos.y, z: this.spacePos.z } });
+        const call = { t: 'crew', realm: 'space', planet: null, crew: crewList,
+                       site: { x: this.spacePos.x, y: this.spacePos.y, z: this.spacePos.z } };
+        /* Said three times, a beat apart. One packet can be lost, and losing
+           this one is the difference between your friend coming with you and
+           your friend being left standing on the launch pad. Hearing it twice
+           does nothing: anyone already in orbit ignores it. */
+        this.net.send(call);
+        setTimeout(() => { try { if (this.realm === 'space') this.net.send(call); } catch (e) {} }, 350);
+        setTimeout(() => { try { if (this.realm === 'space') this.net.send(call); } catch (e) {} }, 1100);
       }
       this.net.sendRealm('space');
     }
@@ -11647,6 +12123,7 @@ Object.assign(Game, {
   /* ---------- flying between worlds ---------- */
   updateSpace(dt) {
     const sys = this.ensureSystem();
+
     // a steady clock, shared by everyone in the room, so the sky does not jump
     this.orbitClock = (this.orbitClock || 0) + dt;
     // the day clock jumps whenever the room corrects it, so orbits keep their own
@@ -11665,8 +12142,35 @@ Object.assign(Game, {
       });
     }
 
-    const pad = Input.pollGamepad();
+    /* Riding with someone.
+
+       If you came up in somebody else's ship then they are flying it, the way
+       it works on the ground: you are carried where they take you, and your
+       controls do nothing until you step out on the tether. Everyone used to
+       fly their own way the moment they reached orbit, so a crew that launched
+       together drifted apart within seconds. */
+    const p = this.player;
+    let carried = false;
+    if (this.spacePilotId) {
+      const pilot = this.net.peers.get(this.spacePilotId);
+      if (!pilot || (pilot.realm && pilot.realm !== 'space')) {
+        this.spacePilotId = null;                  // they are gone: you fly yourself
+        this.toast('You have the controls now.');
+      } else if (this.tethered) {
+        // out on the tether, held to their ship rather than to a fixed point
+        this.shipAnchor = new THREE.Vector3(pilot.target.x, pilot.target.y, pilot.target.z);
+      } else {
+        carried = true;
+        // sit in the ship, a little off to the side of whoever is flying it
+        this.spacePos.set(pilot.target.x + 1.6, pilot.target.y - 0.4, pilot.target.z + 1.2);
+        this.spaceVel.set(0, 0, 0);
+        this.shipAnchor = this.spacePos.clone();
+      }
+    }
+
+    const pad = carried ? null : Input.pollGamepad();
     let mx = 0, mz = 0;
+    if (!carried) {
     if (Input.keys.KeyW) mz += 1;
     if (Input.keys.KeyS) mz -= 1;
     if (Input.keys.KeyA) mx -= 1;
@@ -11676,7 +12180,6 @@ Object.assign(Game, {
     const up = (Input.keys.Space || Input.buttons.jump ? 1 : 0) -
                (Input.keys.ShiftLeft || Input.buttons.crouch ? 1 : 0);
 
-    const p = this.player;
     const cos = Math.cos(p.yaw), sin = Math.sin(p.yaw);
     const thrust = this.tethered ? 9 : (this.spaceShip ? this.spaceShip.def.speed * 1.6 : 14);
     const dir = new THREE.Vector3();
@@ -11696,6 +12199,7 @@ Object.assign(Game, {
     this.spacePos.x += this.spaceVel.x * dt;
     this.spacePos.y += this.spaceVel.y * dt;
     this.spacePos.z += this.spaceVel.z * dt;
+    }
 
     // the tether: you may drift only so far from the ship
     if (this.tethered && this.shipAnchor) {
@@ -11794,9 +12298,13 @@ Object.assign(Game, {
       crew.push('you');
       for (const c of this.companions) crew.push(c.def.name);
     }
-    // remember which ship brought you, so it is there when you want to leave
-    this.shipItem = (this.riding && this.riding.def.space) ? this.riding.itemId
-                  : (this.shipItem || I.ROCKET);
+    /* Remember which ship brought you, so it is there when you want to leave.
+       A passenger has no ship of their own: they were given one here, which is
+       why everybody who landed stepped out onto their own rocket. */
+    this.wasCarried = !!this.spacePilotId;        // somebody else was flying
+    if (this.riding && this.riding.def.space) this.shipItem = this.riding.itemId;
+    else if (this.wasCarried) this.shipItem = null;
+    else this.shipItem = this.shipItem || I.ROCKET;
     this.landingSeq = { planet, t: 0, crew };
     // take everyone aboard with you, to the same world
     this.net.sendCrewMove('planet:' + planet.id, planet.id, null);
@@ -11861,6 +12369,9 @@ Object.assign(Game, {
     if (m.realm === 'space') {
       this.toast('Launching — you are aboard.');
       this.asCrew = true;                 // a passenger has no ship of their own
+      // whoever sent the crew message is flying: they steer, you are carried
+      this.spacePilotId = (m.crew && m.crew[0] !== this.net.selfId) ? m.crew[0] : null;
+      if (this.spacePilotId) { this.shipItem = null; this.wasCarried = true; }
       try { this.enterSpace(); } finally { this.asCrew = false; this.crewWith = null; }
       // arrive alongside the pilot rather than at the room's own entry point
       if (m.site && typeof m.site.x === 'number' && this.spacePos) {
@@ -11877,6 +12388,7 @@ Object.assign(Game, {
 
   landOn(planet) {
     this.crewWith = null;                 // the flight is over; seats start again
+    this.spacePilotId = null;
     this.homeSeed = this.homeSeed || (this.world ? this.world.seedText : 'voxelia');
     // fixed for all time: the same planet in the same system is the same ground
     const seed = this.homeSeed + '::planet::' + planet.id + '::' + planet.name;
@@ -11925,6 +12437,15 @@ Object.assign(Game, {
   /* set the ship down beside you, upright on the ground, ready to fly again */
   parkShip() {
     if (!this.shipItem || !VEHICLES[this.shipItem]) return;
+    /* Only the person whose ship it is puts it down.
+
+       Everybody who landed used to park one, so a crew of three stepped out
+       onto three rockets — and each one was announced to the room, so
+       everyone else saw all three too. A passenger climbs out of the pilot's
+       ship; they do not conjure one of their own. */
+    if (this.spacePilotId || this.asCrew || this.wasCarried) { this.shipItem = null; return; }
+    // and never twice: one landing, one ship
+    if (this.parkedShip && this.vehicles.indexOf(this.parkedShip) >= 0) return;
     // you are stood on the ground now, not strapped into anything
     this.riding = null;
     this.passengerIn = null;
@@ -11954,6 +12475,7 @@ Object.assign(Game, {
 
   returnHome() {
     this.crewWith = null;
+    this.spacePilotId = null;
     this.keepKit = true;
     this.restoreHomeTerrain();
     this.gravityScale = 1;
