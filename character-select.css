@@ -63,3 +63,11 @@ button{cursor:pointer;color:inherit}
 
 /* never wider than the screen, whichever way the phone is held */
 html,body{max-width:100vw;overflow-x:hidden}
+
+/* The rigged model, drawn over the flat figure. It only appears once the
+   model itself has loaded, so the panel is never empty while waiting. */
+.avatar-stage .avatar-3d{position:absolute;inset:0;width:100%;height:100%;
+  display:block;opacity:0;transition:opacity .45s ease;pointer-events:none;z-index:2}
+.avatar-stage.has-3d .avatar-3d{opacity:1}
+.avatar-stage.has-3d .stage-glow{opacity:.5}
+.avatar-stage.has-3d>.avatar{opacity:0;transition:opacity .35s ease}

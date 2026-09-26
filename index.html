@@ -480,6 +480,36 @@ body.split-on #p2-hud{display:block;position:fixed;right:14px;bottom:calc(16px +
 /* player one's HUD keeps to the left half */
 body.split-on #hotbar{left:25% !important}
 body.split-on #minimap-wrap{right:calc(50% + 14px) !important}
+/* Player two signs in on their own half: their character and their name,
+   chosen on the side of the screen they will be playing on. */
+#p2-join{position:fixed;top:0;bottom:0;left:50%;right:0;z-index:96;display:none;
+  background:linear-gradient(180deg,rgba(20,18,28,.97),rgba(14,12,20,.99));
+  border-left:3px solid var(--amethyst);padding:18px;overflow:auto}
+#p2-join.open{display:block}
+body.split-joining #split-divider{display:block;position:fixed;top:0;bottom:0;left:50%;width:3px;
+  transform:translateX(-50%);background:linear-gradient(180deg,var(--moon),var(--amethyst));z-index:97;
+  pointer-events:none}
+#p2-join h3{margin:0 0 2px;font-family:var(--display);font-size:20px}
+#p2-join .p2-lede{margin:0 0 14px;font-size:12.5px;color:var(--muted)}
+#p2-join .p2-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+#p2-join .p2-seg button{flex:1;min-height:40px;padding:0 14px;border-radius:10px;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  font-family:var(--display);font-size:13px}
+#p2-join .p2-seg button.active{background:var(--moon);border-color:var(--moon);color:#0E1116}
+#p2-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.p2-card{min-height:44px;padding:8px;border-radius:10px;cursor:pointer;text-align:left;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12.5px}
+.p2-card.picked{border-color:var(--moon);box-shadow:0 0 0 2px rgba(111,227,196,.3)}
+#p2-join label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.08em}
+#p2-name{width:100%;height:44px;padding:0 12px;border-radius:10px;background:var(--panel-2);
+  border:1px solid var(--line);color:var(--text);font-family:var(--display);font-size:15px}
+#p2-join-status{font-size:11.5px;color:var(--muted);margin:10px 0 14px}
+#p2-join .p2-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+#p2-join .p2-actions button{min-height:46px;border-radius:12px;cursor:pointer;
+  font-family:var(--display);font-size:14px}
+#p2-cancel{background:var(--panel-2);border:1px solid var(--line);color:var(--text)}
+#p2-spawn{background:var(--moon);border:1px solid var(--moon);color:#0E1116;font-weight:700}
 /* creative has no stamina or breath: this wins over every layout rule */
 body.creative-mode #meters{display:none !important}
 #chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
@@ -850,6 +880,22 @@ body.creative-mode #meters{display:none !important}
     </div>
   </div>
   <div id="p2-hud"></div>
+  <div id="p2-join" aria-hidden="true">
+    <h3>Player 2</h3>
+    <p class="p2-lede">Pick your character and your name, then spawn in beside Player&nbsp;1.</p>
+    <div class="p2-row p2-seg">
+      <button type="button" data-p2sex="female">Female</button>
+      <button type="button" data-p2sex="male" class="active">Male</button>
+    </div>
+    <div id="p2-grid"></div>
+    <label for="p2-name">Your name</label>
+    <input id="p2-name" maxlength="18" placeholder="Player 2" autocomplete="off" />
+    <p id="p2-join-status"></p>
+    <div class="p2-actions">
+      <button type="button" id="p2-cancel">Cancel</button>
+      <button type="button" id="p2-spawn">Spawn in</button>
+    </div>
+  </div>
   <div id="split-divider"></div>
   <div id="toast"></div>
   <div id="fps"></div>
@@ -3461,7 +3507,46 @@ Pad.defaults = Object.assign({}, Pad.map);
 /* ---------------------------------------------------------------
    11. Game
    --------------------------------------------------------------- */
-const $ = (s) => document.querySelector(s);
+/* Looking an element up.
+
+   When a selector matches nothing this hands back an inert stand-in rather
+   than null. Reading from it gives nothing and writing to it does nothing, so
+   one renamed or removed id can no longer stop the whole engine — which is
+   what "the engine could not start" has meant every time it has happened.
+   Anywhere the difference genuinely matters the code asks
+   document.getElementById directly and checks for null itself. */
+const MISSING = (() => {
+  const seen = new Map();
+  const make = (sel) => {
+    const style = new Proxy({}, { get: (t, k) => (k in t ? t[k] : ''), set: () => true });
+    const classList = { add() {}, remove() {}, toggle() { return false; }, contains() { return false; } };
+    const base = {
+      __missing: sel, style, classList, dataset: {}, children: [], childNodes: [],
+      value: '', textContent: '', innerHTML: '', checked: false, disabled: false,
+      files: null, selectedIndex: -1, options: [], parentNode: null, id: '',
+      clientWidth: 0, clientHeight: 0, offsetWidth: 0, offsetHeight: 0, width: 0, height: 0,
+      addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+      appendChild(c) { return c; }, removeChild(c) { return c; }, insertBefore(c) { return c; },
+      replaceWith() {}, remove() {}, focus() {}, blur() {}, click() {}, scrollIntoView() {},
+      setAttribute() {}, removeAttribute() {}, getAttribute() { return null; },
+      hasAttribute() { return false; }, closest() { return null; },
+      querySelector() { return null; }, querySelectorAll() { return []; },
+      getContext() { return null; },
+      getBoundingClientRect() { return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 }; },
+      play() { return Promise.resolve(); }, pause() {}, load() {}
+    };
+    return new Proxy(base, {
+      get: (t, k) => (k in t ? t[k] : undefined),
+      set: (t, k, v) => { t[k] = v; return true; }
+    });
+  };
+  return (sel) => {
+    if (!seen.has(sel)) seen.set(sel, make(sel));
+    return seen.get(sel);
+  };
+})();
+
+const $ = (s) => document.querySelector(s) || MISSING(s);
 
 /* Every listener in the game goes through this. If the element is not on the
    page the binding is simply skipped, so a missing button can never stop the
@@ -3575,7 +3660,9 @@ const Game = {
     this.renderer = new THREE.WebGLRenderer({ antialias: !IS_TOUCH, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.75));
     this.renderer.setSize(innerWidth, innerHeight);
-    $('#stage').appendChild(this.renderer.domElement);
+    // if the stage is ever missing, draw straight into the page rather than
+    // refusing to start at all
+    ($('#stage') || document.body).appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(Settings.fov, innerWidth / innerHeight, 0.1, 1000);
@@ -3639,7 +3726,10 @@ const Game = {
     const carried = (offworld || this.keepKit) ? {
       inventory: this.inventory, hotbar: this.hotbar, slot: this.slot,
       gear: this.gear, bucketed: this.bucketed, seen: this.seen,
-      waypoints: this.waypoints, questProgress: this.questProgress, eggIds: this.eggIds
+      waypoints: this.waypoints, questProgress: this.questProgress, eggIds: this.eggIds,
+      // your tamed companions come with you, and so does what you have met
+      companions: (this.companions || []).slice(),
+      metSpecies: this.metSpecies, everCreative: this.everCreative, origin: this.origin
     } : null;
     this.disposeWorld();
     if (!offworld) { this.homeSeed = seedText; this.offworld = null; this.realm = 'ground'; }
@@ -3666,6 +3756,7 @@ const Game = {
     const realmKey = (offworld && this.offworld) ? ('planet:' + this.offworld.id) : 'ground';
     if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
     this.explored = this.exploredByRealm[realmKey];
+    this.mapRealm = realmKey;
     this.peopled = new Set();
     this.stocked = new Set();
     this.waypoints = [];
@@ -3696,6 +3787,29 @@ const Game = {
     try { Visits.ping('play'); } catch (e) {}
     // entering a world is itself a gesture, so the browser will allow sound now
     try { Music.unlock(); Music.follow(); } catch (e) {}
+    /* Disposing a world empties the entity group, which took every other
+       player's body with it: that is why people went invisible after a rocket
+       flight while still showing on the map. Their models go back in. */
+    try {
+      if (this.net && this.net.peers) {
+        for (const pr of this.net.peers.values()) {
+          this.entityGroup.add(pr.model);
+          pr.body = null;                       // start their smoothing fresh in the new world
+        }
+      }
+    } catch (e) {}
+    // your own body, and player two's, belong to you rather than to the world
+    try {
+      if (this.selfBody) { this.entityGroup.add(this.selfBody.model); }
+      if (typeof Split !== 'undefined' && Split.p2) {
+        if (Split.p2.selfBody) this.entityGroup.add(Split.p2.selfBody.model);
+        // player two is in the new world too, standing beside player one
+        Split.p2.player.world = this.world;
+        Split.p2.player.pos.set(this.player.pos.x + 1.6, this.player.pos.y, this.player.pos.z);
+        Split.p2.player.vel.set(0, 0, 0);
+      }
+    } catch (e) {}
+
     if (carried) {
       this.inventory = carried.inventory || this.inventory;
       this.hotbar = carried.hotbar || this.hotbar;
@@ -3706,6 +3820,19 @@ const Game = {
       this.waypoints = carried.waypoints || this.waypoints;
       this.questProgress = carried.questProgress || this.questProgress;
       this.eggIds = carried.eggIds || this.eggIds;
+      if (carried.metSpecies) this.metSpecies = carried.metSpecies;
+      if (carried.origin) { this.origin = carried.origin; this.everCreative = carried.everCreative; }
+      // tamed companions travel with you rather than being left behind
+      if (carried.companions && carried.companions.length) {
+        this.companions = carried.companions;
+        for (const c of this.companions) {
+          if (!c || !c.model) continue;
+          c.pos.set(this.player.pos.x + (Math.random() - 0.5) * 2, this.player.pos.y, this.player.pos.z + (Math.random() - 0.5) * 2);
+          c.model.position.copy(c.pos);
+          this.creatures.push(c);
+          this.entityGroup.add(c.model);
+        }
+      }
     }
     if (save) this.applySave(save);
     this.tipIndex = 0;
@@ -3774,10 +3901,17 @@ const Game = {
     }
   },
 
+  /* Which world's map we are filling in. This is deliberately not `realm`:
+     during a descent the realm is 'landing', and everything explored on the
+     way down used to be filed under that and then lost. */
+  mapKey() {
+    return this.offworld ? ('planet:' + this.offworld.id) : 'ground';
+  },
+
   /* one entry per chunk you have been near: its main biome and its height */
   noteExplored(chunk) {
     if (!this.exploredByRealm) this.exploredByRealm = {};
-    const realmKey = this.realm || 'ground';
+    const realmKey = this.mapKey();
     if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
     this.explored = this.exploredByRealm[realmKey];
     const key = chunk.cx + ',' + chunk.cz;
@@ -3793,6 +3927,7 @@ const Game = {
   drawMap(canvas, blocksPerPixel, radiusCircle) {
     if (!canvas || !this.world) return;
     const g = canvas.getContext('2d');
+    if (!g) return;
     const W = canvas.width, H = canvas.height;
     g.clearRect(0, 0, W, H);
     g.fillStyle = '#14121C';
@@ -3897,6 +4032,22 @@ const Game = {
   },
 
   spawnCreaturesNear(cx, cz, nth) {
+    // in a room only the host stocks the world; everyone else is sent the list
+    if (!this.lifeAuthority()) return;
+    const before = this.creatures.length;
+    this.spawnCreaturesHere(cx, cz, nth);
+    if (this.net && this.net.connected && this.net.isHost && this.creatures.length > before) {
+      const add = [];
+      for (let i = before; i < this.creatures.length; i++) {
+        const c = this.creatures[i];
+        add.push({ i: c.id, s: c.species, k: c.spawnKey,
+                   x: +c.pos.x.toFixed(2), y: +c.pos.y.toFixed(2), z: +c.pos.z.toFixed(2) });
+      }
+      this.net.send({ t: 'life', add });
+    }
+  },
+
+  spawnCreaturesHere(cx, cz, nth) {
     if (this.creatures.length > 190) return;
     // seeded by the chunk itself, so every player in the room finds the same
     // creatures standing in the same places
@@ -3960,11 +4111,101 @@ const Game = {
     }
   },
 
+  /* ---------------- who owns the wildlife ----------------
+     Alone, you do. In a room, the host does, and everyone else is a viewer.
+     One owner is the only way two people standing side by side can be looking
+     at the same animal. */
+  lifeAuthority() {
+    return !(this.net && this.net.connected) || !!(this.net && this.net.isHost);
+  },
+
+  /** The host tells the room where its animals are, a few times a second. */
+  broadcastHerd(dt) {
+    if (!this.net || !this.net.connected || !this.net.isHost) return;
+    const STEP = 0.25;                             // four times a second is plenty
+    this.herdTimer = (this.herdTimer || 0) + dt;
+    if (this.herdTimer < STEP) return;
+    this.herdTimer = 0;
+    const a = [];
+    const r2 = 80 * 80;
+    for (const c of this.creatures) {
+      if (c.companion) continue;                   // a companion follows its own owner
+      let near = c.pos.distanceToSquared(this.player.pos) < r2;
+      if (!near) {
+        for (const pr of this.net.peers.values()) {
+          if (c.pos.distanceToSquared(pr.target) < r2) { near = true; break; }
+        }
+      }
+      if (!near) continue;
+      a.push([c.id, +c.pos.x.toFixed(2), +c.pos.y.toFixed(2), +c.pos.z.toFixed(2), +c.heading.toFixed(2)]);
+      if (a.length >= 70) break;
+    }
+    if (a.length) this.net.send({ t: 'herd', a });
+
+    /* Every few seconds the whole nearby list goes out again, with species, so
+       anyone who joined late or missed a packet ends up with exactly the same
+       animals rather than a gap they can never fill. */
+    this.herdFull = (this.herdFull || 0) + STEP;
+    if (this.herdFull >= 3) {
+      this.herdFull = 0;
+      const add = [];
+      for (const c of this.creatures) {
+        if (c.companion) continue;
+        if (!a.some((row) => row[0] === c.id)) continue;
+        add.push({ i: c.id, s: c.species, k: c.spawnKey,
+                   x: +c.pos.x.toFixed(2), y: +c.pos.y.toFixed(2), z: +c.pos.z.toFixed(2) });
+      }
+      if (add.length) this.net.send({ t: 'life', add });
+    }
+  },
+
+  /** Everyone else glides their animals to where the host says they are. */
+  followHerd(dt) {
+    const now = performance.now();
+    // an animal the host has stopped reporting has wandered off its world
+    for (let i = this.creatures.length - 1; i >= 0; i--) {
+      const c = this.creatures[i];
+      if (c.companion || c.tamed || c.leashed) continue;
+      if (c.netAt && now - c.netAt > 8000) {
+        this.entityGroup.remove(c.model);
+        this.creatures.splice(i, 1);
+      }
+    }
+    for (const c of this.creatures) {
+      if (c.companion) { c.update(dt, this.world, this.player); continue; }
+      /* The creature's own code still runs, so legs and fins keep moving and
+         everything that depends on it carries on working; its idea of where it
+         has got to is then replaced by the host's, which is the one thing every
+         player must agree on. */
+      c.update(dt, this.world, this.player);
+      if (!c.netTo) continue;
+      const k = 1 - Math.exp(-9 * dt);
+      if (c.pos.distanceToSquared(c.netTo) > 400) c.pos.copy(c.netTo);     // a long way off: jump
+      else c.pos.lerp(c.netTo, k);
+      let d = c.netYaw - c.heading;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      c.heading += d * Math.min(1, dt * 8);
+      c.model.position.copy(c.pos);
+      c.model.rotation.y = c.heading;
+    }
+  },
+
+  /** A creature the host says exists. */
+  applyRemoteLife(entry) {
+    if (!entry || !entry.s || !ANIMALS[entry.s]) return;
+    if (this.creatures.some((c) => c.id === entry.i)) return;
+    const c = this.addCreature(entry.s, entry.x, entry.y, entry.z, entry.i, entry.k || null);
+    c.netTo = new THREE.Vector3(entry.x, entry.y, entry.z);
+    c.netYaw = 0;
+  },
+
   /* Filling the world back up. Chunks are visited in a fixed ring around the
      player rather than at random, and each chunk remembers that it has been
      stocked, so two players walking the same ground meet the same animals in
      the same places instead of each rolling their own. */
   repopulate(dt) {
+    if (!this.lifeAuthority()) return;            // the host stocks the world
     this.repopTimer = (this.repopTimer || 0) - dt;
     if (this.repopTimer > 0) return;
     this.repopTimer = 0.6;
@@ -4052,6 +4293,7 @@ const Game = {
 
   bindTouch() {
     const zone = $('#touch-layer');
+    if (!zone) return;                 // no touch layer on this page: nothing to bind
     const handle = (e) => {
       e.preventDefault();
       const touches = Array.from(e.changedTouches);
@@ -4394,7 +4636,7 @@ Object.assign(Game, {
       const v = this.passengerIn;
       if (this.vehicles.indexOf(v) === -1) { this.passengerIn = null; $('#drive-hint').classList.remove('show'); }
       else {
-        const o = v.parts.seatOffsets[1] || { x: 0.5, y: 0.5, z: -0.9 };
+        const o = ((v.parts && v.parts.seatOffsets) ? v.parts.seatOffsets[1] : null) || { x: 0.5, y: 0.5, z: -0.9 };
         const cos = Math.cos(v.yaw), sin = Math.sin(v.yaw);
         p.pos.set(v.pos.x + o.x * cos - o.z * sin, v.pos.y + v.def.seat, v.pos.z + o.x * sin + o.z * cos);
         p.vel.set(0, 0, 0);
@@ -4452,8 +4694,31 @@ Object.assign(Game, {
       this.camera.rotation.set(0, 0, 0, 'YXZ');
       this.camera.rotateY(p.yaw);
       this.camera.rotateX(p.pitch - 0.18);
+    } else if (this.selfView === 'third' || Split.on) {
+      /* over the shoulder, so you can see the character you chose. Split
+         screen always uses this: two players sharing a screen want to see
+         themselves, not each other's hands. */
+      const body = this.ensureSelfBody();
+      body.model.visible = true;
+      this.driveFigure(body, p, dt);
+      const want = 3.4 + Math.max(0, -p.pitch) * 2.2;
+      this.camDist = this.camDist === undefined ? want : this.camDist + (want - this.camDist) * Math.min(1, dt * 6);
+      const lift = EYE + 0.25 + Math.max(0, p.pitch) * 1.4;
+      const cy = Math.cos(p.pitch);
+      const bx = Math.sin(p.yaw) * cy, bz = Math.cos(p.yaw) * cy;
+      let dist = this.camDist;
+      for (let step = dist; step > 0.9; step -= 0.5) {
+        const b = BLOCKS[w.getBlock(Math.floor(p.pos.x + bx * step), Math.floor(p.pos.y + lift), Math.floor(p.pos.z + bz * step))];
+        if (!b.solid || b.id === AIR) { dist = step; break; }
+        dist = step - 0.5;
+      }
+      this.camera.position.set(p.pos.x + bx * dist, p.pos.y + lift, p.pos.z + bz * dist);
+      this.camera.rotation.set(0, 0, 0, 'YXZ');
+      this.camera.rotateY(p.yaw);
+      this.camera.rotateX(p.pitch);
     } else {
       this.camDist = undefined;
+      if (this.selfBody) this.selfBody.model.visible = false;
       this.camera.position.set(p.pos.x, p.pos.y + EYE, p.pos.z);
       this.camera.rotation.set(0, 0, 0, 'YXZ');
       this.camera.rotateY(p.yaw);
@@ -4482,8 +4747,17 @@ Object.assign(Game, {
     this.handleMining(dt);
     this.handlePlacing(dt);
 
-    /* creatures */
-    for (const c of this.creatures) c.update(dt, w, p);
+    /* Creatures. In a room the host is the only one that decides where the
+       animals are: everybody else is shown the host's animals and moves them
+       towards the positions the host reports. Every client used to run its own
+       wandering, which is why two players standing together saw different
+       animals in different places. */
+    if (this.lifeAuthority()) {
+      for (const c of this.creatures) c.update(dt, w, p);
+      this.broadcastHerd(dt);
+    } else {
+      this.followHerd(dt);
+    }
     this.updateDrops(dt);
     this.repopulate(dt);
     this.updateLeashes(dt);
@@ -4507,8 +4781,19 @@ Object.assign(Game, {
     this.net.tick(dt);
     if ((this.promptTick = (this.promptTick || 0) + dt) > 0.15) { this.promptTick = 0; this.updatePrompt(); }
 
-    /* day / night */
-    if (!this.net.connected) this.dayTime = (this.dayTime + dt / 600) % 1;
+    /* day / night. The clock always runs locally at the same rate the room
+       runs it, and the room's own value pulls it gently back into line. It
+       used to only advance offline, so online it sat still between packets and
+       any lost packet left one player in a different part of the day. */
+    this.dayTime = (this.dayTime + dt / 600) % 1;
+    if (this.net.connected && typeof this.dayTarget === 'number') {
+      let gap = this.dayTarget - this.dayTime;
+      while (gap > 0.5) gap -= 1;
+      while (gap < -0.5) gap += 1;
+      if (Math.abs(gap) > 0.05) this.dayTime = this.dayTarget;      // far out: snap
+      else this.dayTime = (this.dayTime + gap * Math.min(1, dt * 2) + 1) % 1;
+      this.dayTarget = (this.dayTarget + dt / 600) % 1;
+    }
     this.applySky();
     this.streamChunks(IS_TOUCH ? 5 : 9);
   },
@@ -4660,7 +4945,7 @@ Object.assign(Game, {
     this.companions.forEach((c, i) => {
       if (i >= spare) { c.seated = false; return; }
       c.seated = true;
-      const o = v.parts.seatOffsets[i + 1] || { x: 0.5, y: 0.5, z: -0.9 };
+      const o = ((v.parts && v.parts.seatOffsets) ? v.parts.seatOffsets[i + 1] : null) || { x: 0.5, y: 0.5, z: -0.9 };
       const cos = Math.cos(v.yaw), sin = Math.sin(v.yaw);
       const sc = v.def.scale || 1.3;
       c.pos.set(v.pos.x + o.x * sc * cos - o.z * sc * sin,
@@ -6046,6 +6331,7 @@ Object.assign(Game, {
   drawCharacter() {
     const c = $('#char-canvas');
     const g = c.getContext('2d');
+    if (!g) return;                 // no character canvas on this page
     const s = this.skin;
     g.clearRect(0, 0, c.width, c.height);
     g.imageSmoothingEnabled = false;
@@ -6111,6 +6397,8 @@ Object.assign(Game, {
     g.rotation.set(0.12, -0.16, 0.05);
     this.camera.add(g);
     this.hand = g;
+    // in third person the character's own arms do the work: no floating hand
+    g.visible = !(this.selfView === 'third' || Split.on);
     if (this.scene.children.indexOf(this.camera) === -1) this.scene.add(this.camera);
     this.updateHeld();
   },
@@ -6233,6 +6521,12 @@ const UI = {
       if (Split.start(p1, p2)) this.closeAll();
     });
     on('#split-stop', 'click', () => { Split.stop(); this.closeAll(); });
+    /* player two's own sign-in, on their own half of the screen */
+    $$('#p2-join [data-p2sex]').forEach((btn) =>
+      btn.addEventListener('click', () => Split.setJoinSex(btn.getAttribute('data-p2sex'))));
+    on('#p2-spawn', 'click', () => Split.confirmJoin());
+    on('#p2-cancel', 'click', () => Split.cancelJoin());
+    on('#p2-name', 'keydown', (e) => { if (e.key === 'Enter') Split.confirmJoin(); });
     addEventListener('gamepadconnected', () => this.renderSplitPanel());
     addEventListener('gamepaddisconnected', (e) => {
       this.renderSplitPanel();
@@ -6449,6 +6743,8 @@ const UI = {
       if (Input.typing() || !Game.running) return;
       if (e.code === 'KeyG') this.openStarChart();
       if (e.code === 'KeyL' && Game.realm === 'space' && Game.landTarget) Game.beginLanding(Game.landTarget.planet);
+      // F5, as everywhere else: look at your own character
+      if (e.code === 'F5' && Game.running && !Split.on) { e.preventDefault(); Game.toggleSelfView(); }
     });
 
     /* character */
@@ -7172,7 +7468,7 @@ const UI = {
       for (const [k, v] of welcome.edits) Game.world.edits.set(k, v);
       for (const c of Game.world.chunks.values()) { c.generated = false; Game.world.generate(c); c.dirty = true; }
     }
-    if (typeof welcome.time === 'number') Game.dayTime = welcome.time;
+    if (typeof welcome.time === 'number') { Game.dayTime = welcome.time; Game.dayTarget = welcome.time; }
     if (welcome.mode) {
       Game.mode = welcome.mode;                      // the room decides survival or creative
       if (Game.mode === 'survival') Game.player.flying = false;
@@ -7598,7 +7894,9 @@ const Split = {
   FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
            'mount', 'onRope', 'ropeAt', 'prevJump', 'prevInteract', 'prevPadFly', 'prevPadMenu',
            'prevSlotNext', 'prevSlotPrev', 'camDist', 'breakProgress', 'lastHit', 'swingT',
-           'swingLoop', 'placeCooldown', 'bucketed', 'hintTimer'],
+           'swingLoop', 'placeCooldown', 'bucketed', 'hintTimer',
+           // each player wears their own character and has their own body
+           'selfBody', 'selfView', 'character', 'characterStamp', 'skin'],
 
   /* world-wide work that must happen once per frame, not once per player */
   WORLD_ONLY: ['animateHand', 'applySky', 'autosaveTick', 'growCrops', 'repopulate', 'settleWater',
@@ -7618,6 +7916,96 @@ const Split = {
       Game.toast('Each player needs their own controller.');
       return false;
     }
+    /* Player two picks their own character and types their own name on their
+       own half of the screen, then spawns in. Until they do, the right half
+       holds their sign-in and the world carries on for player one. */
+    this.openJoin();
+    return true;
+  },
+
+  /* ---------------- player two's own sign-in ---------------- */
+  openJoin() {
+    const wrap = document.getElementById('p2-join');
+    document.body.classList.add('split-joining');
+    if (!wrap) { this.spawnP2({ presetId: 'male_02_ranger', name: 'Player 2' }); return; }
+    wrap.classList.add('open');
+    wrap.setAttribute('aria-hidden', 'false');
+    this.joinPick = null;
+    this.renderJoinGrid();
+    const nameBox = document.getElementById('p2-name');
+    if (nameBox) { nameBox.value = ''; nameBox.placeholder = 'Player 2'; }
+    const status = document.getElementById('p2-join-status');
+    if (status) {
+      status.textContent = this.p2Pad === -1
+        ? 'Using the keyboard.'
+        : 'Controller ' + (this.p2Pad + 1) + (Input.identifyPad ? (' · ' + (Input.identifyPad(this.p2Pad) || 'gamepad')) : '');
+    }
+  },
+
+  closeJoin() {
+    const wrap = document.getElementById('p2-join');
+    document.body.classList.remove('split-joining');
+    if (wrap) { wrap.classList.remove('open'); wrap.setAttribute('aria-hidden', 'true'); }
+  },
+
+  /** The same twenty characters the main selector offers. */
+  joinPresets() { return Game.PRESET_IDS.slice(); },
+
+  prettyPreset(id) {
+    const bits = String(id).split('_');
+    const who = bits[0] === 'female' ? 'F' : 'M';
+    const style = (bits[2] || 'explorer').replace(/([a-z])([A-Z])/g, '$1 $2');
+    return who + ' · ' + style.charAt(0).toUpperCase() + style.slice(1);
+  },
+
+  renderJoinGrid() {
+    const grid = document.getElementById('p2-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const sex = this.joinSex || 'male';
+    const list = this.joinPresets().filter((id) => id.indexOf(sex) === 0);
+    if (!this.joinPick || list.indexOf(this.joinPick) < 0) this.joinPick = list[0];
+    for (const id of list) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'p2-card' + (id === this.joinPick ? ' picked' : '');
+      b.textContent = this.prettyPreset(id);
+      b.addEventListener('click', () => { this.joinPick = id; this.renderJoinGrid(); });
+      grid.appendChild(b);
+    }
+    document.querySelectorAll('#p2-join [data-p2sex]').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-p2sex') === sex);
+    });
+  },
+
+  setJoinSex(sex) {
+    this.joinSex = (sex === 'female') ? 'female' : 'male';
+    this.joinPick = null;
+    this.renderJoinGrid();
+  },
+
+  confirmJoin() {
+    const nameBox = document.getElementById('p2-name');
+    const raw = nameBox ? String(nameBox.value || '').trim() : '';
+    const name = (raw.replace(/[<>&"']/g, '').slice(0, 18)) || 'Player 2';
+    this.closeJoin();
+    this.spawnP2({ presetId: this.joinPick || 'male_02_ranger', name });
+  },
+
+  cancelJoin() {
+    this.closeJoin();
+    this.on = false;
+    document.body.classList.remove('split-on');
+    if (Game.renderer) Game.renderer.setScissorTest(false);
+    Game.resize();
+    UI.renderSplitPanel && UI.renderSplitPanel();
+  },
+
+  /** Now player two actually exists in the world. */
+  spawnP2(choice) {
+    const character = Game.checkCharacter({
+      characterVersion: 2, presetId: choice.presetId, name: choice.name, colors: {}
+    }) || Game.checkCharacter({ characterVersion: 2, presetId: 'male_02_ranger', name: choice.name, colors: {} });
 
     // player two starts beside player one, with their own everything
     const me = Game.player;
@@ -7634,48 +8022,71 @@ const Split = {
     }
     body.pos = me.pos.clone().add(new THREE.Vector3(1.6, 0, 0));
     body.vel = new THREE.Vector3();
+    /* The copy above only takes plain values, so the world reference was left
+       out and every one of player two's frames threw on the first block
+       lookup. It is the same world: they are standing in it. */
+    body.world = me.world;
+
+    /* player two's own look, built from their own character rather than a
+       copy of player one's, which is why both halves used to show the same
+       figure twice */
+    const p2skin = Object.assign({}, Game.skin, { name: character.name });
+    const c = character.colors || {};
+    if (c.skin) p2skin.head = c.skin;
+    if (c.hair) p2skin.hair = c.hair;
+    if (c.shirt) p2skin.torso = c.shirt;
+    if (c.shirtSecondary) p2skin.accent = c.shirtSecondary;
+    if (c.pants) p2skin.legs = c.pants;
+    p2skin.arms = c.sleeves || c.skin || p2skin.arms;
+    p2skin.body = character.sex === 'female' ? 'female' : 'male';
+
+    const p2body = Game.makeFigure('p2', p2skin, character);
+    p2body.tag = 'p2';
 
     this.p2 = {
       player: body, camera: cam, slot: 0,
       hotbar: [null, null, null, null, null, null, null, null, null],
       inventory: Object.create(null),
       gear: {}, riding: null, passengerIn: null, mount: null, onRope: null,
-      bucketed: [], camDist: undefined, breakProgress: 0, lastHit: null
+      bucketed: [], camDist: undefined, breakProgress: 0, lastHit: null,
+      character, characterStamp: JSON.stringify(character), skin: p2skin,
+      selfBody: p2body, selfView: 'third'
     };
     // in creative, player two gets the same free hand
     if (Game.mode === 'creative') this.p2.hotbar = Game.hotbar.slice();
 
-    // each can see the other
-    this.bodies = { p1: this.makeBody('Player 1'), p2: this.makeBody('Player 2') };
+    // player one sees their own character too, over the shoulder
+    Game.selfView = 'third';
+    Game.ensureSelfBody();
+    this.p2Name = character.name;
     this.on = true;
     document.body.classList.add('split-on');
     Game.resize();
-    Game.toast('Split screen on. Player 2 is on the right.');
+    Game.toast(character.name + ' joined on the right.');
     UI.renderSplitPanel && UI.renderSplitPanel();
     return true;
   },
 
   stop() {
-    if (!this.on) return;
+    if (!this.on) { this.closeJoin(); return; }
     this.on = false;
-    if (this.bodies) {
-      Game.entityGroup.remove(this.bodies.p1);
-      Game.entityGroup.remove(this.bodies.p2);
+    this.closeJoin();
+    if (this.p2 && this.p2.selfBody) {
+      Game.entityGroup.remove(this.p2.selfBody.model);
+      if (this.p2.selfBody.avatar) { try { this.p2.selfBody.avatar.dispose(); } catch (e) {} }
     }
-    this.bodies = null;
     this.p2 = null;
     Input.forcePad = undefined;
     document.body.classList.remove('split-on');
     if (Game.renderer) Game.renderer.setScissorTest(false);
+    // player one goes back to whichever view they were using on their own
+    let want = 'first';
+    try { want = localStorage.getItem('voxelia.selfView') || 'first'; } catch (e) {}
+    Game.selfView = want;
+    if (want !== 'third' && Game.selfBody) Game.selfBody.model.visible = false;
     Game.resize();
     Game.toast('Split screen off.');
     UI.renderSplitPanel && UI.renderSplitPanel();
-  },
-
-  makeBody(name) {
-    const peer = Game.net.addPeer('split-' + name, name, Game.skin);
-    Game.net.peers.delete('split-' + name);      // local only: never sent, never ticked by the network
-    return peer.model;
   },
 
   swap() {
@@ -7722,31 +8133,36 @@ const Split = {
     }
   },
 
-  /* each half of the screen, drawn from its own camera */
+  /* Each half of the screen, drawn from its own camera. Both players are in
+     third person, so each half shows that player's own character and the
+     other player standing in the same world \u2014 nothing is hidden. */
   render() {
     const r = Game.renderer;
     const size = r.getSize(new THREE.Vector2());
     const halfW = Math.floor(size.x / 2), H = size.y;
-    const p2cam = this.p2.camera;
 
-    // keep the two bodies where the players are
-    const place = (model, pl) => {
-      model.position.set(pl.pos.x, pl.pos.y, pl.pos.z);
-      model.rotation.y = pl.yaw + Math.PI;
-    };
-    place(this.bodies.p1, Game.player);
-    place(this.bodies.p2, this.p2.player);
+    if (!this.p2) {                       // player two has not signed in yet
+      Game.camera.aspect = halfW / H; Game.camera.updateProjectionMatrix();
+      r.setScissorTest(true);
+      r.setViewport(0, 0, halfW, H); r.setScissor(0, 0, halfW, H);
+      r.render(Game.scene, Game.camera);
+      r.setScissorTest(false);
+      r.setViewport(0, 0, size.x, H);
+      return;
+    }
+
+    const p2cam = this.p2.camera;
+    if (Game.selfBody) Game.selfBody.model.visible = true;
+    if (this.p2.selfBody) this.p2.selfBody.model.visible = true;
 
     r.setScissorTest(true);
 
-    // left: player one, who sees player two
-    this.bodies.p1.visible = false; this.bodies.p2.visible = true;
+    // left: player one
     Game.camera.aspect = halfW / H; Game.camera.updateProjectionMatrix();
     r.setViewport(0, 0, halfW, H); r.setScissor(0, 0, halfW, H);
     r.render(Game.scene, Game.camera);
 
-    // right: player two, who sees player one
-    this.bodies.p1.visible = true; this.bodies.p2.visible = false;
+    // right: player two
     p2cam.fov = Game.camera.fov;
     p2cam.aspect = halfW / H; p2cam.updateProjectionMatrix();
     r.setViewport(halfW, 0, size.x - halfW, H); r.setScissor(halfW, 0, size.x - halfW, H);
@@ -7763,7 +8179,7 @@ const Split = {
     const id = this.p2.hotbar[this.p2.slot];
     const name = id == null ? 'Empty hand' : (typeof thingName === 'function' ? thingName(id) : 'Item');
     const pl = this.p2.player;
-    el.textContent = 'Player 2  \u00b7  ' + name + '  \u00b7  ' +
+    el.textContent = (this.p2Name || 'Player 2') + '  \u00b7  ' + name + '  \u00b7  ' +
       Math.round(pl.pos.x) + ' ' + Math.round(pl.pos.y) + ' ' + Math.round(pl.pos.z);
   }
 };
@@ -7856,7 +8272,9 @@ window.addEventListener('load', () => {
   } catch (err) {
     console.error(err);
     setStyle('#boot-error', 'display', 'block');
-    $('#boot-error').textContent = 'The engine could not start: ' + err.message;
+    // the reporter must never throw on top of the thing it is reporting
+    const box = $('#boot-error');
+    if (box) box.textContent = 'The engine could not start: ' + err.message;
   }
 });
 
@@ -8019,7 +8437,7 @@ Object.assign(Game, {
       for (const k of Object.keys(save.exploredByRealm)) {
         this.exploredByRealm[k] = new Map(save.exploredByRealm[k]);
       }
-      this.explored = this.exploredByRealm[this.realm || 'ground'] || new Map();
+      this.explored = this.exploredByRealm[this.mapKey()] || new Map();
     }
     if (save.explored) { this.explored = new Map(); for (const [k, v] of save.explored) this.explored.set(k, v); }
     if (save.growing) { this.growing = new Map(); for (const [k, v] of save.growing) this.growing.set(k, v); }
@@ -8104,6 +8522,12 @@ Game.net = {
       case 'welcome':
         this.connected = true;
         this.selfId = m.you;
+        this.isHost = !!m.host;          // the host owns the wildlife
+        if (Array.isArray(m.players)) {
+          for (const pl of m.players) {
+            if (pl.realm) { const ex = this.peers.get(pl.id); if (ex) ex.realm = pl.realm; }
+          }
+        }
         onReady && onReady(m);
         break;
       case 'join':
@@ -8121,7 +8545,11 @@ Game.net = {
         break;
       }
       case 'time':
-        Game.dayTime = m.time;
+        // the room's own reading: the local clock is steered towards it rather
+        // than jumping to it, and the weather rides along so it cannot drift
+        Game.dayTarget = m.time;
+        if (Game.dayTime === undefined || Math.abs(m.time - Game.dayTime) > 0.2) Game.dayTime = m.time;
+        if (m.weather && m.weather !== Game.weather) Game.setWeather(m.weather);
         break;
       case 'weather':
         Game.setWeather(m.weather);
@@ -8194,6 +8622,29 @@ Game.net = {
         // the pilot is taking the whole crew somewhere
         if (m.crew && m.crew.indexOf(this.selfId) >= 0 && m.realm && m.realm !== Game.realm) {
           Game.followCrew(m);
+        }
+        break;
+      }
+      case 'life': {
+        // the host's list of animals: add anything we do not have yet
+        if (this.isHost) return;
+        for (const e of (m.add || [])) Game.applyRemoteLife(e);
+        break;
+      }
+      case 'herd': {
+        // where the host says each animal has got to
+        if (this.isHost) return;
+        const now = performance.now();
+        const byId = Game.creatureIndex || (Game.creatureIndex = new Map());
+        byId.clear();
+        for (const c of Game.creatures) byId.set(c.id, c);
+        for (const row of (m.a || [])) {
+          const c = byId.get(row[0]);
+          if (!c) continue;
+          if (!c.netTo) c.netTo = new THREE.Vector3();
+          c.netTo.set(row[1], row[2], row[3]);
+          c.netYaw = row[4] || 0;
+          c.netAt = now;
         }
         break;
       }
@@ -8290,7 +8741,7 @@ Game.net = {
       if (p.aboard) {
         const craft = Game.vehicles.find(v => v.id === p.aboard);
         if (craft) {
-          const seat = craft.parts.seatOffsets[1] || { x: 0.6, y: craft.def.seat, z: -0.7 };
+          const seat = ((craft.parts && craft.parts.seatOffsets) ? craft.parts.seatOffsets[1] : null) || { x: 0.6, y: craft.def.seat, z: -0.7 };
           const sc = craft.def.scale || 1.3;
           const cs = Math.cos(craft.yaw), sn = Math.sin(craft.yaw);
           p.target.set(craft.pos.x + seat.x * sc * cs - seat.z * sc * sn,
@@ -8333,7 +8784,12 @@ Game.net = {
       p.model.position.set(p.body.x, p.body.y + (p.avatar ? 0 : bob), p.body.z);
       // somebody inside a craft is inside it: their body is not drawn at all
       const onThisWorld = (p.realm || 'ground') === (Game.realm || 'ground');
-      p.model.visible = onThisWorld && !p.aboard;
+      /* Somebody inside a craft is inside it, so their body is not drawn —
+         but only if that craft is actually here. Hiding them for a seat in a
+         vehicle this world has never heard of is how people ended up invisible
+         on another planet while still showing on the map. */
+      const inSomethingHere = p.aboard && Game.vehicles.some((v) => v.id === p.aboard);
+      p.model.visible = onThisWorld && !inSomethingHere;
       if (p.avatar) {
         const a = p.anim || 0;
         p.avatar.update(dt, {
@@ -8414,7 +8870,16 @@ Game.net = {
   sendCrewMove(realm, planetId, site) {
     if (!this.connected) return;
     const crew = [this.selfId];
-    for (const p of this.peers.values()) if (p.aboard && p.aboard === (Game.riding && Game.riding.id)) crew.push(p.id);
+    const seat = Game.riding && Game.riding.id;
+    for (const p of this.peers.values()) if (seat && p.aboard === seat) crew.push(p.id);
+    /* Out in orbit the craft is not a seat any more, so the people who came up
+       with you would have been left behind on the way down. They are carried on
+       the list until they leave your ship. */
+    if (Game.realm === 'space' && Game.crewWith) {
+      for (const id of Game.crewWith) {
+        if (crew.indexOf(id) < 0 && this.peers.has(id)) crew.push(id);
+      }
+    }
     this.send({ t: 'crew', realm, planet: planetId, crew, site });
   },
 
@@ -10755,12 +11220,13 @@ Object.assign(Game, {
   loadCharacter() {
     try {
       const raw = JSON.parse(localStorage.getItem('voxeliaCharacterV2') || 'null');
-      const ok = window.VoxeliaAvatars ? VoxeliaAvatars.validate(raw) : raw;
+      const ok = this.checkCharacter(raw);
       if (ok) { this.character = ok; this.characterStamp = JSON.stringify(ok); }
     } catch (e) {}
     // an old save still on the three-way body choice is not guessed at: the
     // screen opens once so the player picks Female or Male themselves
     if (!this.character && this.skin && this.skin.body === 'neutral') this.needsBodyChoice = true;
+    try { this.selfView = localStorage.getItem('voxelia.selfView') || 'first'; } catch (e) { this.selfView = 'first'; }
     this.applyCharacterToHand();
   },
 
@@ -10783,6 +11249,15 @@ Object.assign(Game, {
     this.saveSkin();
     try { if (this.camera) this.attachHand(); } catch (e) {}
     try { if (this.net && this.net.connected) this.net.sentAvatar = null; } catch (e) {}
+    // the body you see over your own shoulder is rebuilt in the new character
+    try {
+      if (this.selfBody) {
+        const showing = this.selfBody.model.visible;
+        this.dropSelfBody();
+        this.ensureSelfBody();
+        this.selfBody.model.visible = showing;
+      }
+    } catch (e) {}
   },
 
   openCharacterScreen() {
@@ -10799,9 +11274,82 @@ Object.assign(Game, {
     if (wrap) { wrap.classList.remove('open'); wrap.setAttribute('aria-hidden', 'true'); }
   },
 
+  /* The twenty characters, and the colours each one was made with. The model
+     pack knows these too, but the game must not depend on it having loaded:
+     a slow CDN used to mean choosing a character silently did nothing. */
+  PRESET_IDS: [
+    'male_01_explorer', 'female_01_explorer', 'male_02_ranger', 'female_02_ranger',
+    'male_03_builder', 'female_03_builder', 'male_04_scout', 'female_04_scout',
+    'male_05_pilot', 'female_05_pilot', 'male_06_scholar', 'female_06_scholar',
+    'male_07_farmhand', 'female_07_gardener', 'male_08_coastwalker', 'female_08_coastwalker',
+    'male_09_starfarer', 'female_09_starfarer', 'male_10_wanderer', 'female_10_wanderer'
+  ],
+  PRESET_COLOURS: {
+    male_01_explorer:     { hair: '#3A261B', shirt: '#315fca', accent: '#F4C247', pants: '#59604c' },
+    male_02_ranger:       { hair: '#4a2f20', shirt: '#315b38', accent: '#cdb58a', pants: '#3e5144' },
+    male_03_builder:      { hair: '#3a271e', shirt: '#b14f2d', accent: '#e1b57a', pants: '#37404a' },
+    male_04_scout:        { hair: '#3d281e', shirt: '#18aeb0', accent: '#d7f4ef', pants: '#24364e' },
+    male_05_pilot:        { hair: '#3b241c', shirt: '#722a31', accent: '#f4dfc3', pants: '#34312f' },
+    male_06_scholar:      { hair: '#3a2a25', shirt: '#384f76', accent: '#e6e8eb', pants: '#555b63' },
+    male_07_farmhand:     { hair: '#74482c', shirt: '#ede1ca', accent: '#c99a45', pants: '#6e7650' },
+    male_08_coastwalker:  { hair: '#6b3d29', shirt: '#6ec4cf', accent: '#f6f1e7', pants: '#e8dfcf' },
+    male_09_starfarer:    { hair: '#18243c', shirt: '#1d2739', accent: '#42dfff', pants: '#20293b' },
+    male_10_wanderer:     { hair: '#4a2f28', shirt: '#4c4655', accent: '#7d3f67', pants: '#3b3941' },
+    female_01_explorer:   { hair: '#5a3426', shirt: '#315fca', accent: '#F4C247', pants: '#59604c' },
+    female_02_ranger:     { hair: '#4a2f20', shirt: '#315b38', accent: '#cdb58a', pants: '#3e5144' },
+    female_03_builder:    { hair: '#4b2a22', shirt: '#b14f2d', accent: '#e1b57a', pants: '#37404a' },
+    female_04_scout:      { hair: '#4a2b23', shirt: '#18aeb0', accent: '#d7f4ef', pants: '#24364e' },
+    female_05_pilot:      { hair: '#4a2e25', shirt: '#722a31', accent: '#f4dfc3', pants: '#34312f' },
+    female_06_scholar:    { hair: '#4c322a', shirt: '#384f76', accent: '#e6e8eb', pants: '#555b63' },
+    female_07_gardener:   { hair: '#6a412a', shirt: '#ede1ca', accent: '#c99a45', pants: '#6e7650' },
+    female_08_coastwalker:{ hair: '#70432f', shirt: '#6ec4cf', accent: '#f6f1e7', pants: '#e8dfcf' },
+    female_09_starfarer:  { hair: '#1b2038', shirt: '#1d2739', accent: '#42dfff', pants: '#20293b' },
+    female_10_wanderer:   { hair: '#58313f', shirt: '#4c4655', accent: '#7d3f67', pants: '#3b3941' }
+  },
+
+  /** Check a character on our own, so nothing depends on the model pack. */
+  checkCharacter(cfg) {
+    if (window.VoxeliaAvatars) {
+      const v = VoxeliaAvatars.validate(cfg);
+      if (v) return this.fillCharacter(v);
+    }
+    if (!cfg || typeof cfg !== 'object') return null;
+    const id = this.PRESET_IDS.indexOf(cfg.presetId) >= 0 ? cfg.presetId : null;
+    if (!id) return null;
+    const hex = /^#[0-9a-fA-F]{6}$/;
+    const colors = {};
+    const src = cfg.colors || {};
+    for (const k of ['skin', 'hair', 'eyes', 'eyebrows', 'shirt', 'shirtSecondary', 'jacket', 'sleeves',
+                     'pants', 'pantsSecondary', 'shoes', 'sole', 'accessoryPrimary', 'accessorySecondary']) {
+      if (hex.test(src[k] || '')) colors[k] = src[k];
+    }
+    return this.fillCharacter({
+      characterVersion: 2,
+      sex: id.indexOf('female') === 0 ? 'female' : 'male',
+      presetId: id,
+      name: String(cfg.name || 'Player').replace(/[<>&"']/g, '').slice(0, 24) || 'Player',
+      colors,
+      options: { glasses: !!(cfg.options && cfg.options.glasses) }
+    });
+  },
+
+  /** Anything the player did not choose comes from the preset's own colours. */
+  fillCharacter(c) {
+    const base = this.PRESET_COLOURS[c.presetId] || {};
+    const col = c.colors || (c.colors = {});
+    if (!col.skin) col.skin = '#E8BF96';
+    if (!col.eyes) col.eyes = '#1f2937';
+    if (!col.hair) col.hair = base.hair || '#3A261B';
+    if (!col.shirt) col.shirt = base.shirt || '#4F7FE0';
+    if (!col.shirtSecondary) col.shirtSecondary = base.accent || col.shirt;
+    if (!col.pants) col.pants = base.pants || '#3B4252';
+    if (!col.sleeves) col.sleeves = col.shirt;
+    return c;
+  },
+
   /** The screen said "use this one". */
   acceptCharacter(cfg) {
-    const ok = window.VoxeliaAvatars ? VoxeliaAvatars.validate(cfg) : null;
+    const ok = this.checkCharacter(cfg);
     if (!ok) { this.toast('That character could not be used.'); return; }
     this.character = ok;
     this.characterStamp = JSON.stringify(ok);
@@ -10832,6 +11380,73 @@ Object.assign(Game, {
       peer.model.add(av.object);
       peer.avatar = av;
     }).catch(() => { /* the block body stays: a missing model is never fatal */ });
+  },
+
+  /* ---------------- a body you can actually look at ----------------
+     One figure, built the same way for anybody who needs one: your own
+     character in third person, and each player's character in split
+     screen. It starts as the block body so it appears at once, then the
+     rigged model takes its place as soon as it has downloaded. */
+  makeFigure(tag, skin, character) {
+    const id = 'local:' + tag;
+    const built = this.net.addPeer(id, (character && character.name) || tag, skin || this.skin);
+    this.net.peers.delete(id);                 // local only: never sent, never network-ticked
+    const fig = { id, name: built.name, model: built.model, target: new THREE.Vector3(), yaw: 0, worn: 0 };
+    if (character) this.dressPeer(fig, character);
+    return fig;
+  },
+
+  /** Rebuild a figure because its character changed. */
+  redressFigure(fig, skin, character) {
+    if (!fig) return fig;
+    this.entityGroup.remove(fig.model);
+    if (fig.avatar) { try { fig.avatar.dispose(); } catch (e) {} }
+    const fresh = this.makeFigure(fig.tag || 'player', skin, character);
+    fresh.tag = fig.tag;
+    return fresh;
+  },
+
+  /** Animate a figure from a live player object. */
+  driveFigure(fig, pl, dt) {
+    if (!fig) return;
+    fig.model.position.set(pl.pos.x, pl.pos.y, pl.pos.z);
+    fig.model.rotation.y = pl.yaw + Math.PI;
+    const sp = Math.hypot(pl.vel ? pl.vel.x : 0, pl.vel ? pl.vel.z : 0);
+    if (fig.avatar) {
+      fig.avatar.update(dt, {
+        speed: sp, grounded: !!pl.onGround, flying: !!pl.flying,
+        swimming: !!pl.inWater, inVehicle: false
+      });
+    } else {
+      // the block body gets the same walk bob the other players get
+      fig.step = (fig.step || 0) + (sp > 0.4 ? dt * Math.min(11, 4 + sp) : 0);
+      fig.model.position.y += sp > 0.4 ? Math.abs(Math.sin(fig.step)) * 0.06 : 0;
+    }
+  },
+
+  /** Your own character, shown over your shoulder. */
+  ensureSelfBody() {
+    if (this.selfBody) return this.selfBody;
+    this.selfBody = this.makeFigure('you', this.skin, this.character);
+    this.selfBody.tag = 'you';
+    this.selfBody.model.visible = false;
+    return this.selfBody;
+  },
+
+  dropSelfBody() {
+    if (!this.selfBody) return;
+    this.entityGroup.remove(this.selfBody.model);
+    if (this.selfBody.avatar) { try { this.selfBody.avatar.dispose(); } catch (e) {} }
+    this.selfBody = null;
+  },
+
+  toggleSelfView() {
+    this.selfView = (this.selfView === 'third') ? 'first' : 'third';
+    if (this.selfView === 'third') this.ensureSelfBody();
+    else if (this.selfBody) this.selfBody.model.visible = false;
+    try { localStorage.setItem('voxelia.selfView', this.selfView); } catch (e) {}
+    this.toast(this.selfView === 'third' ? 'Third person. You can see your character.' : 'First person.');
+    try { this.attachHand(); } catch (e) {}
   },
 
   setMode(m) {
@@ -10961,13 +11576,16 @@ Object.assign(Game, {
   },
 
   enterSpace() {
-    // anyone riding with you comes up too
-    if (this.net.connected && this.riding) {
-      const crew = [this.net.selfId];
+    /* Anyone sitting in this ship comes up too. The crew list is worked out
+       before the seat is cleared, and it carries the exact spot in orbit the
+       pilot will appear at, so the whole crew arrives together instead of the
+       passengers being left on the pad. */
+    let crew = null;
+    if (this.net.connected && this.riding && !this.asCrew) {
+      crew = [this.net.selfId];
       for (const p of this.net.peers.values()) {
         if (p.aboard === this.riding.id) crew.push(p.id);
       }
-      this.net.send({ t: 'crew', realm: 'space', planet: null, crew });
       // they are aboard, not standing on the ground, so take them out of the seat
       for (const p of this.net.peers.values()) if (p.aboard === this.riding.id) p.aboard = null;
     }
@@ -10986,13 +11604,14 @@ Object.assign(Game, {
     this.ensureSystem();
     this.buildSpaceScene();
     this.realm = 'space';
-    if (this.net.connected) this.net.sendCrewMove('space', null, null);
-    this.net.sendRealm('space');
     // one shared entry point per system, so a crew arrives together
     const anchor = mulberry32(hashString((this.homeSeed || (this.world && this.world.seedText) || 'voxelia') + ':orbit'));
     this.spacePos = new THREE.Vector3((anchor() - 0.5) * 50, 40 + anchor() * 16, 320 + anchor() * 30);
     this.spaceVel = new THREE.Vector3();
     this.tethered = false;
+    this.pendingCrew = crew;
+    // who came up with you, so they come down with you as well
+    this.crewWith = (crew || []).filter((cid) => cid !== (this.net && this.net.selfId));
     if (this.riding) { this.spaceShip = this.riding; }
     $('#hud').classList.add('in-space');
     if (this.courseTo) {
@@ -11005,6 +11624,16 @@ Object.assign(Game, {
       }
       this.courseTo = null;
     }
+    // now the arrival spot is final, the crew can be told exactly where to appear
+    if (this.net.connected) {
+      const crewList = this.pendingCrew;
+      if (crewList && crewList.length > 1) {
+        this.net.send({ t: 'crew', realm: 'space', planet: null, crew: crewList,
+                        site: { x: this.spacePos.x, y: this.spacePos.y, z: this.spacePos.z } });
+      }
+      this.net.sendRealm('space');
+    }
+    this.pendingCrew = null;
     this.toast('Orbit reached. ' + (IS_TOUCH ? 'Use' : 'E') + ' leaves the ship on a tether. Open the telescope to choose a world.');
     UI.refreshSpaceBar();
   },
@@ -11226,6 +11855,20 @@ Object.assign(Game, {
     this.clearVehicleHud();
     const sys = this.ensureSystem();
     if (m.realm === 'ground') { this.returnHome(); return; }
+    /* Orbit. This case was missing, so every passenger was taken out of their
+       seat and then left standing on the launch pad while the pilot went up:
+       that is the "everyone else falls to the ground" bug. */
+    if (m.realm === 'space') {
+      this.toast('Launching — you are aboard.');
+      this.asCrew = true;                 // a passenger has no ship of their own
+      try { this.enterSpace(); } finally { this.asCrew = false; this.crewWith = null; }
+      // arrive alongside the pilot rather than at the room's own entry point
+      if (m.site && typeof m.site.x === 'number' && this.spacePos) {
+        this.spacePos.set(m.site.x, m.site.y, m.site.z);
+        if (this.spaceVel) this.spaceVel.set(0, 0, 0);
+      }
+      return;
+    }
     const p = sys && sys.planets[m.planet];
     if (!p) return;
     this.toast('The ship is taking you to ' + p.name + '.');
@@ -11233,6 +11876,7 @@ Object.assign(Game, {
   },
 
   landOn(planet) {
+    this.crewWith = null;                 // the flight is over; seats start again
     this.homeSeed = this.homeSeed || (this.world ? this.world.seedText : 'voxelia');
     // fixed for all time: the same planet in the same system is the same ground
     const seed = this.homeSeed + '::planet::' + planet.id + '::' + planet.name;
@@ -11309,6 +11953,7 @@ Object.assign(Game, {
   },
 
   returnHome() {
+    this.crewWith = null;
     this.keepKit = true;
     this.restoreHomeTerrain();
     this.gravityScale = 1;

@@ -29,10 +29,120 @@ const COLOR_FIELDS = [
 let state = {sex:'male',presetId:'male_01_explorer',name:'Player',colors:{}};
 let rotated = false;
 
+/* ------------------------------------------------------------------
+   The real thing. The flat panels above are drawn with CSS so the page
+   is usable the instant it opens; this puts the actual rigged model on
+   top of them, idling, so you are choosing the character you will play
+   rather than a picture of it. If three.js or the model pack cannot be
+   reached, nothing happens and the CSS figure stays.
+   ------------------------------------------------------------------ */
+const Preview3D = {
+  ready: null, avatar: null, want: null, failed: false,
+
+  boot() {
+    if (this.failed) return null;
+    if (this.ready) return this.ready;
+    this.ready = (async () => {
+      if (!window.THREE) throw new Error('three.js not present');
+      if (!window.VoxeliaAvatars) throw new Error('avatar pack not present');
+      const stage = document.querySelector('.avatar-stage');
+      if (!stage) throw new Error('no stage');
+      const canvas = document.createElement('canvas');
+      canvas.className = 'avatar-3d';
+      canvas.setAttribute('aria-hidden', 'true');
+      stage.appendChild(canvas);
+      this.canvas = canvas;
+      this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 40);
+      this.rig = new THREE.Group();
+      this.scene.add(this.rig);
+      this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2438, 1.05));
+      const key = new THREE.DirectionalLight(0xffffff, 0.85);
+      key.position.set(2.4, 4, 3.2);
+      this.scene.add(key);
+      const rim = new THREE.DirectionalLight(0x8fd8ff, 0.4);
+      rim.position.set(-3, 2, -2.5);
+      this.scene.add(rim);
+      this.clock = (window.performance || Date).now();
+      this.spin = 0;
+      this.resize();
+      window.addEventListener('resize', () => this.resize());
+      const frame = () => {
+        requestAnimationFrame(frame);
+        const now = (window.performance || Date).now();
+        const dt = Math.min(0.05, (now - this.clock) / 1000);
+        this.clock = now;
+        if (this.avatar) {
+          this.avatar.update(dt, { speed: 0, grounded: true });
+          // a slow turn, or the angle the rotate button asked for
+          this.spin += rotated ? dt * 1.1 : dt * 0.32;
+          this.rig.rotation.y = this.spin;
+        }
+        this.renderer.render(this.scene, this.camera);
+      };
+      requestAnimationFrame(frame);
+      return true;
+    })().catch((e) => { this.failed = true; console.info('3D preview unavailable:', e.message); throw e; });
+    return this.ready;
+  },
+
+  resize() {
+    if (!this.renderer || !this.canvas) return;
+    const st = this.canvas.parentNode;
+    const w = Math.max(1, st.clientWidth), h = Math.max(1, st.clientHeight);
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    // frame a 1.8 m figure from the knees up, whatever shape the panel is
+    const fit = Math.max(1.05, 2.15 / Math.min(1.4, Math.max(0.5, w / h)));
+    this.camera.position.set(0, 0.95, 2.35 * fit);
+    this.camera.lookAt(0, 0.92, 0);
+  },
+
+  show(presetId, colors) {
+    this.want = presetId;
+    const go = this.boot();
+    if (!go) return;
+    go.then(() => {
+      if (this.want !== presetId) return;
+      return VoxeliaAvatars.create({ characterVersion: 2, presetId, name: 'Preview', colors: toPacket(colors) })
+        .then((av) => {
+          if (this.want !== presetId) { av.dispose(); return; }
+          if (this.avatar) this.avatar.dispose();
+          this.avatar = av;
+          av.object.position.y = -0.02;
+          this.rig.add(av.object);
+          document.querySelector('.avatar-stage').classList.add('has-3d');
+        });
+    }).catch(() => {});
+  },
+
+  recolor(colors) {
+    if (this.avatar) this.avatar.recolor(toPacket(colors));
+  }
+};
+
+/* the colour names the game and the model pack use */
+function toPacket(c) {
+  c = c || {};
+  return {
+    skin: c.skin, hair: c.hair, eyes: c.eyes, eyebrows: c.hair,
+    shirt: c.shirt, shirtSecondary: c.accent, jacket: c.jacket, sleeves: c.sleeves,
+    pants: c.pants, pantsSecondary: c.pants2, shoes: c.shoes, sole: c.sole,
+    accessoryPrimary: c.acc1, accessorySecondary: c.acc2
+  };
+}
+
 const $ = s => document.querySelector(s);
 const presetGrid = $('#presetGrid');
 const colorGrid = $('#colorGrid');
-const largeAvatar = $('#largeAvatar');
+/* The big preview is replaced on every render, so it must be looked up fresh
+   each time. Holding the first node in a const meant every later render
+   replaced a node that was no longer in the page: the thumbnails highlighted
+   but the preview never changed, which read as "choosing does nothing". */
+const stageAvatar = () => document.querySelector('.avatar-stage .avatar');
 
 function currentPreset(){return CHARACTER_PRESETS.find(p=>p.id===state.presetId) || CHARACTER_PRESETS[0]}
 function presetColors(p){return {skin:DEFAULT_SKIN,hair:p.hair,eyes:'#1f2937',shirt:p.shirt,accent:p.accent,jacket:p.jacket,sleeves:p.shirt,pants:p.pants,pants2:p.pants2,shoes:p.shoes,sole:p.sole,acc1:p.acc1||'#ffffff',acc2:p.acc2||'#808080'}}
@@ -63,11 +173,16 @@ function renderPresets(){
 }
 function renderLarge(){
   const p=currentPreset();
-  largeAvatar.replaceWith(makeAvatar(p,false));
-  const fresh=document.querySelector('.avatar-stage .avatar'); fresh.id='largeAvatar';
+  const old=stageAvatar();
+  const fresh=makeAvatar(p,false);
+  fresh.id='largeAvatar';
+  fresh.classList.add('avatar-large');
   if(rotated) fresh.classList.add('rotated');
+  if(old) old.replaceWith(fresh);
+  else { const st=document.querySelector('.avatar-stage'); if(st) st.appendChild(fresh); }
   $('#selectedName').textContent=p.name; $('#selectedId').textContent=p.id;
   $('#activeSexChip').textContent=p.sex[0].toUpperCase()+p.sex.slice(1); $('#activePresetChip').textContent=p.name;
+  Preview3D.show(p.id, state.colors);
 }
 function renderColors(){
   colorGrid.innerHTML='';
@@ -81,7 +196,7 @@ function renderColors(){
     wrap.append(color,lab,text);colorGrid.appendChild(wrap);
   });
 }
-function refreshAvatarColors(){document.querySelectorAll('.avatar').forEach(el=>{const card=el.closest('.preset-card');if(!card) applyColors(el,state.colors)});renderPresets()}
+function refreshAvatarColors(){document.querySelectorAll('.avatar').forEach(el=>{const card=el.closest('.preset-card');if(!card) applyColors(el,state.colors)});renderPresets();Preview3D.recolor(state.colors)}
 function selectPreset(id){state.presetId=id;const p=currentPreset();state.sex=p.sex;state.colors=presetColors(p);syncSexButtons();renderAll()}
 function setSex(sex){state.sex=sex;const p=CHARACTER_PRESETS.find(p=>p.sex===sex);state.presetId=p.id;state.colors=presetColors(p);syncSexButtons();renderAll()}
 function syncSexButtons(){document.querySelectorAll('[data-sex]').forEach(btn=>{const active=btn.dataset.sex===state.sex;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active))})}

@@ -101,6 +101,12 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <!-- the rigged models, so the preview is the character you will actually play.
+       Both are optional: if either cannot be reached the flat preview stays. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
+          onerror="console.info('three.js unavailable: flat preview only')"></script>
+  <script src="voxelia-avatars.js"
+          onerror="console.info('model pack unavailable: flat preview only')"></script>
   <script src="character-select.js"></script>
 </body>
 </html>
