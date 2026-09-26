@@ -823,6 +823,77 @@ body.creative-mode #meters{display:none !important}
 #minimap{image-rendering:-webkit-optimize-contrast}
 .slot canvas{image-rendering:pixelated;image-rendering:crisp-edges}
 
+/* =================================================================
+   Player two's half of the screen.
+
+   Their own map, their own air and legs, their own row of things to hold and
+   their own pause button, all kept inside their half so nothing of theirs
+   lands on player one's side and nothing is cut off at an edge.
+   ================================================================= */
+#p2-panel{display:none}
+body.split-on #p2-panel{display:block;position:fixed;top:0;bottom:0;left:50%;right:0;
+  z-index:32;pointer-events:none}
+body.split-on #p2-top{position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;
+  display:flex;justify-content:center;pointer-events:none}
+body.split-on #p2-pause{pointer-events:auto;min-height:30px;padding:0 14px;border-radius:999px;
+  background:rgba(20,18,28,.86);border:1px solid var(--line);color:var(--text);
+  font-family:var(--display);font-size:12px;cursor:pointer}
+body.split-on #p2-map-wrap{pointer-events:auto;position:absolute;
+  top:calc(46px + env(safe-area-inset-top));right:14px;width:96px;height:96px;padding:0;
+  border-radius:50%;overflow:hidden;cursor:pointer;
+  background:rgba(20,18,28,.7);border:2px solid var(--line);
+  box-shadow:0 6px 22px rgba(0,0,0,.45)}
+body.split-on #p2-map{width:100%;height:100%;display:block}
+body.split-on #p2-meters{position:absolute;left:14px;top:calc(46px + env(safe-area-inset-top));
+  width:120px}
+body.split-on #p2-bar{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));
+  left:0;right:0;display:flex;gap:5px;justify-content:center}
+body.split-on #p2-bar .slot{width:42px;height:42px;border-radius:10px}
+body.split-on #p2-bar .slot canvas{width:30px;height:30px}
+/* player one keeps to the left half, and nothing of theirs crosses the line */
+body.split-on #hotbar{left:25% !important}
+body.split-on #minimap-wrap{right:calc(50% + 14px) !important;left:auto !important}
+body.split-on #top-bar{left:25% !important;right:auto !important;
+  transform:translateX(-50%) !important}
+body.split-on #biome-card,body.split-on #meters,body.split-on #pouch{max-width:22vw}
+body.split-on #ability-badge,body.split-on #gear-badge,body.split-on #drive-hint{display:none}
+body.split-on #p2-hud{left:auto;right:14px}
+/* creative still hides the two meters, on both halves */
+body.creative-mode #p2-meters{display:none !important}
+
+/* =================================================================
+   The strip along the top, on a computer.
+
+   The pause button sits in the middle of the top edge, and the place-name
+   card and the badge used to sit at exactly the same height on either side
+   of it, so on a computer the card ran into the very top of the window and
+   its first line was cut off. Everything below the strip is moved down to
+   clear it. Phones already had their own rules and are left alone.
+   ================================================================= */
+@media (pointer:fine){
+  #hud #top-bar{top:calc(10px + env(safe-area-inset-top)) !important}
+  #biome-card{top:calc(56px + env(safe-area-inset-top))}
+  #ability-badge{top:calc(56px + env(safe-area-inset-top))}
+  #minimap-wrap{top:calc(56px + env(safe-area-inset-top))}
+  #gear-badge{top:calc(54px + env(safe-area-inset-top))}
+  #waypoint-guide{top:calc(92px + env(safe-area-inset-top))}
+}
+/* In split screen each half gets its own pause button, centred on that half,
+   and each half's readouts stay inside it. */
+body.split-on #hud #top-bar{left:25% !important}
+body.split-on #biome-card{left:calc(12px + env(safe-area-inset-left));max-width:20vw}
+body.split-on #ability-badge{display:none}
+
+/* Being asked over by a friend. Always a question, never a shove. */
+#summon-card{position:fixed;left:50%;transform:translateX(-50%);
+  top:calc(96px + env(safe-area-inset-top));z-index:72;display:none;
+  background:rgba(20,18,28,.96);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;max-width:min(92vw,380px);box-shadow:0 12px 34px rgba(0,0,0,.55)}
+#summon-card.show{display:block}
+#summon-card p{margin:0 0 10px;font-size:13.5px}
+#summon-card .summon-actions{display:grid;grid-template-columns:1fr 1.2fr;gap:8px}
+#summon-card .btn.primary{background:var(--moon);border-color:var(--moon);color:#0E1116;font-weight:700}
+
 /* A plain word when the room cannot be reached, so nobody plays on thinking
    their friends can still see them. */
 #link-state{position:fixed;left:50%;transform:translateX(-50%);
@@ -972,7 +1043,7 @@ body.creative-mode #meters{display:none !important}
   <button id="minimap-wrap" title="Open the map"><canvas id="minimap" width="132" height="132"></canvas></button>
   <div id="lock-hint">Click the world to capture the mouse, or hold a button and drag to look</div>
   <div id="chat-log"></div>
-  <div id="chat-bar"><input id="chat-input" maxlength="200" placeholder="Say something…" /><button class="btn" id="chat-send">Send</button></div>
+  <div id="chat-bar"><input id="chat-input" maxlength="200" placeholder="Say something, or /help for commands…" /><button class="btn" id="chat-send">Send</button></div>
   <div id="space-bar">
     <div><b id="space-where">Aboard the ship</b><small id="space-target"></small></div>
     <div class="space-actions">
@@ -996,6 +1067,23 @@ body.creative-mode #meters{display:none !important}
     </div>
   </div>
   <div id="link-state" role="status" aria-live="polite"></div>
+  <div id="summon-card">
+    <p id="summon-text">Somebody would like you to come over.</p>
+    <div class="summon-actions">
+      <button class="btn" id="summon-no">Stay here</button>
+      <button class="btn primary" id="summon-yes">Go to them</button>
+    </div>
+  </div>
+  <!-- player two's own readouts, on player two's own half of the screen -->
+  <div id="p2-panel">
+    <div id="p2-top"><button id="p2-pause" title="Pause">&#9208; Pause</button></div>
+    <button id="p2-map-wrap"><canvas id="p2-map" width="132" height="132"></canvas></button>
+    <div id="p2-meters">
+      <div class="meter-row"><span>AIR</span><div class="meter"><i id="p2-breath"></i></div></div>
+      <div class="meter-row"><span>LEGS</span><div class="meter"><i id="p2-stamina"></i></div></div>
+    </div>
+    <div id="p2-bar"></div>
+  </div>
   <div id="p2-hud"></div>
   <div id="p2-join" aria-hidden="true">
     <h3>Player 2</h3>
@@ -1227,10 +1315,11 @@ body.creative-mode #meters{display:none !important}
     <button class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
   </div>
   <div class="map-body"><canvas id="bigmap" width="720" height="720"></canvas></div>
-  <p class="map-hint">Tap the map to drop a mark. Pinch or scroll to zoom.</p>
+  <p class="map-hint">Drag the map to look around. Tap it to drop a mark. Pinch or scroll to zoom.</p>
   <div class="map-foot">
     <button class="btn" id="map-out">Zoom out</button>
     <button class="btn" id="map-in">Zoom in</button>
+    <button class="btn" id="map-centre">Centre on me</button>
     <button class="btn" id="map-mark">Mark this spot</button>
   </div>
   <div id="map-marks" class="map-marks"></div>
@@ -1364,7 +1453,9 @@ body.creative-mode #meters{display:none !important}
       </div>
       <button class="btn" id="pause-companions">Companions and wallet</button>
       <div class="setting" id="split-panel"><b>Split screen</b>
-        <small>Two players on this computer. Each needs a controller, or one can use the keyboard and mouse.</small>
+        <small>Two players on this computer. Player two can use a controller, or the
+          keys on the right of the keyboard. It works in a room too — everybody
+          else will see both of you.</small>
         <div id="split-pads"></div>
         <div class="split-assign">
           <label>Player 1 <select id="split-p1"></select></label>
@@ -1372,7 +1463,13 @@ body.creative-mode #meters{display:none !important}
         </div>
         <div class="seg">
           <button class="btn" id="split-start">Start split screen</button>
-          <button class="btn" id="split-stop">Stop</button>
+          <button class="btn" id="split-stop">Stop split screen</button>
+        </div>
+        <div id="split-keys-wrap">
+          <b style="display:block;margin-top:12px">Player two&rsquo;s keys</b>
+          <small>Click one and press the key you want. Player one keeps W A S D and the mouse.</small>
+          <div id="split-keys"></div>
+          <button class="btn" id="split-keys-reset">Put the keys back to normal</button>
         </div>
       </div>
     </div>
@@ -4102,7 +4199,11 @@ const Game = {
     g.clearRect(0, 0, W, H);
     g.fillStyle = '#14121C';
     g.fillRect(0, 0, W, H);
-    const px = this.player.pos.x, pz = this.player.pos.z;
+    /* Where the map is looking. Normally straight down at you, but you can
+       drag it about to see somewhere else, and it stays there until you ask
+       to be centred again. */
+    const pan = (blocksPerPixel > 3 && this.mapPan) ? this.mapPan : { x: 0, z: 0 };
+    const px = this.player.pos.x + pan.x, pz = this.player.pos.z + pan.z;
     const cell = CX / blocksPerPixel;                 // a chunk, in pixels
 
     for (const [key, info] of (this.explored || [])) {
@@ -4144,6 +4245,7 @@ const Game = {
     for (const p of this.net.peers.values()) {
       // somebody on another world is not on this map
       if ((p.realm || 'ground') !== (this.realm || 'ground')) continue;
+      if (typeof Split !== 'undefined' && Split.on && p.id === Split.netId()) continue;
       const sx = W / 2 + (p.model.position.x - px) / blocksPerPixel;
       const sy = H / 2 + (p.model.position.z - pz) / blocksPerPixel;
       if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
@@ -4166,9 +4268,11 @@ const Game = {
       g.moveTo(sx + 4, sy - 4); g.lineTo(sx - 4, sy + 4); g.stroke();
     }
 
-    // you, pointing where you look
+    // you, pointing where you look, wherever that is on a map you have moved
+    const meX = W / 2 - pan.x / blocksPerPixel;
+    const meY = H / 2 - pan.z / blocksPerPixel;
     g.save();
-    g.translate(W / 2, H / 2);
+    g.translate(meX, meY);
     g.rotate(-this.player.yaw);
     g.fillStyle = '#FFFFFF';
     g.strokeStyle = '#14121C';
@@ -6753,9 +6857,16 @@ const UI = {
       if (Split.start(p1, p2)) this.closeAll();
     });
     on('#split-stop', 'click', () => { Split.stop(); this.closeAll(); });
+    on('#split-keys-reset', 'click', () => {
+      Split.resetBinds(); this.renderSplitKeys(); Game.toast('Player two\u2019s keys are back to normal.');
+    });
     /* player two's own sign-in, on their own half of the screen */
     $$('#p2-join [data-p2sex]').forEach((btn) =>
       btn.addEventListener('click', () => Split.setJoinSex(btn.getAttribute('data-p2sex'))));
+    on('#summon-yes', 'click', () => Game.answerSummon(true));
+    on('#summon-no', 'click', () => Game.answerSummon(false));
+    on('#p2-pause', 'click', () => UI.toggle('pause'));
+    on('#p2-map-wrap', 'click', () => UI.openMap());
     on('#p2-spawn', 'click', () => Split.confirmJoin());
     on('#p2-cancel', 'click', () => Split.cancelJoin());
     on('#p2-name', 'keydown', (e) => { if (e.key === 'Enter') Split.confirmJoin(); });
@@ -6785,8 +6896,7 @@ const UI = {
     on('#open-load', 'click', () => { this.renderHomeSlots(); this.toggle('loadgame'); });
     on('#minimap-wrap', 'click', () => this.openMap());
     on('#map-mark', 'click', () => { Game.addWaypoint(null); this.redrawMap(); });
-    on('#map-in', 'click', () => { this.mapZoom = Math.max(0.12, (this.mapZoom || 6) / 1.6); this.redrawMap(); });
-    on('#map-out', 'click', () => { this.mapZoom = Math.min(40, (this.mapZoom || 6) * 1.6); this.redrawMap(); });
+    // zooming is bound once, with the map's own gestures, so the two do not fight
     on('#mp-host-btn', 'click', () => this.hostGame());
     on('#mp-join-btn', 'click', () => this.joinByCode());
     on('#mp-refresh', 'click', () => this.probeServers(true));
@@ -7015,6 +7125,8 @@ const UI = {
       chatBox.parentElement.classList.remove('show');
       chatBox.blur();
       if (!msg) return;
+      // anything starting with a slash is an instruction, not something to say
+      if (msg.charAt(0) === '/') { Game.runCommand(msg.slice(1)); return; }
       const who = Game.skin.name || 'Wanderer';
       Game.pushChat(who, msg);
       if (Game.net.connected) Game.net.send({ t: 'chat', msg });
@@ -7218,12 +7330,45 @@ const UI = {
       this.renderWaypoints();
       this.redrawMap();
     };
-    c.addEventListener('click', (e) => markAt(e.clientX, e.clientY));
+    /* Dragging the map moves it; a plain click still drops a mark. The two
+       are told apart by whether the pointer actually travelled. */
+    let drag = null;
+    const startDrag = (x, y) => { drag = { x, y, moved: 0 }; };
+    const moveDrag = (x, y) => {
+      if (!drag) return;
+      const r = c.getBoundingClientRect();
+      const scale = c.width / r.width;
+      const dx = (x - drag.x) * scale, dy = (y - drag.y) * scale;
+      drag.x = x; drag.y = y;
+      drag.moved += Math.abs(dx) + Math.abs(dy);
+      if (!Game.mapPan) Game.mapPan = { x: 0, z: 0 };
+      const bpp = this.mapZoom || 6;
+      Game.mapPan.x -= dx * bpp;
+      Game.mapPan.z -= dy * bpp;
+      this.redrawMap();
+    };
+    const endDrag = () => { const d = drag; drag = null; return d; };
+
+    c.addEventListener('mousedown', (e) => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
+    addEventListener('mousemove', (e) => { if (drag) moveDrag(e.clientX, e.clientY); });
+    addEventListener('mouseup', (e) => {
+      const d = endDrag();
+      if (d && d.moved < 5 && e.target === c) markAt(e.clientX, e.clientY);
+    });
     let tapStart = 0, moved = false;
-    c.addEventListener('touchstart', (e) => { if (e.touches.length === 1) { tapStart = Date.now(); moved = false; } }, { passive: true });
-    c.addEventListener('touchmove', () => { moved = true; }, { passive: true });
+    c.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        tapStart = Date.now(); moved = false;
+        startDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+    c.addEventListener('touchmove', (e) => {
+      moved = true;
+      if (e.touches.length === 1 && drag) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
     c.addEventListener('touchend', (e) => {
-      if (!moved && Date.now() - tapStart < 400 && e.changedTouches.length === 1) {
+      const d = endDrag();
+      if (d && d.moved < 8 && Date.now() - tapStart < 400 && e.changedTouches.length === 1) {
         markAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       }
     }, { passive: true });
@@ -7247,16 +7392,30 @@ const UI = {
     c.addEventListener('touchend', () => { pinch = 0; }, { passive: true });
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.mapZoom = Math.max(0.6, Math.min(60, (this.mapZoom || 6) * (e.deltaY > 0 ? 1.15 : 0.87)));
-      this.redrawMap();
+      this.zoomMap(e.deltaY > 0 ? 1.15 : 0.87);
     }, { passive: false });
+
+    on('#map-in', 'click', () => this.zoomMap(0.7));
+    on('#map-out', 'click', () => this.zoomMap(1.4));
+    on('#map-centre', 'click', () => {
+      Game.mapPan = { x: 0, z: 0 };
+      this.redrawMap();
+      Game.toast('Back to you.');
+    });
+  },
+
+  zoomMap(by) {
+    this.mapZoom = Math.max(0.6, Math.min(90, (this.mapZoom || 6) * by));
+    this.redrawMap();
   },
 
   redrawMap() {
     Game.drawMap($('#bigmap'), this.mapZoom || 6, false);
     const n = Game.explored ? Game.explored.size : 0;
+    const pan = Game.mapPan && (Game.mapPan.x || Game.mapPan.z);
     $('#map-note').textContent = n
-      ? n + ' areas explored \u00b7 ' + Math.round((this.mapZoom || 6) * 720) + ' blocks across'
+      ? n + ' areas explored \u00b7 ' + Math.round((this.mapZoom || 6) * 720) + ' blocks across' +
+        (pan ? ' \u00b7 drag to look around, or press Centre' : ' \u00b7 drag to look around')
       : 'Nothing explored yet. Walk around and the map fills in.';
   },
 
@@ -7527,6 +7686,51 @@ const UI = {
 
   },
 
+  /** Player two's keys, each one changeable by pressing it. */
+  renderSplitKeys() {
+    const box = $('#split-keys');
+    if (!box) return;
+    const rows = [
+      ['forward', 'Walk forward'], ['back', 'Walk back'], ['left', 'Step left'], ['right', 'Step right'],
+      ['lookUp', 'Look up'], ['lookDown', 'Look down'], ['lookLeft', 'Look left'], ['lookRight', 'Look right'],
+      ['jump', 'Jump'], ['crouch', 'Crouch'], ['mine', 'Dig'], ['place', 'Build'],
+      ['interact', 'Use'], ['fly', 'Fly'], ['prev', 'Thing before'], ['next', 'Thing after']
+    ];
+    const binds = Split.loadBinds().p2;
+    box.innerHTML = '';
+    for (const [key, label] of rows) {
+      const row = document.createElement('button');
+      row.className = 'bind-row';
+      row.innerHTML = '<span>' + label + '</span>';
+      const k = document.createElement('kbd');
+      k.textContent = Split.keyLabel(binds[key]);
+      row.appendChild(k);
+      row.addEventListener('click', () => {
+        k.textContent = 'press a key…';
+        row.classList.add('lit');
+        const grab = (e) => {
+          e.preventDefault();
+          removeEventListener('keydown', grab, true);
+          row.classList.remove('lit');
+          if (e.code === 'Escape') { k.textContent = Split.keyLabel(binds[key]); return; }
+          // two things cannot share one key, and player one's keys are out of bounds
+          const p1 = Split.loadBinds().p1;
+          if (Object.keys(p1).some((kk) => p1[kk] === e.code)) {
+            Game.toast('Player one uses that key. Pick another.');
+            k.textContent = Split.keyLabel(binds[key]);
+            return;
+          }
+          for (const other of Object.keys(binds)) if (other !== key && binds[other] === e.code) binds[other] = '';
+          binds[key] = e.code;
+          Split.saveBinds();
+          this.renderSplitKeys();
+        };
+        addEventListener('keydown', grab, true);
+      });
+      box.appendChild(row);
+    }
+  },
+
   renderSplitPanel() {
     const box = $('#split-pads');
     if (!box) return;
@@ -7586,6 +7790,7 @@ const UI = {
       const p1 = $('#split-p1');
       if (p1 && p1.value === '-1') p1.value = String(pads[0].index);
     }
+    this.renderSplitKeys();
     const start = $('#split-start'), stop = $('#split-stop');
     if (start) start.style.display = Split.on ? 'none' : '';
     if (stop) stop.style.display = Split.on ? '' : 'none';
@@ -8034,13 +8239,28 @@ Object.assign(Game, {
 
     if (this.running && this.realm === 'landing') {
       this.updateLanding(dt);
+      this.net.tick(dt);                 // the room keeps up with you on the way down
     } else if (this.running && this.realm === 'space' && !UI.anyOpen()) {
       this.readLook(dt);
       this.updateSpace(dt);
+      /* The room, while you are in orbit.
+
+         The network is ticked inside the ordinary update, which does not run
+         out here — so nobody's position was sent or received the whole time
+         anyone was in space. That is why a crew launched together and then
+         sat frozen in each other's skies: they were not being told anything.
+         Space needs the same heartbeat the ground gets. */
+      this.net.tick(dt);
+      if (Split.on) Split.sendP2(dt);
+    } else if (this.running && this.realm === 'space') {
+      this.net.tick(dt);                 // even with a menu open, stay in touch
     } else if (this.running && !UI.anyOpen()) {
-      if (Split.on) Input.forcePad = Split.p1Pad;
-      this.update(dt);
-      if (Split.on && this.realm !== 'space') Split.updateP2(dt);
+      if (Split.on) {
+        Split.updateP1(dt);
+        if (this.realm !== 'space') Split.updateP2(dt);
+      } else {
+        this.update(dt);
+      }
     } else if (this.running) {
       Input.buttons.mine = Input.buttons.place = false;
     }
@@ -8129,6 +8349,110 @@ const Split = {
   p2: null,
   bodies: null,
 
+  /* ---------------- two people, one keyboard ----------------
+     Player one keeps the usual keys and the mouse. Player two gets a set of
+     their own on the right of the keyboard, and the two never overlap: while
+     split screen is on, player one stops reading the arrow keys so they can
+     belong to player two. Either player can use a controller instead, and
+     both sets can be changed in Settings. */
+  DEFAULT_BINDS: {
+    p1: { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
+          jump: 'Space', crouch: 'ShiftLeft', interact: 'KeyE', fly: 'KeyF',
+          lookUp: '', lookDown: '', lookLeft: '', lookRight: '',
+          mine: '', place: '', next: '', prev: '' },
+    p2: { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
+          jump: 'ShiftRight', crouch: 'ControlRight', interact: 'KeyP', fly: 'KeyY',
+          lookUp: 'KeyI', lookDown: 'KeyK', lookLeft: 'KeyJ', lookRight: 'KeyL',
+          mine: 'KeyU', place: 'KeyO', next: 'BracketRight', prev: 'BracketLeft' }
+  },
+  binds: null,
+
+  loadBinds() {
+    if (this.binds) return this.binds;
+    this.binds = { p1: Object.assign({}, this.DEFAULT_BINDS.p1),
+                   p2: Object.assign({}, this.DEFAULT_BINDS.p2) };
+    try {
+      const saved = JSON.parse(localStorage.getItem('voxelia.splitKeys') || 'null');
+      if (saved && saved.p1 && saved.p2) {
+        Object.assign(this.binds.p1, saved.p1);
+        Object.assign(this.binds.p2, saved.p2);
+      }
+    } catch (e) {}
+    return this.binds;
+  },
+
+  saveBinds() {
+    try { localStorage.setItem('voxelia.splitKeys', JSON.stringify(this.binds)); } catch (e) {}
+  },
+
+  resetBinds() {
+    this.binds = { p1: Object.assign({}, this.DEFAULT_BINDS.p1),
+                   p2: Object.assign({}, this.DEFAULT_BINDS.p2) };
+    this.saveBinds();
+  },
+
+  /** A plain name for a key, for the settings screen. */
+  keyLabel(code) {
+    if (!code) return 'mouse';
+    return String(code)
+      .replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ')
+      .replace('ArrowUp', '\u2191').replace('ArrowDown', '\u2193')
+      .replace('ArrowLeft', '\u2190').replace('ArrowRight', '\u2192')
+      .replace('ShiftRight', 'R Shift').replace('ShiftLeft', 'L Shift')
+      .replace('ControlRight', 'R Ctrl').replace('ControlLeft', 'L Ctrl')
+      .replace('BracketRight', ']').replace('BracketLeft', '[')
+      .replace('Space', 'Space');
+  },
+
+  /* Which keys each player is allowed to see this frame. The game reads the
+     usual names, so player two's keys are handed over under those names and
+     player two's code needs to know nothing about any of this. */
+  viewFor(which, realKeys, realPressed) {
+    const b = this.loadBinds()[which === 2 ? 'p2' : 'p1'];
+    const keys = Object.create(null);
+    const pressed = Object.create(null);
+    const take = (code) => !!(code && realKeys[code]);
+    const took = (code) => {
+      if (!code) return false;
+      const v = !!realPressed[code];
+      if (v) realPressed[code] = false;
+      return v;
+    };
+    keys.KeyW = take(b.forward); keys.KeyS = take(b.back);
+    keys.KeyA = take(b.left);    keys.KeyD = take(b.right);
+    keys.Space = take(b.jump);
+    keys.ShiftLeft = take(b.crouch);
+    keys.KeyE = take(b.interact);
+    keys.KeyF = take(b.fly);
+    // the arrow keys belong to whoever was given them, and to nobody else
+    keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+    pressed.Space = took(b.jump);
+    pressed.KeyE = took(b.interact);
+    pressed.KeyF = took(b.fly);
+    // player one still has every other key for the hotbar, the bag and so on
+    if (which === 1) {
+      for (const k of Object.keys(realKeys)) if (keys[k] === undefined) keys[k] = realKeys[k];
+      for (const k of Object.keys(realPressed)) {
+        if (pressed[k] !== undefined) continue;
+        if (k === b.forward || k === b.back || k === b.left || k === b.right) continue;
+        pressed[k] = realPressed[k];
+        if (realPressed[k]) realPressed[k] = false;
+      }
+    }
+    return { keys, pressed, binds: b, real: realKeys };
+  },
+
+  /** Player two looks around with keys instead of a mouse. */
+  lookFromKeys(b, realKeys, dt) {
+    const rate = 320 * dt * 60 / 60;          // about the speed of a slow mouse sweep
+    let dx = 0, dy = 0;
+    if (realKeys[b.lookLeft]) dx -= rate;
+    if (realKeys[b.lookRight]) dx += rate;
+    if (realKeys[b.lookUp]) dy -= rate;
+    if (realKeys[b.lookDown]) dy += rate;
+    return { dx: Math.max(-400, Math.min(400, dx)), dy: Math.max(-400, Math.min(400, dy)) };
+  },
+
   /* the fields that belong to a player, not to the world */
   FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
            'mount', 'onRope', 'ropeAt', 'prevJump', 'prevInteract', 'prevPadFly', 'prevPadMenu',
@@ -8148,7 +8472,6 @@ const Split = {
   start(p1Pad, p2Pad) {
     if (!this.available()) { Game.toast('Split screen is for a computer.'); return false; }
     if (!Game.running) { Game.toast('Enter a world first, then start split screen.'); return false; }
-    if (Game.net && Game.net.connected) { Game.toast('Leave the room first: split screen is local play.'); return false; }
     this.p1Pad = (p1Pad === undefined) ? -1 : p1Pad;
     this.p2Pad = (p2Pad === undefined) ? 0 : p2Pad;
     if (this.p1Pad === this.p2Pad && this.p2Pad !== -1) {
@@ -8233,6 +8556,7 @@ const Split = {
 
   cancelJoin() {
     this.closeJoin();
+    this.leaveRoom();
     this.on = false;
     document.body.classList.remove('split-on');
     if (Game.renderer) Game.renderer.setScissorTest(false);
@@ -8299,6 +8623,8 @@ const Split = {
     Game.ensureSelfBody();
     this.p2Name = character.name;
     this.on = true;
+    // in a room, player two joins it properly, so everybody sees them
+    this.joinRoom(character, p2skin);
     document.body.classList.add('split-on');
     Game.resize();
     Game.toast(character.name + ' joined on the right.');
@@ -8306,10 +8632,75 @@ const Split = {
     return true;
   },
 
+  /* ---------------- player two in a room ----------------
+     Split screen used to refuse to start online. Player two now opens a
+     connection of their own and joins the same room as a player in their own
+     right, so everyone in the room sees two people at this computer rather
+     than one, and sees both of them move. */
+  joinRoom(character, skin) {
+    this.leaveRoom();
+    const N = Game.net;
+    if (!N || !N.connected || !N.url || !N.roomCode) return;
+    let ws;
+    try { ws = new WebSocket(N.url); } catch (e) { return; }
+    this.link = { ws, id: null, outTimer: 0, last: null, still: 0, sentSkin: null };
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ t: 'join', room: N.roomCode, name: character.name, skin }));
+    };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.t === 'welcome') {
+        this.link.id = m.you;
+        // their character, so the room draws the model they picked
+        try { ws.send(JSON.stringify({ t: 'avatar', avatar: character })); } catch (e) {}
+        try { ws.send(JSON.stringify({ t: 'look', skin })); } catch (e) {}
+        Game.toast(character.name + ' joined the room.');
+      } else if (m.t === 'error') {
+        Game.toast('Player 2 could not join the room: ' + (m.why || 'no room'));
+      }
+      // everything else is already being handled on player one's connection
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => { if (this.link && this.link.ws === ws) this.link.id = null; };
+  },
+
+  leaveRoom() {
+    if (!this.link) return;
+    try { this.link.ws.close(); } catch (e) {}
+    this.link = null;
+  },
+
+  /** Player two's own position, on their own connection. */
+  sendP2(dt) {
+    const L = this.link;
+    if (!L || !L.id || !L.ws || L.ws.readyState !== 1 || !this.p2) return;
+    L.outTimer = (L.outTimer || 0) + 0.05;
+    if (L.outTimer < 0.05) return;
+    L.outTimer = 0;
+    const pl = this.p2.player;
+    const anim = (pl.onGround ? 1 : 0) | (pl.flying ? 2 : 0) |
+                 (pl.inWater ? 8 : 0) | ((this.p2.riding || this.p2.passengerIn) ? 16 : 0);
+    const x = Math.round(pl.pos.x * 100) / 100, y = Math.round(pl.pos.y * 100) / 100,
+          z = Math.round(pl.pos.z * 100) / 100, yaw = Math.round(pl.yaw * 1000) / 1000;
+    const seat = this.p2.riding ? this.p2.riding.id : (this.p2.passengerIn ? this.p2.passengerIn.id : null);
+    const last = L.last;
+    if (last && last[0] === x && last[1] === y && last[2] === z && last[3] === yaw && last[4] === anim) {
+      L.still = (L.still || 0) + 0.05;
+      if (L.still < 1) return;
+    }
+    L.still = 0;
+    L.last = [x, y, z, yaw, anim, seat];
+    try { L.ws.send(JSON.stringify({ t: 'm', a: [x, y, z, yaw, anim, seat] })); } catch (e) {}
+  },
+
+  /** Player two's own id in the room, so their body is not drawn twice. */
+  netId() { return this.link ? this.link.id : null; },
+
   stop() {
-    if (!this.on) { this.closeJoin(); return; }
+    if (!this.on) { this.closeJoin(); this.leaveRoom(); return; }
     this.on = false;
     this.closeJoin();
+    this.leaveRoom();
     if (this.p2 && this.p2.selfBody) {
       Game.entityGroup.remove(this.p2.selfBody.model);
       if (this.p2.selfBody.avatar) { try { this.p2.selfBody.avatar.dispose(); } catch (e) {} }
@@ -8336,40 +8727,66 @@ const Split = {
     }
   },
 
-  /* player two's turn: their state, their controller, no keyboard, no world ticks */
+  /* Player one's turn. They keep the mouse and their own keys; the arrow keys
+     are handed to player two, so the two never fight over the same button. */
+  updateP1(dt) {
+    const savedKeys = Input.keys, savedPressed = Input.pressed;
+    const view = this.viewFor(1, savedKeys, savedPressed);
+    Input.keys = view.keys; Input.pressed = view.pressed;
+    Input.forcePad = this.p1Pad;
+    try { Game.update(dt); }
+    finally { Input.keys = savedKeys; Input.pressed = savedPressed; }
+  },
+
+  /* Player two's turn: their state, their keys, their controller, and none of
+     the world's own work, which is done once for the pair of them. */
   updateP2(dt) {
+    if (!this.p2) return;
     const savedKeys = Input.keys, savedButtons = Input.buttons;
     const savedMove = Input.moveStick, savedLook = Input.lookStick;
     const savedDX = Input.mouseDX, savedDY = Input.mouseDY;
     const savedPressed = Input.pressed;
-    const savedNet = Game.net;
+    const savedMouseMine = Input.mouseMine, savedMousePlace = Input.mousePlace;
     const savedToast = Game.toast;
     const stubs = {};
+    const view = this.viewFor(2, savedKeys, savedPressed);
+    const look = this.lookFromKeys(view.binds, savedKeys, dt);
     this.swap();
     try {
-      Input.keys = Object.create(null);
-      Input.pressed = Object.create(null);
-      Input.buttons = { jump: false, place: false, mine: false, interact: false, crouch: false };
+      Input.keys = view.keys;
+      Input.pressed = view.pressed;
+      Input.buttons = {
+        jump: !!view.keys.Space,
+        place: !!savedKeys[view.binds.place],
+        mine: !!savedKeys[view.binds.mine],
+        interact: !!view.keys.KeyE,
+        crouch: !!view.keys.ShiftLeft
+      };
+      Input.mouseMine = !!savedKeys[view.binds.mine];
+      Input.mousePlace = !!savedKeys[view.binds.place];
       Input.moveStick = { x: 0, y: 0, active: false }; Input.lookStick = { x: 0, y: 0, active: false };
-      Input.mouseDX = 0; Input.mouseDY = 0;
+      Input.mouseDX = look.dx; Input.mouseDY = look.dy;
       Input.forcePad = this.p2Pad;
-      Game.net = Object.assign(Object.create(savedNet), { tick() {}, send() {} });
-      Game.toast = (msg) => savedToast.call(Game, 'Player 2: ' + msg);
+      Game.toast = (msg) => savedToast.call(Game, (this.p2Name || 'Player 2') + ': ' + msg);
       for (const f of this.WORLD_ONLY) { if (typeof Game[f] === 'function') { stubs[f] = Game[f]; Game[f] = () => {}; } }
       Game.update(dt);
+      // choosing a different thing to hold, with their own two keys
+      if (savedPressed[view.binds.next]) { savedPressed[view.binds.next] = false; Game.slot = (Game.slot + 1) % 9; }
+      if (savedPressed[view.binds.prev]) { savedPressed[view.binds.prev] = false; Game.slot = (Game.slot + 8) % 9; }
     } catch (e) {
       console.warn('split screen: player two update failed', e);
     } finally {
       for (const f of Object.keys(stubs)) Game[f] = stubs[f];
       Game.toast = savedToast;
-      Game.net = savedNet;
       Input.keys = savedKeys; Input.buttons = savedButtons;
       Input.moveStick = savedMove; Input.lookStick = savedLook;
       Input.mouseDX = savedDX; Input.mouseDY = savedDY;
+      Input.mouseMine = savedMouseMine; Input.mousePlace = savedMousePlace;
       Input.pressed = savedPressed;
       this.swap();
       Input.forcePad = this.p1Pad;
     }
+    this.sendP2();
   },
 
   /* Each half of the screen, drawn from its own camera. Both players are in
@@ -8414,12 +8831,59 @@ const Split = {
 
   drawP2Hud() {
     const el = document.getElementById('p2-hud');
-    if (!el || !this.p2) return;
+    if (!this.p2) return;
     const id = this.p2.hotbar[this.p2.slot];
     const name = id == null ? 'Empty hand' : (typeof thingName === 'function' ? thingName(id) : 'Item');
     const pl = this.p2.player;
-    el.textContent = (this.p2Name || 'Player 2') + '  \u00b7  ' + name + '  \u00b7  ' +
-      Math.round(pl.pos.x) + ' ' + Math.round(pl.pos.y) + ' ' + Math.round(pl.pos.z);
+    if (el) {
+      el.textContent = (this.p2Name || 'Player 2') + '  \u00b7  ' + name + '  \u00b7  ' +
+        Math.round(pl.pos.x) + ' ' + Math.round(pl.pos.y) + ' ' + Math.round(pl.pos.z);
+    }
+
+    /* Player two's own readouts. Drawn from their state, not player one's,
+       so the two halves really are two separate games of the same world. */
+    this.hudTick = (this.hudTick || 0) + 1;
+    if (this.hudTick % 12) return;            // a few times a second is plenty
+
+    const br = document.getElementById('p2-breath');
+    const st = document.getElementById('p2-stamina');
+    if (br) br.style.width = Math.round(Math.max(0, Math.min(1, pl.breath)) * 100) + '%';
+    if (st) st.style.width = Math.round(Math.max(0, Math.min(1, pl.stamina)) * 100) + '%';
+
+    // their own map, centred on them
+    const map = document.getElementById('p2-map');
+    if (map) {
+      const heldPlayer = Game.player, heldSlot = Game.slot, heldRiding = Game.riding;
+      Game.player = pl; Game.slot = this.p2.slot; Game.riding = this.p2.riding;
+      try { Game.drawMap(map, Game.mapZoom || 2.4, true); }
+      catch (e) {}
+      finally { Game.player = heldPlayer; Game.slot = heldSlot; Game.riding = heldRiding; }
+    }
+
+    // their own row of things to hold
+    const bar = document.getElementById('p2-bar');
+    if (bar) {
+      const stamp = this.p2.hotbar.join(',') + '|' + this.p2.slot + '|' +
+                    this.p2.hotbar.map((i) => i == null ? 0 : (this.p2.inventory[i] || 0)).join(',');
+      if (bar.dataset.stamp !== stamp) {
+        bar.dataset.stamp = stamp;
+        bar.innerHTML = '';
+        this.p2.hotbar.forEach((hid, i) => {
+          const slot = document.createElement('div');
+          slot.className = 'slot' + (i === this.p2.slot ? ' active' : '') + (hid === null ? ' empty' : '');
+          if (hid !== null) {
+            try {
+              if (isItem(hid)) slot.appendChild(itemSwatch(itemDef(hid), 30));
+              else slot.appendChild(tileSwatch(BLOCKS[hid].top, 30, BLOCKS[hid].tint));
+              const n = document.createElement('em');
+              n.textContent = this.p2.inventory[hid] || 0;
+              slot.appendChild(n);
+            } catch (e) {}
+          }
+          bar.appendChild(slot);
+        });
+      }
+    }
   }
 };
 
@@ -8715,6 +9179,280 @@ Object.assign(Game, {
    17. Multiplayer client — talks to the Node host in server.js
    --------------------------------------------------------------- */
 Game.chatLog = [];
+/* ===================================================================
+   Commands.
+
+   Written the way you would say them, with a slash in front so the game knows
+   you are asking for something rather than talking. "/teleport to Ada" and
+   "/teleport Ada to me" both read as English and both do what they say.
+   =================================================================== */
+Game.COMMANDS = [
+  { name: 'help', use: '/help', what: 'Show this list.' },
+  { name: 'teleport', use: '/teleport to <player>', what: 'Go to where somebody is standing.' },
+  { name: 'teleport', use: '/teleport <player> to me', what: 'Bring somebody to you (they are asked first).' },
+  { name: 'teleport', use: '/teleport home', what: 'Go back to where you started this world.' },
+  { name: 'teleport', use: '/teleport <x> <y> <z>', what: 'Go to a spot you can name.' },
+  { name: 'who', use: '/who', what: 'Who is in the room with you.' },
+  { name: 'where', use: '/where', what: 'Where you are, and what this place is called.' },
+  { name: 'mark', use: '/mark <name>', what: 'Put a mark on the map where you stand.' },
+  { name: 'find', use: '/find <name>', what: 'Point you at a mark you dropped.' },
+  { name: 'time', use: '/time day  |  /time night', what: 'Set the time of day (the host only, in a room).' },
+  { name: 'weather', use: '/weather clear|rain|snow|cloudy', what: 'Set the weather (the host only, in a room).' },
+  { name: 'gravity', use: '/gravity', what: 'How strongly this world pulls you down.' },
+  { name: 'seed', use: '/seed', what: 'The seed this world was made from.' },
+  { name: 'kit', use: '/kit', what: 'What you are carrying, in one line.' },
+  { name: 'split', use: '/split', what: 'Start or stop two-player split screen (computer only).' },
+  { name: 'view', use: '/view', what: 'Switch between first and third person.' },
+  { name: 'say', use: '/say <message>', what: 'Say something, even if it starts with a slash.' }
+];
+
+Object.assign(Game, {
+  /** Tell the player something, in the chat rather than as a passing toast. */
+  reply(msg) {
+    this.pushChat('Voxelia', msg);
+  },
+
+  /** Find a player by name, however it was typed. */
+  findPlayer(name) {
+    const want = String(name || '').trim().toLowerCase();
+    if (!want) return null;
+    if (want === 'me' || want === 'myself') return { self: true };
+    for (const p of this.net.peers.values()) {
+      if ((p.name || '').toLowerCase() === want) return p;
+    }
+    // a partial name is fine, as long as it is not ambiguous
+    const near = [];
+    for (const p of this.net.peers.values()) {
+      if ((p.name || '').toLowerCase().indexOf(want) === 0) near.push(p);
+    }
+    return near.length === 1 ? near[0] : null;
+  },
+
+  /** Put you somewhere, safely above the ground rather than inside it. */
+  placeAt(x, y, z) {
+    const w = this.world;
+    let ty = y;
+    if (!isFinite(ty)) ty = w.surfaceY(Math.floor(x), Math.floor(z)) + 1.2;
+    // never inside a block, and never under the floor
+    for (let tries = 0; tries < 40; tries++) {
+      const b = BLOCKS[w.getBlock(Math.floor(x), Math.floor(ty), Math.floor(z))];
+      const head = BLOCKS[w.getBlock(Math.floor(x), Math.floor(ty) + 1, Math.floor(z))];
+      if ((!b || !b.solid) && (!head || !head.solid)) break;
+      ty += 1;
+    }
+    this.player.pos.set(x, ty, z);
+    this.player.vel.set(0, 0, 0);
+    this.streamChunks(20);
+  },
+
+  /** "Ada wants you to come over." Yes or no, never taken for granted. */
+  askSummon(fromId, who, x, y, z) {
+    const card = document.getElementById('summon-card');
+    if (!card) {
+      // no card on this page: ask in the chat instead
+      this.reply(who + ' asked you to come over. Type /teleport to ' + who + ' to go.');
+      return;
+    }
+    this.pendingSummon = { fromId, who, x, y, z, at: performance.now() };
+    const t = document.getElementById('summon-text');
+    if (t) t.textContent = who + ' would like you to come over.';
+    card.classList.add('show');
+    clearTimeout(this._summonTimer);
+    this._summonTimer = setTimeout(() => this.answerSummon(false), 20000);
+  },
+
+  answerSummon(yes) {
+    const card = document.getElementById('summon-card');
+    if (card) card.classList.remove('show');
+    clearTimeout(this._summonTimer);
+    const ask = this.pendingSummon;
+    this.pendingSummon = null;
+    if (!ask) return;
+    if (yes) { this.placeAt(ask.x, ask.y, ask.z); this.reply('Off to ' + ask.who + '.'); }
+    if (this.net.connected) this.net.send({ t: 'summonReply', to: ask.fromId, ok: !!yes });
+  },
+
+  runCommand(raw) {
+    const line = String(raw || '').trim();
+    if (!line) return;
+    const lower = line.toLowerCase();
+    const word = lower.split(/\s+/)[0];
+    const rest = line.slice(word.length).trim();
+
+    /* ---- help ---- */
+    if (word === 'help' || word === 'commands' || word === '?') {
+      this.reply('Things you can type:');
+      const seen = new Set();
+      for (const c of this.COMMANDS) {
+        const key = c.use;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        this.reply('  ' + c.use + '  \u2014  ' + c.what);
+      }
+      return;
+    }
+
+    /* ---- say ---- */
+    if (word === 'say') {
+      if (!rest) return;
+      this.pushChat(this.skin.name || 'Wanderer', rest);
+      if (this.net.connected) this.net.send({ t: 'chat', msg: rest });
+      return;
+    }
+
+    /* ---- teleport, in plain English ---- */
+    if (word === 'teleport' || word === 'tp' || word === 'go' || word === 'warp') {
+      return this.teleportCommand(rest);
+    }
+
+    /* ---- who is here ---- */
+    if (word === 'who' || word === 'players' || word === 'list') {
+      if (!this.net.connected) { this.reply('You are playing on your own.'); return; }
+      const names = [this.skin.name || 'you'];
+      for (const p of this.net.peers.values()) {
+        if (typeof Split !== 'undefined' && Split.on && p.id === Split.netId()) continue;
+        names.push(p.name || 'someone');
+      }
+      if (typeof Split !== 'undefined' && Split.p2) names.push(Split.p2Name + ' (here with you)');
+      this.reply(names.length + ' in the room: ' + names.join(', '));
+      return;
+    }
+
+    /* ---- where am I ---- */
+    if (word === 'where' || word === 'pos' || word === 'coords') {
+      const p = this.player.pos;
+      const place = this.world.regionName(Math.floor(p.x), Math.floor(p.z));
+      this.reply(place + ' \u2014 ' + Math.round(p.x) + ', ' + Math.round(p.y) + ', ' + Math.round(p.z));
+      return;
+    }
+
+    /* ---- marks ---- */
+    if (word === 'mark') {
+      const p = this.player.pos;
+      const name = rest || this.world.regionName(Math.floor(p.x), Math.floor(p.z));
+      if (!this.waypoints) this.waypoints = [];
+      this.waypoints.push({ name, x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) });
+      this.reply('Marked "' + name + '" here.');
+      return;
+    }
+    if (word === 'find') {
+      const want = rest.toLowerCase();
+      const hit = (this.waypoints || []).find((w) => (w.name || '').toLowerCase().indexOf(want) >= 0);
+      if (!hit) { this.reply('No mark called "' + rest + '". Type /mark <name> to make one.'); return; }
+      const p = this.player.pos;
+      const d = Math.round(Math.hypot(hit.x - p.x, hit.z - p.z));
+      this.activeWaypoint = hit;
+      this.reply('"' + hit.name + '" is ' + d + ' blocks away, at ' + hit.x + ', ' + hit.z + '.');
+      return;
+    }
+
+    /* ---- time and weather: the host's to set in a room ---- */
+    if (word === 'time') {
+      if (this.net.connected && !this.net.isHost) { this.reply('Only the host can change the time in a room.'); return; }
+      const t = lower.indexOf('night') >= 0 ? 0.75 : lower.indexOf('dawn') >= 0 ? 0.22
+              : lower.indexOf('dusk') >= 0 ? 0.62 : 0.3;
+      this.dayTime = t; this.dayTarget = t;
+      if (this.net.connected) this.net.send({ t: 'settime', time: t });
+      this.reply('Time set.');
+      return;
+    }
+    if (word === 'weather') {
+      if (this.net.connected && !this.net.isHost) { this.reply('Only the host can change the weather in a room.'); return; }
+      const kinds = ['clear', 'rain', 'snow', 'cloudy'];
+      const kind = kinds.find((k) => lower.indexOf(k) >= 0) || 'clear';
+      this.setWeather(kind);
+      if (this.net.connected) this.net.send({ t: 'setweather', weather: kind });
+      this.reply('Weather: ' + kind + '.');
+      return;
+    }
+
+    /* ---- odds and ends ---- */
+    if (word === 'gravity') {
+      const g = this.gravityScale || 1;
+      this.reply(g === 1 ? 'Normal gravity, the same as home.'
+                         : 'Gravity here is ' + Math.round(g * 100) + '% of home \u2014 you jump ' +
+                           (1 / g).toFixed(1) + ' times as high.');
+      return;
+    }
+    if (word === 'seed') { this.reply('This world grew from "' + (this.world ? this.world.seedText : '?') + '".'); return; }
+    if (word === 'kit') {
+      const bits = Object.entries(this.inventory).filter(([, n]) => n > 0)
+        .slice(0, 12).map(([id, n]) => thingName(+id) + ' \u00d7' + n);
+      this.reply(bits.length ? 'You are carrying: ' + bits.join(', ') : 'Your pockets are empty.');
+      return;
+    }
+    if (word === 'split') {
+      if (typeof Split === 'undefined') return;
+      if (Split.on) { Split.stop(); }
+      else if (!Split.available()) this.reply('Split screen is for a computer.');
+      else Split.start(-1, 0);
+      return;
+    }
+    if (word === 'view' || word === 'camera') { this.toggleSelfView(); return; }
+
+    this.reply('I do not know "/' + word + '". Type /help to see what there is.');
+  },
+
+  teleportCommand(rest) {
+    const lower = rest.toLowerCase();
+
+    /* "/teleport home" */
+    if (lower === 'home' || lower === 'to home' || lower === 'spawn' || lower === 'to spawn') {
+      const y = this.world.surfaceY(0, 0) + 1.2;
+      this.placeAt(0.5, y, 0.5);
+      this.reply('Back at the beginning.');
+      return;
+    }
+
+    /* "/teleport 120 70 -40" */
+    const nums = rest.match(/-?\d+(\.\d+)?/g);
+    if (nums && nums.length >= 2 && !/[a-z]/i.test(rest.replace(/-?\d+(\.\d+)?/g, '').replace(/\s|to|,/gi, ''))) {
+      const x = parseFloat(nums[0]);
+      const y = nums.length >= 3 ? parseFloat(nums[1]) : NaN;
+      const z = parseFloat(nums.length >= 3 ? nums[2] : nums[1]);
+      this.placeAt(x, y, z);
+      this.reply('Here you are: ' + Math.round(x) + ', ' + Math.round(this.player.pos.y) + ', ' + Math.round(z) + '.');
+      return;
+    }
+
+    /* "/teleport <name> to me" — bring somebody here */
+    let m = rest.match(/^(.+?)\s+to\s+(me|myself|here|us)$/i);
+    if (m) {
+      const who = this.findPlayer(m[1]);
+      if (!who || who.self) { this.reply('I cannot find anybody called "' + m[1].trim() + '". Try /who.'); return; }
+      if (!this.net.connected) { this.reply('Bringing somebody to you needs a room.'); return; }
+      const p = this.player.pos;
+      this.net.send({ t: 'summon', to: who.id, from: this.net.selfId,
+                      name: this.skin.name || 'A player',
+                      x: p.x, y: p.y, z: p.z, realm: this.realm });
+      this.reply('Asked ' + who.name + ' to come to you.');
+      return;
+    }
+
+    /* "/teleport to <name>" or just "/teleport <name>" — go to them */
+    m = rest.match(/^(?:to\s+)?(.+)$/i);
+    if (m) {
+      const nameWanted = m[1].trim();
+      const who = this.findPlayer(nameWanted);
+      if (!who) {
+        this.reply('I cannot find anybody called "' + nameWanted + '". Try /who to see who is here.');
+        return;
+      }
+      if (who.self) { this.reply('You are already exactly where you are.'); return; }
+      if ((who.realm || 'ground') !== (this.realm || 'ground')) {
+        this.reply(who.name + ' is on another world. Fly out to them first.');
+        return;
+      }
+      const t = who.target;
+      this.placeAt(t.x, t.y, t.z);
+      this.reply('Standing beside ' + who.name + '.');
+      return;
+    }
+
+    this.reply('Try /teleport to <player>, or /teleport <player> to me.');
+  }
+});
+
 Game.pushChat = function (who, msg) {
   this.chatLog.push({ who, msg, at: performance.now() });
   if (this.chatLog.length > 6) this.chatLog.shift();
@@ -9005,6 +9743,22 @@ Game.net = {
         }
         break;
       }
+      case 'summon': {
+        /* Somebody has asked you to come to them. You are asked, never moved
+           without being asked — this is a game children play together. */
+        const from = m.from, who = m.name || 'Somebody';
+        if ((m.realm || 'ground') !== (Game.realm || 'ground')) {
+          Game.reply(who + ' asked you to come, but they are on another world.');
+          this.send({ t: 'summonReply', to: from, ok: false });
+          break;
+        }
+        Game.askSummon(from, who, m.x, m.y, m.z);
+        break;
+      }
+      case 'summonReply': {
+        Game.reply(m.ok ? (m.name + ' is on their way.') : (m.name + ' stayed where they were.'));
+        break;
+      }
       case 'look': {
         // somebody changed what they are wearing
         if (m.id === this.selfId) return;
@@ -9142,6 +9896,12 @@ Game.net = {
       const bob = moving ? Math.abs(Math.sin(p.step)) * 0.06 : 0;
       p.model.position.set(p.body.x, p.body.y + (p.avatar ? 0 : bob), p.body.z);
       // somebody inside a craft is inside it: their body is not drawn at all
+      // player two is sat at this computer: their body is already drawn from
+      // their own state, so the room's copy of them is not drawn as well
+      if (typeof Split !== 'undefined' && Split.on && p.id === Split.netId()) {
+        p.model.visible = false;
+        continue;
+      }
       const onThisWorld = (p.realm || 'ground') === (Game.realm || 'ground');
       /* Somebody inside a craft is inside it, so their body is not drawn —
          but only if that craft is actually here. Hiding them for a seat in a
