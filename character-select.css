@@ -129,9 +129,7 @@ body{display:block;
 
 /* only this list scrolls, and it does so without a visible bar */
 .preset-section{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px}
-.preset-grid{overflow-y:auto;overscroll-behavior:contain;align-content:start;
-  scrollbar-width:none;-ms-overflow-style:none;padding-right:2px}
-.preset-grid::-webkit-scrollbar{width:0;height:0}
+.preset-grid{overflow-y:auto;overscroll-behavior:contain;align-content:start;padding-right:6px}
 .preset-card strong{font-size:clamp(9px,1.3vh,12px)}
 .section-head h3{font-size:clamp(14px,2.2vh,20px)}
 .section-head{gap:10px}
@@ -140,8 +138,16 @@ body{display:block;
 .customizer{min-height:0}
 .customizer summary{padding:clamp(7px,1.2vh,13px) 12px}
 .customizer-inner{max-height:min(34vh,300px);overflow-y:auto;overscroll-behavior:contain;
-  scrollbar-width:none}
-.customizer-inner::-webkit-scrollbar{width:0}
+  padding-right:6px}
+
+/* A scrollbar you can see and take hold of, in this page's own colours. */
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.04);border-radius:8px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(89,241,200,.5),rgba(67,200,255,.42));
+  border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,var(--mint),var(--cyan));
+  background-clip:padding-box}
 .color-grid{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:7px}
 .color-control{padding:6px;grid-template-columns:28px 1fr}
 .color-control input[type=color]{width:28px;height:28px}

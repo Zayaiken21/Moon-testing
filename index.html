@@ -734,7 +734,8 @@ body.creative-mode #meters{display:none !important}
 @media (max-width:420px){
 }
 @media (max-height:420px){
-  #meters,#pouch{display:none}
+  /* the satchel line can go; the two bars are how you stay alive and stay */
+  #pouch{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
@@ -896,16 +897,131 @@ body.split-on #ability-badge{display:none}
    ================================================================= */
 .screen{overflow:hidden}
 .screen.open{display:grid;place-items:start center}
-.sheet{width:min(640px,100%);max-height:100%;overflow-y:auto;
-  overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none}
-.sheet::-webkit-scrollbar{width:0;height:0}
-/* nothing anywhere in the game shows a scrollbar */
-.screen ::-webkit-scrollbar{width:0;height:0}
-.screen *{scrollbar-width:none}
+.sheet{width:min(640px,100%);max-height:100%;overflow-y:auto;overscroll-behavior:contain}
 #home{place-items:start center}
-.home-wrap{max-height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;
-  scrollbar-width:none}
-.home-wrap::-webkit-scrollbar{width:0;height:0}
+.home-wrap{max-height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+
+/* The settings, laid out as a list of plain rows with clear headings rather
+   than one long run of controls. */
+.set-head{margin:22px 0 8px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--moon);font-family:var(--display);
+  border-bottom:1px solid var(--line);padding-bottom:6px}
+.set-head:first-of-type{margin-top:6px}
+.setting{display:grid;grid-template-columns:1fr auto;align-items:center;
+  gap:6px 16px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.setting b{grid-column:1;font-family:var(--display);font-size:14px;font-weight:600}
+.setting small{grid-column:1;grid-row:2;color:var(--muted);font-size:11.5px;line-height:1.45;
+  max-width:46ch}
+.setting > input,.setting > output,.setting > button,.setting > select{
+  grid-column:2;grid-row:1 / span 2;justify-self:end}
+.setting > input[type=range]{width:min(190px,34vw)}
+.setting > output{min-width:56px;text-align:right;color:var(--moon);
+  font-family:var(--display);font-size:12.5px}
+.setting > input[type=range] + output{grid-row:2;align-self:center}
+/* the wider controls take the whole row */
+.setting#split-panel{grid-template-columns:1fr}
+#split-panel > *{grid-column:1 !important;grid-row:auto !important;justify-self:stretch !important}
+@media (max-width:620px){
+  .setting{grid-template-columns:1fr}
+  .setting > input,.setting > output,.setting > button,.setting > select{
+    grid-column:1;grid-row:auto;justify-self:stretch}
+  .setting > input[type=range]{width:100%}
+  .setting > output{text-align:left}
+}
+
+/* =================================================================
+   The strip along the top.
+
+   Pause in the middle of the screen, with the microphone and chat either
+   side of it — the same arrangement on a phone, a tablet and a computer,
+   because it was only ever laid out that way for a sideways phone. The
+   microphone and chat are for talking to other people, so they appear only
+   once you are actually in a room with somebody.
+   ================================================================= */
+#hud #top-bar{position:fixed !important;left:50% !important;right:auto !important;
+  transform:translateX(-50%) !important;
+  top:calc(10px + env(safe-area-inset-top)) !important;
+  display:flex !important;flex-direction:row !important;align-items:center !important;
+  justify-content:center !important;gap:calc(9px * var(--ui)) !important;
+  width:auto !important;z-index:60;pointer-events:none;
+  background:rgba(20,18,28,.7);border:1px solid var(--line);border-radius:999px;
+  padding:calc(5px * var(--ui)) calc(8px * var(--ui));
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#hud #top-bar::before{content:none !important}
+#hud #top-bar > button{pointer-events:auto;min-height:calc(32px * var(--ui));
+  padding:0 calc(13px * var(--ui));border-radius:999px;cursor:pointer;
+  background:rgba(38,34,54,.9);border:1px solid var(--line);color:var(--text);
+  font-family:var(--display);font-size:calc(12px * var(--ui));white-space:nowrap}
+#hud #top-bar > button:hover{border-color:var(--moon)}
+#hud #top-bar #bar-pause{min-width:calc(46px * var(--ui));font-size:calc(13px * var(--ui))}
+#hud #top-bar #mic-desktop.on{background:var(--moon);border-color:var(--moon);color:#0E1116}
+/* playing on your own: there is nobody to talk to, so only Pause is there */
+#hud #top-bar #mic-desktop,#hud #top-bar #chat-desktop{display:none !important}
+#hud #top-bar.multi #mic-desktop,#hud #top-bar.multi #chat-desktop{display:inline-flex !important}
+/* in space the strip goes with the rest of the readouts */
+#hud.in-space #top-bar{display:none !important}
+/* two players: each half gets the strip above its own middle */
+body.split-on #hud #top-bar{left:25% !important}
+
+/* =================================================================
+   Air and legs.
+
+   The two bars that tell you whether you can keep running and whether you
+   can keep breathing. They belong in the bottom-left corner on every device,
+   just above the row of things you are carrying — they had drifted to the
+   top of the screen on anything wide, and vanished altogether on a short
+   window, which are the two places they matter most.
+
+   They are only for survival: creative has neither to worry about.
+   ================================================================= */
+#meters{position:absolute !important;left:calc(14px + env(safe-area-inset-left)) !important;
+  right:auto !important;top:auto !important;
+  bottom:calc(96px + env(safe-area-inset-bottom)) !important;
+  width:min(170px,34vw) !important;z-index:6;display:block;
+  background:rgba(20,18,28,.55);border:1px solid var(--line);border-radius:12px;
+  padding:8px 10px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#meters .meter-row{margin-bottom:5px}
+#meters .meter-row:last-child{margin-bottom:0}
+/* on a phone the thumb controls sit along the bottom, so they lift clear */
+@media (pointer:coarse){
+  #meters{bottom:calc(150px + env(safe-area-inset-bottom)) !important;
+    width:min(140px,40vw) !important;padding:6px 8px}
+}
+@media (pointer:coarse) and (orientation:landscape){
+  #meters{bottom:calc(84px + env(safe-area-inset-bottom)) !important;
+    width:min(124px,22vw) !important}
+}
+/* a short window: smaller, but still there */
+@media (max-height:520px){
+  #meters{bottom:calc(60px + env(safe-area-inset-bottom)) !important;
+    padding:5px 8px;width:min(130px,26vw) !important}
+  #meters .meter-row{font-size:9px;margin-bottom:3px}
+  #meters .meter{height:4px}
+}
+/* creative has no air to run out of and no legs to tire */
+body.creative-mode #meters,#hud.creative #meters,#hud.in-space #meters{display:none !important}
+/* in split screen each half keeps its own pair, inside its own half */
+body.split-on #meters{width:min(150px,17vw) !important;
+  bottom:calc(76px + env(safe-area-inset-bottom)) !important}
+
+/* A scrollbar you can see and grab.
+
+   A long list — crafting, the settings, your saved worlds — needs to show
+   that there is more below it, and needs something to take hold of. These are
+   slim and in the game's own colours rather than the browser's grey slab. */
+.screen *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.screen ::-webkit-scrollbar,.screen::-webkit-scrollbar{width:10px;height:10px}
+.screen ::-webkit-scrollbar-track,.screen::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.04);border-radius:8px}
+.screen ::-webkit-scrollbar-thumb,.screen::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#4A4462,#332E47);border-radius:8px;
+  border:2px solid transparent;background-clip:padding-box}
+.screen ::-webkit-scrollbar-thumb:hover,.screen::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,var(--moon),#4FBFA4);background-clip:padding-box}
+/* the world itself never shows one: it is not a page */
+#hud ::-webkit-scrollbar,#p2-panel ::-webkit-scrollbar{width:0;height:0}
+#hud *,#p2-panel *{scrollbar-width:none}
 /* the map fills whatever room there is rather than being a fixed square */
 .map-body{min-height:0;flex:1 1 auto;display:grid;place-items:center;overflow:hidden}
 .map-body canvas{max-width:100%;max-height:100%;width:auto;height:auto}
@@ -1039,8 +1155,12 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 #char-frame-wrap{padding-top:env(safe-area-inset-top);
   padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
   padding-bottom:env(safe-area-inset-bottom)}
-#char-frame{position:absolute;inset:env(safe-area-inset-top) env(safe-area-inset-right)
-  env(safe-area-inset-bottom) env(safe-area-inset-left);width:auto;height:auto}
+/* The frame must be told a size. An iframe is a replaced element, and an
+   absolutely placed one with an automatic width falls back to its built-in
+   300 by 150 rather than stretching to its edges — which is why the whole
+   character screen collapsed into a small box in the corner. The wrapper
+   holds the gap for the notch; the frame simply fills what is left. */
+#char-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
 #char-frame-close{top:calc(8px + env(safe-area-inset-top));
   right:calc(10px + env(safe-area-inset-right));z-index:3;
   box-shadow:0 4px 16px rgba(0,0,0,.55)}
@@ -1223,42 +1343,47 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <h2>Settings</h2>
     <p class="lede">Controller sticks and touch sticks share these values. A gamepad is picked up
       automatically the moment you move a stick.</p>
-    <div class="setting"><b>View distance</b><small>Lower it if the frame rate dips on a phone.</small>
+    <h3 class="set-head">Picture</h3>
+    <div class="setting"><b>View distance</b><small>How far you can see. Lower it if the game feels slow.</small>
       <input type="range" id="set-render" min="2" max="10" step="1" /><output id="set-render-out"></output></div>
     <div class="setting"><b>Field of view</b><small>Wider feels faster, narrower feels calmer.</small>
       <input type="range" id="set-fov" min="60" max="100" step="1" /><output id="set-fov-out"></output></div>
-    <div class="setting"><b>Look sensitivity</b><small>Applies to mouse, right stick and touch look.</small>
+    <div class="setting"><b>Picture sharpness</b><small>Higher is crisper on a big screen; lower gives more speed on a slower computer.</small>
+      <input type="range" id="set-sharp" min="0.6" max="1.4" step="0.05" /><output id="set-sharp-out"></output></div>
+    <div class="setting"><b>Adjust quality automatically</b><small>Shows a little less of the distance if the game starts to feel slow.</small>
+      <input type="checkbox" id="set-auto" /></div>
+    <div class="setting"><b>Show frame rate</b><small>Shows how smoothly the game is running, in the corner.</small>
+      <input type="checkbox" id="set-fps" /></div>
+
+    <h3 class="set-head">Looking and moving</h3>
+    <div class="setting"><b>Look sensitivity</b><small>Applies to the mouse, the right stick and touch alike.</small>
       <input type="range" id="set-sens" min="0.3" max="2.5" step="0.05" /><output id="set-sens-out"></output></div>
-    <div class="setting"><b>Touch stick size</b><small>How far your thumb travels for full speed.</small>
-      <input type="range" id="set-touch" min="0.6" max="1.8" step="0.05" /><output id="set-touch-out"></output></div>
-    <div class="setting"><b>Swap mouse buttons</b><small>On: left mines and right places.</small>
-      <input type="checkbox" id="set-swapmouse" /></div>
     <div class="setting"><b>Invert look</b><small>Off by default: push down to look down, on every device.</small>
       <input type="checkbox" id="set-invert" /></div>
-    <div class="setting"><b>Sound</b><small>Short tones on jump, mine and place.</small>
+    <div class="setting"><b>Swap mouse buttons</b><small>On: left mines and right places.</small>
+      <input type="checkbox" id="set-swapmouse" /></div>
+    <div class="setting"><b>Touch stick size</b><small>How far your thumb travels for full speed.</small>
+      <input type="range" id="set-touch" min="0.6" max="1.8" step="0.05" /><output id="set-touch-out"></output></div>
+
+    <h3 class="set-head">Sound</h3>
+    <div class="setting"><b>Sound effects</b><small>Footsteps, mining, placing, animals.</small>
       <input type="checkbox" id="set-sound" /></div>
-    <div class="setting"><b>Effects volume</b><small>Footsteps, mining, placing.</small>
+    <div class="setting"><b>Effects volume</b><small>How loud those sounds are.</small>
       <input type="range" id="set-volume" min="0" max="1" step="0.05" /><output id="set-volume-out"></output></div>
-    <div class="setting"><b>Music volume</b><small>A slow chord that changes with the land you are in.</small>
+    <div class="setting"><b>Music volume</b><small>Five pieces that change with where you are: home, grassland, harder country, another world, and the launch.</small>
       <input type="range" id="set-music" min="0" max="1" step="0.05" /><output id="set-music-out"></output></div>
+    <div class="setting"><b>Music files</b><small id="music-report">Not started yet.</small>
+      <button class="btn" id="music-recheck">Look again</button></div>
     <div class="setting"><b>Voices</b><small>How loud other players sound.</small>
       <input type="range" id="set-voice" min="0" max="1" step="0.05" /><output id="set-voice-out"></output></div>
     <div class="setting"><b>Microphone</b><small>Talk out loud to your friends in the same room. Your device will ask if it is allowed to listen the first time.</small>
       <button class="btn" id="voice-toggle">Turn the microphone on</button></div>
-    <div class="setting"><b>Picture sharpness</b><small>Higher is crisper on a big screen; lower gives more speed on a slower computer.</small>
-      <input type="range" id="set-sharp" min="0.6" max="1.4" step="0.05" /><output id="set-sharp-out"></output></div>
-    <div class="setting"><b>Show frame rate</b><small>Shows how smoothly the game is running, in the corner.</small>
-      <input type="checkbox" id="set-fps" /></div>
+
+    <h3 class="set-head">The world</h3>
     <div class="setting"><b>Dig out caves</b><small>Turn this off if you would rather have solid ground everywhere.</small>
       <input type="checkbox" id="set-caves" /></div>
-    <div class="setting"><b>Sound</b><small>Blocks, footsteps, animals.</small>
-      <input type="range" id="set-sound2" min="0" max="100" step="1" /></div>
-    <div class="setting"><b>Music</b><small>Changes with where you are: home, grassland, harder country, other worlds, and the launch.</small>
-      <input type="range" id="set-music2" min="0" max="100" step="1" /></div>
     <div class="setting"><b>Save automatically</b><small>Keeps your own worlds saved as you play, so nothing is lost.</small>
       <input type="checkbox" id="set-autosave" /></div>
-    <div class="setting"><b>Adjust quality automatically</b><small>Makes the world show a little less far away if the game starts to feel slow.</small>
-      <input type="checkbox" id="set-auto" /></div>
     <h3 style="margin:26px 0 6px;font-size:16px">Two players on this computer</h3>
     <div class="setting" id="split-panel"><b>Split screen</b>
         <small>Two players on this computer. Player two can use a controller, or the
@@ -1550,9 +1675,9 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small></div>
 
       <div class="setting"><b>Sound</b><small>Blocks, footsteps, animals, everything the world does.</small>
-        <input type="range" id="set-sound" min="0" max="100" step="1" value="60" /></div>
+        <input type="range" id="set-sound-quick" min="0" max="100" step="1" value="60" /></div>
       <div class="setting"><b>Music</b><small>The piece playing for wherever you are.</small>
-        <input type="range" id="set-music" min="0" max="100" step="1" value="50" /></div>
+        <input type="range" id="set-music-quick" min="0" max="100" step="1" value="50" /></div>
 
       <div class="setting"><b>Save automatically</b><small>Keeps a rolling save of this world.</small>
         <input type="checkbox" id="set-autosave2" /></div>
@@ -7026,6 +7151,20 @@ const UI = {
     /* player two's own sign-in, on their own half of the screen */
     $$('#p2-join [data-p2sex]').forEach((btn) =>
       btn.addEventListener('click', () => Split.setJoinSex(btn.getAttribute('data-p2sex'))));
+    /* The music, said plainly: how many pieces were found, which is sounding,
+       and whether the browser is still waiting for a tap. */
+    const sayMusic = () => {
+      const el = $('#music-report');
+      if (el) { try { el.textContent = Music.report(); } catch (e) {} }
+    };
+    on('#music-recheck', 'click', () => {
+      Music.primed = null; Music.tracks = {}; Music.status = {};
+      try { Music.prime().then(() => { Music.unlock(); Music.follow(); sayMusic(); }); } catch (e) {}
+      Game.toast('Looking for the music files again\u2026');
+      sayMusic();
+    });
+    setInterval(() => { if ($('#settings').classList.contains('open')) sayMusic(); }, 1200);
+
     on('#summon-yes', 'click', () => Game.answerSummon(true));
     on('#summon-no', 'click', () => Game.answerSummon(false));
     on('#p2-pause', 'click', () => UI.toggle('pause'));
@@ -7219,8 +7358,7 @@ const UI = {
     on('#pause-settings', 'click', () => { this.closeAll(); this.toggle('settings'); });
     on('#pause-howto', 'click', () => { this.closeAll(); this.toggle('guide'); });
     /* two levels, kept in step wherever they are shown */
-    const levels = [['#set-sound', 'soundVolume', 0.6], ['#set-music', 'musicVolume', 0.5],
-                    ['#set-sound2', 'soundVolume', 0.6], ['#set-music2', 'musicVolume', 0.5]];
+    const levels = [['#set-sound-quick', 'soundVolume', 0.6], ['#set-music-quick', 'musicVolume', 0.5]];
     levels.forEach(([sel, key, fallback]) => {
       const el = $(sel);
       if (!el) return;
@@ -14114,69 +14252,69 @@ const MUSIC = {
 
 /* which biomes feel like which piece */
 const SOFT_BIOMES = ['vale', 'jungle', 'tidal', 'reef', 'lumen'];
-
 const Music = {
-  tracks: {},
+  tracks: {},          /* key -> { el, src } once the file has been found */
   current: null,
-  ready: false,
+  want: null,
   unlocked: false,
+  status: {},          /* key -> what happened, for the settings screen */
 
-  /* The files may be sitting in audio/ or loose in the repo root, and may be
-     .ogg, .m4a or the original .wav. Rather than insist on one arrangement,
-     each track tries every sensible path in turn and keeps the first that
-     loads. Whatever you uploaded, it finds it. */
+  /* Finding the files.
+
+     They may be sitting in audio/ or loose beside the page, and may be .ogg,
+     .m4a or the original .wav. Rather than insisting on one arrangement, each
+     address is asked about directly before anything is played: a file that is
+     not there answers at once and the next is tried, so whichever way the
+     music was uploaded, it is found. Guessing from the audio element itself
+     was unreliable — a missing file and a slow one look the same. */
   paths(file) {
+    const can = (type) => { try { return !!new Audio().canPlayType(type); } catch (e) { return false; } };
     const out = [];
-    const canOgg = (() => {
-      try { return !!new Audio().canPlayType('audio/ogg; codecs=opus'); } catch (e) { return false; }
-    })();
-    const canAac = (() => {
-      try { return !!new Audio().canPlayType('audio/mp4; codecs=mp4a.40.2'); } catch (e) { return false; }
-    })();
-    if (canOgg) out.push('audio/' + file + '.ogg', file + '.ogg');
-    if (canAac) out.push('audio/' + file + '.m4a', file + '.m4a');
-    out.push('audio/' + file + '.wav', file + '.wav');      // the originals, as uploaded
+    if (can('audio/ogg; codecs=opus') || can('audio/ogg')) out.push('audio/' + file + '.ogg', file + '.ogg');
+    if (can('audio/mp4; codecs=mp4a.40.2')) out.push('audio/' + file + '.m4a', file + '.m4a');
+    out.push('audio/' + file + '.wav', file + '.wav');          // the originals
+    out.push('audio/' + file + '.mp3', file + '.mp3');
     return out;
   },
 
-  prime() {
-    if (this.ready) return;
-    this.ready = true;
-    for (const key of Object.keys(MUSIC)) this._load(key);
+  /** Ask the server whether a file is really there. */
+  exists(url) {
+    return fetch(url, { method: 'HEAD', cache: 'force-cache' })
+      .then((r) => r.ok && !/text\/html/i.test(r.headers.get('content-type') || ''))
+      .catch(() => false);
   },
 
-  _load(key) {
+  /** Work out where each piece lives, once, and remember it. */
+  prime() {
+    if (this.primed) return this.primed;
+    this.primed = Promise.all(Object.keys(MUSIC).map((key) => this.find(key)));
+    return this.primed;
+  },
+
+  find(key) {
+    if (this.tracks[key]) return Promise.resolve(this.tracks[key]);
     const spec = MUSIC[key];
-    const candidates = this.paths(spec.file);
-    let at = 0;
-    const tryNext = () => {
-      if (at >= candidates.length) {
-        this.tracks[key] = null;
-        console.warn('music: could not find ' + spec.file + '. Tried: ' + candidates.join(', '));
-        if (!Music.warned) {
-          Music.warned = true;
-          try { Game.toast('No music files found. Put the five tracks in the repo root or in audio/.'); } catch (e) {}
-        }
-        return;
+    const tries = this.paths(spec.file);
+    const step = (i) => {
+      if (i >= tries.length) {
+        this.status[key] = 'not found';
+        console.warn('music: no file for ' + spec.file + '. Looked for: ' + tries.join(', '));
+        return null;
       }
-      const src = candidates[at++];
-      let a;
-      try { a = new Audio(src); } catch (e) { return tryNext(); }
-      a.loop = !!spec.loop;
-      a.addEventListener('ended', () => {
-        if (spec.loop && this.current === key) { try { a.currentTime = 0; a.play(); } catch (e) {} }
+      return this.exists(tries[i]).then((there) => {
+        if (!there) return step(i + 1);
+        const el = new Audio(tries[i]);
+        el.loop = !!spec.loop;
+        el.preload = 'none';          // fetched when it is first wanted, not before
+        el.volume = 0;
+        this.tracks[key] = { el, src: tries[i] };
+        this.status[key] = 'found';
+        console.info('music: ' + key + ' is ' + tries[i]);
+        if (this.current === key && this.unlocked) this.begin(key);
+        return this.tracks[key];
       });
-      a.preload = 'auto';
-      a.volume = 0;
-      a.addEventListener('error', tryNext);
-      a.addEventListener('canplaythrough', () => {
-        if (!Music.announced) { Music.announced = true; console.info('music: loaded ' + src); }
-        // this one works: if it is what should be playing, start it
-        if (this.current === key && this.unlocked) this._start(key);
-      }, { once: true });
-      this.tracks[key] = a;
     };
-    tryNext();
+    return Promise.resolve(step(0));
   },
 
   level() {
@@ -14184,99 +14322,98 @@ const Music = {
     return (m === undefined ? 0.5 : m);
   },
 
-  _start(key) {
-    const a = this.tracks[key];
-    if (!a) return;
-    this.want = key;
-    const target = (MUSIC[key].gain || 0.6) * this.level();
-    if (target <= 0.001) { try { a.pause(); } catch (e) {} return; }
-    try {
-      if (a.paused) { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); }
-    } catch (e) { return; }
-    const rise = () => {
-      if (this.current !== key) return;
-      a.volume = Math.min(target, a.volume + 0.035);
-      if (a.volume < target - 0.001) setTimeout(rise, 60);
-    };
-    rise();
-    if (!Music.sounded) {
-      Music.sounded = true;
-      setTimeout(() => {
-        if (a.paused) {
-          try { Game.toast('The browser is holding the music back \u2014 tap the screen once. On iPhone, check the silent switch.'); } catch (e) {}
-        } else console.info('music: playing ' + a.src);
-      }, 1200);
+  target(key) { return (MUSIC[key] && MUSIC[key].gain || 0.6) * this.level(); },
+
+  /** Start a piece sounding, rising gently from silence. */
+  begin(key) {
+    const t = this.tracks[key];
+    if (!t) { this.find(key); return; }
+    const want = this.target(key);
+    if (want <= 0.001) { try { t.el.pause(); } catch (e) {} return; }
+    t.el.preload = 'auto';
+    const go = t.el.play();
+    if (go && go.catch) {
+      go.catch((e) => {
+        this.status[key] = 'waiting for a tap';
+        this.blocked = true;
+      });
     }
+    this.fade(key, want);
   },
 
-  /* one piece fades out while the next fades in */
+  /** Move one piece's volume towards where it should be. */
+  fade(key, to) {
+    const t = this.tracks[key];
+    if (!t) return;
+    clearInterval(t.timer);
+    t.timer = setInterval(() => {
+      const now = t.el.volume;
+      const step = to > now ? 0.03 : -0.045;
+      const next = Math.max(0, Math.min(1, now + step));
+      t.el.volume = next;
+      if (Math.abs(next - to) < 0.02 || next === 0 || next === 1) {
+        t.el.volume = Math.max(0, Math.min(1, to));
+        clearInterval(t.timer);
+        if (to <= 0.001) { try { t.el.pause(); t.el.currentTime = 0; } catch (e) {} }
+      }
+    }, 55);
+  },
+
+  /** One piece fades out while the next fades in. */
   play(key) {
+    if (!MUSIC[key]) return;
     this.prime();
     if (this.current === key) return;
-    const prevKey = this.current;
+    const before = this.current;
     this.current = key;
-
-    const prev = prevKey ? this.tracks[prevKey] : null;
-    if (prev) {
-      const out = prev;
-      const fall = () => {
-        out.volume = Math.max(0, out.volume - 0.045);
-        if (out.volume > 0.001) setTimeout(fall, 60);
-        else { try { out.pause(); out.currentTime = 0; } catch (e) {} }
-      };
-      fall();
-    }
-    if (this.unlocked) this._start(key);
+    if (before && this.tracks[before]) this.fade(before, 0);
+    if (this.unlocked) this.begin(key);
   },
 
-  /* browsers stay silent until the player has touched the page */
+  /* Browsers stay silent until the person has touched the page, and the
+     refusal is silent too. The very first touch anywhere starts the music. */
   unlock() {
+    if (this.unlocked && !this.blocked) return;
     this.unlocked = true;
+    this.blocked = false;
     this.prime();
-    if (this.current) this._start(this.current);
+    if (this.current) this.begin(this.current);
   },
 
-  /* Browsers refuse to play until they trust the page, and a refusal is
-     silent. So every couple of seconds we check whether the piece that should
-     be sounding actually is, and try again if it is not. */
+  /* Every couple of seconds, check that what should be sounding really is.
+     A browser that refused earlier will usually allow it now. */
   watchdog() {
     if (!this.unlocked || !this.current) return;
-    const a = this.tracks[this.current];
-    if (!a) return;
-    const target = (MUSIC[this.current].gain || 0.6) * this.level();
-    if (target <= 0.001) return;
-    if (a.paused || a.currentTime === 0) {
-      try {
-        const p = a.play();
-        if (p && p.catch) p.catch(() => {});
-      } catch (e) {}
+    const t = this.tracks[this.current];
+    if (!t) { this.find(this.current); return; }
+    if (this.target(this.current) <= 0.001) return;
+    if (t.el.paused) {
+      const go = t.el.play();
+      if (go && go.catch) go.catch(() => {});
+    } else if (t.el.volume < this.target(this.current) - 0.05) {
+      this.fade(this.current, this.target(this.current));
     }
-    // a piece that is meant to loop but has run to the end gets restarted
-    if (MUSIC[this.current].loop && a.ended) {
-      try { a.currentTime = 0; a.play(); } catch (e) {}
-    }
-    if (a.volume < target - 0.02 && !a.paused) a.volume = Math.min(target, a.volume + 0.05);
+    this.status[this.current] = t.el.paused ? 'waiting for a tap' : 'playing';
   },
 
-  stop() {
-    for (const k of Object.keys(this.tracks)) {
-      const a = this.tracks[k];
-      if (a) { try { a.pause(); } catch (e) {} }
-    }
-    this.current = null;
-  },
-
+  /** Follow the volume slider while something is already sounding. */
   refresh() {
-    if (!this.current) return;
-    const a = this.tracks[this.current];
-    if (!a) return;
-    const target = (MUSIC[this.current].gain || 0.6) * this.level();
-    a.volume = target;
-    if (target > 0.001 && a.paused && this.unlocked) this._start(this.current);
-    if (target <= 0.001) { try { a.pause(); } catch (e) {} }
+    if (this.current && this.tracks[this.current]) this.fade(this.current, this.target(this.current));
   },
 
-  /* what should be playing, from where the player actually is */
+  /** One line for the settings screen, so it is plain what the music is doing. */
+  report() {
+    const keys = Object.keys(MUSIC);
+    const found = keys.filter((k) => this.tracks[k]).length;
+    if (!this.primed) return 'Not started yet.';
+    if (!found) return 'No music files found. Put the five tracks beside index.html, or in an audio folder.';
+    const now = this.current && this.tracks[this.current];
+    const playing = now && !this.tracks[this.current].el.paused;
+    return found + ' of ' + keys.length + ' tracks found' +
+      (now ? ' \u00b7 now: ' + this.tracks[this.current].src.split('/').pop() +
+             (playing ? ' (playing)' : ' (waiting for a tap on the screen)') : '');
+  },
+
   follow() {
     if (!Game.running) { this.play('home'); return; }
 

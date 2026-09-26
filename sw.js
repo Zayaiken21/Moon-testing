@@ -1,5 +1,5 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v10';
+const CACHE = 'voxelia-v11';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
@@ -7,11 +7,11 @@ const SHELL = [
   './voxelia-things.js', './models/things/manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   // whichever way the music was uploaded, one of these will exist
-  './audio/Home_Screen_music.ogg', './Home_Screen_music.wav',
-  './audio/Grass_land_music.ogg', './Grass_land_music.wav',
-  './audio/Land_music.ogg', './Land_music.wav',
-  './audio/Other_planet.ogg', './Other_planet.wav',
-  './audio/Space_blast_off_song.ogg', './Space_blast_off_song.wav',
+  './audio/Home_Screen_music.ogg', './audio/Home_Screen_music.mp3',
+  './audio/Grass_land_music.ogg', './audio/Grass_land_music.mp3',
+  './audio/Land_music.ogg', './audio/Land_music.mp3',
+  './audio/Other_planet.ogg', './audio/Other_planet.mp3',
+  './audio/Space_blast_off_song.ogg', './audio/Space_blast_off_song.mp3',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
 ];
 
