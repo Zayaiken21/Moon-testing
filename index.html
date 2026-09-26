@@ -884,6 +884,90 @@ body.split-on #hud #top-bar{left:25% !important}
 body.split-on #biome-card{left:calc(12px + env(safe-area-inset-left));max-width:20vw}
 body.split-on #ability-badge{display:none}
 
+/* =================================================================
+   Every screen fits the screen.
+
+   A panel used to be as tall as whatever was in it, and the window scrolled
+   to reach the rest, so on a short window the top or the bottom went over the
+   edge. Each screen is now exactly the size of the window: a heading that
+   stays put and one part below it that takes what is left. If there is more
+   than fits, that part alone slides, and its scrollbar is hidden so the game
+   never shows one.
+   ================================================================= */
+.screen{overflow:hidden}
+.screen.open{display:grid;place-items:start center}
+.sheet{width:min(640px,100%);max-height:100%;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none}
+.sheet::-webkit-scrollbar{width:0;height:0}
+/* nothing anywhere in the game shows a scrollbar */
+.screen ::-webkit-scrollbar{width:0;height:0}
+.screen *{scrollbar-width:none}
+#home{place-items:start center}
+.home-wrap{max-height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none}
+.home-wrap::-webkit-scrollbar{width:0;height:0}
+/* the map fills whatever room there is rather than being a fixed square */
+.map-body{min-height:0;flex:1 1 auto;display:grid;place-items:center;overflow:hidden}
+.map-body canvas{max-width:100%;max-height:100%;width:auto;height:auto}
+/* short windows: smaller type and tighter padding, so more fits before
+   anything has to slide at all */
+@media (max-height:760px){
+  .sheet{padding:16px 18px}
+  .sheet h2{font-size:19px}
+  .sheet p.lede{font-size:12.5px;margin-bottom:12px}
+  .setting{padding:8px 0}
+}
+@media (max-height:560px){
+  .sheet{padding:11px 13px;border-radius:14px}
+  .sheet h2{font-size:16px;margin-bottom:2px}
+  .sheet p.lede{font-size:11px;margin-bottom:8px}
+  .btn{min-height:36px}
+}
+
+/* =================================================================
+   Two players, two halves.
+
+   Each half is its own screen: its own readouts in its own corners, its own
+   pause button above it, and nothing of one player's reaching across the
+   line into the other's. Player one keeps the left, player two the right,
+   and the divider between them is where one ends and the other begins.
+   ================================================================= */
+body.split-on #hud > *{max-width:48vw}
+body.split-on #hotbar{left:25% !important;right:auto !important}
+body.split-on #minimap-wrap{right:auto !important;left:calc(25% + 11vw) !important;
+  transform:translateX(-50%)}
+body.split-on #hud #top-bar{left:25% !important;right:auto !important;
+  transform:translateX(-50%) !important}
+body.split-on #biome-card{left:calc(10px + env(safe-area-inset-left)) !important;
+  right:auto !important;max-width:20vw}
+body.split-on #meters{left:calc(10px + env(safe-area-inset-left)) !important;
+  right:auto !important;width:min(150px,17vw)}
+body.split-on #pouch{left:calc(10px + env(safe-area-inset-left)) !important;
+  right:auto !important;max-width:20vw}
+body.split-on #break-bar-wrap,body.split-on #prompt,body.split-on #crosshair{
+  left:25% !important;transform:translateX(-50%) !important}
+body.split-on #ability-badge,body.split-on #gear-badge,
+body.split-on #drive-hint,body.split-on #waypoint-guide{display:none !important}
+body.split-on #p2-hud{left:auto;right:14px}
+/* player two's half: the same furniture, mirrored into their own space */
+body.split-on #p2-panel{display:block;position:fixed;top:0;bottom:0;left:50%;right:0;
+  z-index:33;pointer-events:none}
+body.split-on #p2-crosshair{display:block;position:absolute;left:50%;top:50%;
+  width:16px;height:16px;margin:-8px 0 0 -8px;pointer-events:none;opacity:.8}
+body.split-on #p2-crosshair::before,body.split-on #p2-crosshair::after{
+  content:"";position:absolute;background:rgba(255,255,255,.85);border-radius:1px}
+body.split-on #p2-crosshair::before{left:7px;top:0;width:2px;height:16px}
+body.split-on #p2-crosshair::after{left:0;top:7px;width:16px;height:2px}
+/* the line down the middle, which is the edge of both screens */
+body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50%;
+  width:2px;transform:translateX(-50%);z-index:34;pointer-events:none;
+  background:linear-gradient(180deg,rgba(111,227,196,.85),rgba(169,123,255,.85))}
+
+/* What a controller is pointing at. A clear ring rather than a faint glow,
+   so a child across the room can see where they are. */
+.pad-pick{outline:3px solid var(--moon) !important;outline-offset:2px;
+  box-shadow:0 0 0 6px rgba(111,227,196,.22) !important;border-radius:10px}
+
 /* A thing's picture: the flat one, with its model over the top once it has
    arrived. Both sit in the same square so nothing jumps as it swaps. */
 .pic{position:relative;display:grid;place-items:center;line-height:0}
@@ -1081,6 +1165,7 @@ body.split-on #ability-badge{display:none}
   </div>
   <!-- player two's own readouts, on player two's own half of the screen -->
   <div id="p2-panel">
+    <i id="p2-crosshair"></i>
     <div id="p2-top"><button id="p2-pause" title="Pause">&#9208; Pause</button></div>
     <button id="p2-map-wrap"><canvas id="p2-map" width="132" height="132"></canvas></button>
     <div id="p2-meters">
@@ -1174,6 +1259,28 @@ body.split-on #ability-badge{display:none}
       <input type="checkbox" id="set-autosave" /></div>
     <div class="setting"><b>Adjust quality automatically</b><small>Makes the world show a little less far away if the game starts to feel slow.</small>
       <input type="checkbox" id="set-auto" /></div>
+    <h3 style="margin:26px 0 6px;font-size:16px">Two players on this computer</h3>
+    <div class="setting" id="split-panel"><b>Split screen</b>
+        <small>Two players on this computer. Player two can use a controller, or the
+          keys on the right of the keyboard. It works in a room too — everybody
+          else will see both of you.</small>
+        <div id="split-pads"></div>
+        <div class="split-assign">
+          <label>Player 1 <select id="split-p1"></select></label>
+          <label>Player 2 <select id="split-p2"></select></label>
+        </div>
+        <div class="seg">
+          <button class="btn" id="split-start">Start split screen</button>
+          <button class="btn" id="split-stop">Stop split screen</button>
+        </div>
+        <div id="split-keys-wrap">
+          <b style="display:block;margin-top:12px">Player two&rsquo;s keys</b>
+          <small>Click one and press the key you want. Player one keeps W A S D and the mouse.</small>
+          <div id="split-keys"></div>
+          <button class="btn" id="split-keys-reset">Put the keys back to normal</button>
+        </div>
+      </div>
+
     <h3 style="margin:26px 0 6px;font-size:16px">Vehicles</h3>
     <div class="setting"><b>Vehicle speed</b><small>Scales boats, carts, gliders and the submarine.</small>
       <input type="range" id="set-vspeed" min="0.5" max="2" step="0.05" /><output id="set-vspeed-out"></output></div>
@@ -1457,26 +1564,8 @@ body.split-on #ability-badge{display:none}
         <button class="btn" id="pause-howto">How to play</button>
       </div>
       <button class="btn" id="pause-companions">Companions and wallet</button>
-      <div class="setting" id="split-panel"><b>Split screen</b>
-        <small>Two players on this computer. Player two can use a controller, or the
-          keys on the right of the keyboard. It works in a room too — everybody
-          else will see both of you.</small>
-        <div id="split-pads"></div>
-        <div class="split-assign">
-          <label>Player 1 <select id="split-p1"></select></label>
-          <label>Player 2 <select id="split-p2"></select></label>
-        </div>
-        <div class="seg">
-          <button class="btn" id="split-start">Start split screen</button>
-          <button class="btn" id="split-stop">Stop split screen</button>
-        </div>
-        <div id="split-keys-wrap">
-          <b style="display:block;margin-top:12px">Player two&rsquo;s keys</b>
-          <small>Click one and press the key you want. Player one keeps W A S D and the mouse.</small>
-          <div id="split-keys"></div>
-          <button class="btn" id="split-keys-reset">Put the keys back to normal</button>
-        </div>
-      </div>
+      <p class="lede" style="margin:10px 0 0;font-size:12.5px">
+        Two players on this computer? Split screen is in <b>Settings</b>.</p>
     </div>
 
     <div class="field" style="margin-top:12px">
@@ -3722,7 +3811,10 @@ const Input = {
       moveX: ax(a[0]), moveY: ax(a[1]), lookX: ax(a[2]), lookY: ax(a[3]),
       jump: held('jump'), interact: held('interact'), mine: held('mine'),
       place: held('place'), crouch: held('crouch'),
-      slotPrev: held('slotPrev'), slotNext: held('slotNext'), menu: held('menu')
+      slotPrev: held('slotPrev'), slotNext: held('slotNext'), menu: held('menu'),
+      bag: held('bag'), map: held('map'), craft: held('craft'),
+      sprint: held('sprint'), view: held('view'),
+      accept: held('accept'), back: held('back')
     };
   }
 };
@@ -3734,11 +3826,17 @@ const Pad = {
   deadzone: 0.18,
   swapSticks: false,
   lastId: '',
-  map: { jump: 0, crouch: 1, interact: 2, fly: 3, mine: 6, place: 7, slotPrev: 14, slotNext: 15, menu: 9 },
+  /* Every button on the pad does something, so a controller can play the
+     whole game without ever reaching for a keyboard. */
+  map: { jump: 0, crouch: 1, interact: 2, fly: 3, mine: 6, place: 7,
+         slotPrev: 14, slotNext: 15, menu: 9, bag: 8, map: 12, craft: 13,
+         sprint: 10, view: 11, back: 1, accept: 0 },
   labels: {
     jump: 'Jump', mine: 'Mine', place: 'Place block', interact: 'Feed / tame',
     fly: 'Toggle flight', crouch: 'Descend / sprint', slotPrev: 'Previous slot',
-    slotNext: 'Next slot', menu: 'Pause'
+    slotNext: 'Next slot', menu: 'Pause', bag: 'Open your bag',
+    map: 'Open the map', craft: 'Open crafting', sprint: 'Sprint',
+    view: 'First or third person'
   },
   defaults: null,
   awaiting: null
@@ -5032,6 +5130,16 @@ Object.assign(Game, {
       this.prevPadFly = flyHeld;
       if (pad.menu && !this.prevPadMenu) UI.pause();
       this.prevPadMenu = pad.menu;
+      /* The rest of the game, from the pad: your bag, the map, crafting and
+         the view. A controller can now reach everything the keyboard can. */
+      if (pad.bag && !this.prevPadBag) UI.toggle('bag');
+      this.prevPadBag = pad.bag;
+      if (pad.map && !this.prevPadMap) UI.openMap();
+      this.prevPadMap = pad.map;
+      if (pad.craft && !this.prevPadCraft) { UI.bagTab = 'craft'; UI.renderBag(); UI.toggle('bag'); }
+      this.prevPadCraft = pad.craft;
+      if (pad.view && !this.prevPadView) this.toggleSelfView();
+      this.prevPadView = pad.view;
     }
     for (let k = 1; k <= 9; k++) if (Input.consume('Digit' + k)) { this.slot = k - 1; this.refreshHotbar(); this.updateHeld(); }
     if (Input.consume('KeyE')) this.interact();
@@ -7851,6 +7959,115 @@ const UI = {
     if (stop) stop.style.display = Split.on ? '' : 'none';
   },
 
+  /* ---------------- driving the menus with a controller ----------------
+     With a screen open, the stick or the pad moves a ring from one button to
+     the next and A presses it; B closes the screen. Everything the mouse can
+     reach, a controller can reach, so the game can be played from the sofa
+     from beginning to end. */
+  padMenuTick() {
+    const screen = document.querySelector('.screen.open') ||
+                   (document.getElementById('p2-join') &&
+                    document.getElementById('p2-join').classList.contains('open')
+                      ? document.getElementById('p2-join') : null);
+    if (!screen) { this.padPick = null; return; }
+
+    const pad = Input.pollGamepad();
+    if (!pad) return;
+
+    // everything on this screen you could press or type into
+    const all = Array.from(screen.querySelectorAll(
+      'button, [role="option"], input:not([type=hidden]), select, textarea, summary'
+    )).filter((el) => !el.disabled && el.style.display !== 'none');
+    /* Normally only what is really on screen counts. If the browser has not
+       measured the page yet every size reads as zero, and skipping them all
+       would leave a controller with nothing to point at, so in that case the
+       whole list is used and the order on the page decides. */
+    const shown = all.filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 2 && r.height > 2;
+    });
+    const able = shown.length ? shown : all;
+    if (!able.length) return;
+
+    if (!this.padPick || able.indexOf(this.padPick) < 0) {
+      this.padPick = able[0];
+      this.showPadPick();
+    }
+
+    const now = performance.now();
+    const stepReady = !this.padStepAt || now - this.padStepAt > (this.padHeld ? 130 : 340);
+    const dy = (pad.moveY || 0) + (this.padDpad(12) ? -1 : 0) + (this.padDpad(13) ? 1 : 0);
+    const dx = (pad.moveX || 0) + (this.padDpad(14) ? -1 : 0) + (this.padDpad(15) ? 1 : 0);
+    const push = Math.abs(dy) > 0.5 || Math.abs(dx) > 0.5;
+    if (push && stepReady) {
+      this.padStepAt = now;
+      this.padHeld = true;
+      this.movePadPick(able, dx, dy);
+    } else if (!push) {
+      this.padHeld = false;
+      this.padStepAt = 0;
+    }
+
+    // A presses what is ringed, B backs out
+    if (pad.accept && !this.prevMenuAccept) {
+      const el = this.padPick;
+      if (el) {
+        if (el.tagName === 'INPUT' && /text|search|password/.test(el.type || 'text')) el.focus();
+        else if (el.tagName === 'SUMMARY') el.click();
+        else el.click();
+      }
+    }
+    this.prevMenuAccept = pad.accept;
+    if (pad.back && !this.prevMenuBack) {
+      if (screen.id === 'p2-join') Split.cancelJoin();
+      else this.closeAll();
+      this.padPick = null;
+    }
+    this.prevMenuBack = pad.back;
+  },
+
+  padDpad(index) {
+    const p = Input.activePad();
+    const b = p && p.buttons && p.buttons[index];
+    return !!(b && (b.pressed || b.value > 0.5));
+  },
+
+  /** Step the ring to whatever is nearest in the direction pushed. */
+  movePadPick(able, dx, dy) {
+    const from = this.padPick.getBoundingClientRect();
+    const wantX = Math.abs(dx) > Math.abs(dy);
+    let best = null, bestScore = 1e9;
+    if (from.width > 2 || from.height > 2) {
+      const fx = from.left + from.width / 2, fy = from.top + from.height / 2;
+      for (const el of able) {
+        if (el === this.padPick) continue;
+        const r = el.getBoundingClientRect();
+        const ex = r.left + r.width / 2, ey = r.top + r.height / 2;
+        const ax = ex - fx, ay = ey - fy;
+        const along = wantX ? ax * Math.sign(dx) : ay * Math.sign(dy);
+        if (along <= 2) continue;                     // not in that direction
+        const across = wantX ? Math.abs(ay) : Math.abs(ax);
+        const score = along + across * 2.4;           // straight ahead wins
+        if (score < bestScore) { bestScore = score; best = el; }
+      }
+    }
+    /* Nothing that way, or nothing measured: step along the page instead, so
+       the ring always moves and never gets stuck in a corner. */
+    if (!best) {
+      const at = able.indexOf(this.padPick);
+      const step = (dy > 0.5 || dx > 0.5) ? 1 : -1;
+      best = able[(at + step + able.length) % able.length];
+    }
+    if (best) { this.padPick = best; this.showPadPick(); }
+  },
+
+  showPadPick() {
+    document.querySelectorAll('.pad-pick').forEach((el) => el.classList.remove('pad-pick'));
+    if (!this.padPick) return;
+    this.padPick.classList.add('pad-pick');
+    try { this.padPick.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+  },
+
   /* a controller lights up in the list while its buttons are pressed */
   tickPadHighlight() {
     const rows = document.querySelectorAll('#split-pads .pad-row');
@@ -8239,6 +8456,8 @@ const UI = {
     this.closeAll();
     if (!open) {
       el.classList.add('open');
+      // whatever this screen shows, show it as it is right now
+      if (name === 'settings') { this.renderSplitPanel(); this.refreshModeButtons(); }
       if (document.pointerLockElement) document.exitPointerLock();
     }
   },
@@ -8287,6 +8506,7 @@ Object.assign(Game, {
     requestAnimationFrame(() => this.loop());
     UI.tickPadBinding();
     if (UI.anyOpen()) UI.tickPadHighlight();
+    UI.padMenuTick();
     const now = performance.now();
     let dt = (now - this.clock) / 1000;
     this.clock = now;
@@ -8511,7 +8731,8 @@ const Split = {
   /* the fields that belong to a player, not to the world */
   FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
            'mount', 'onRope', 'ropeAt', 'prevJump', 'prevInteract', 'prevPadFly', 'prevPadMenu',
-           'prevSlotNext', 'prevSlotPrev', 'camDist', 'breakProgress', 'lastHit', 'swingT',
+           'prevSlotNext', 'prevSlotPrev', 'prevPadBag', 'prevPadMap', 'prevPadCraft',
+           'prevPadView', 'camDist', 'breakProgress', 'lastHit', 'swingT',
            'swingLoop', 'placeCooldown', 'bucketed', 'hintTimer',
            // each player wears their own character and has their own body
            'selfBody', 'selfView', 'character', 'characterStamp', 'skin'],
