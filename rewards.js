@@ -264,6 +264,13 @@
     const me = await api('/account/me?session=' + encodeURIComponent(t));
     account = me && me.username ? me : null;
     if (!account) setSession('');
+    /* The creature index follows the person. Whatever the account already
+       knows is folded into this world, and anything this world knows that
+       the account does not goes the other way — so signing in after playing
+       as a guest keeps what you found rather than throwing it away. */
+    if (account && window.Game && Game.takeCreaturesFromAccount) {
+      try { Game.takeCreaturesFromAccount(account.creatures, account.creaturesMet); } catch (e) {}
+    }
     renderAccount();
     /* The wallet belongs to whoever is signed in, so it is read again the
        moment that changes — and anything earned as a guest while offline is

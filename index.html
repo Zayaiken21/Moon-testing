@@ -6262,6 +6262,7 @@ Object.assign(Game, {
     c.nickname = m.nickname || null;
     c.saddled = !!m.saddled;
     c.claimed = true;                 // it has already paid its finder
+    this.noteSighting(c.species, true);
     this.setCompanion(c);
     this.net.send({ t: 'offer-reply', to: m.from, ok: true, key: m.key });
     this.toast(c.displayName + ' is yours now.');
@@ -8126,6 +8127,7 @@ Object.assign(Game, {
       near.saddled = true;
       near.tamed = true;
       near.trust = 1;
+      this.noteSighting(near.species, true);
       this.take(id, 1);
       this.updateHeld(true);
       this.toast(near.def.name + ' is saddled. Press ' + (IS_TOUCH ? 'Use' : 'E') + ' to ride.');
@@ -9668,9 +9670,16 @@ const UI = {
     const found = Object.keys(seen).length;
     const head = document.createElement('p');
     head.className = 'lede';
-    head.textContent = Game.mode === 'creative'
+    /* Two numbers, because they are two different things: what this world
+       has shown you, and what you have found in your whole time playing.
+       The second only exists once there is an account to keep it in. */
+    const lifetime = Game.creaturesOnAccount;
+    const forEver = (lifetime !== undefined && lifetime !== null)
+      ? ' \u00b7 ' + lifetime + ' found on your account, for good'
+      : ' \u00b7 sign in and your index is kept for good';
+    head.textContent = (Game.mode === 'creative'
       ? 'The index only fills in while you play survival. ' + found + ' of ' + total + ' met so far.'
-      : found + ' of ' + total + ' creatures met. Rare ones are marked.';
+      : found + ' of ' + total + ' creatures met. Rare ones are marked.') + forEver;
     body.appendChild(head);
     for (let bi = 0; bi < BIOMES.length; bi++) {
       const h = document.createElement('h4');
@@ -12835,7 +12844,11 @@ Game.net = {
    room back together the moment the game is looked at again. */
 addEventListener('visibilitychange', () => {
   if (!document.hidden) { try { Game.net.wake(); } catch (e) {} }
+  /* Going away: anything tamed in the last few seconds has not been sent
+     yet, and a phone put in a pocket may never come back to this page. */
+  else { try { Game.sendCreatures(); } catch (e) {} }
 });
+addEventListener('pagehide', () => { try { Game.sendCreatures(); } catch (e) {} });
 addEventListener('pageshow', () => { try { Game.net.wake(); } catch (e) {} });
 addEventListener('focus', () => { try { Game.net.wake(); } catch (e) {} });
 addEventListener('online', () => { try { Game.net.wake(); } catch (e) {} });
@@ -14157,7 +14170,6 @@ Object.assign(Game, {
   /* how much of the roster you have actually met */
   /* the index is earned: an animal counts once it trusts you */
   noteSighting(species, tamed) {
-    if (this.mode === 'creative') return;
     if (!tamed) return;
     if (this.mode === 'creative') return;   // the index is something you earn in survival
     if (!this.seen) this.seen = {};
@@ -14165,6 +14177,77 @@ Object.assign(Game, {
     this.seen[species] = true;
     const d = ANIMALS[species];
     if (d && d.rare) this.toast('A rare one: ' + d.name + '.');
+    this.rememberCreature(species);
+  },
+
+  /* ---------------------------------------------------------------
+     The index belongs to the person, not to the save file.
+
+     It used to live only in the world you were playing, so it began again
+     from nothing with every new world and was gone altogether on a new
+     phone. A list you are meant to fill in over months is worth nothing if
+     it cannot survive a Tuesday. Signed in, every creature you tame is
+     added to your account and comes back wherever you next play.
+
+     New names are collected and sent together rather than one at a time:
+     taming six things in a minute is one message, not six.
+     --------------------------------------------------------------- */
+  rememberCreature(species) {
+    if (!species) return;
+    if (!this._toRemember) this._toRemember = new Set();
+    this._toRemember.add(species);
+    clearTimeout(this._rememberTimer);
+    this._rememberTimer = setTimeout(() => this.sendCreatures(), 6000);
+  },
+
+  sendCreatures() {
+    clearTimeout(this._rememberTimer);
+    const waiting = this._toRemember;
+    if (!waiting || !waiting.size) return;
+    let session = '';
+    try { session = (window.VoxeliaWallet && VoxeliaWallet.session && VoxeliaWallet.session()) || ''; }
+    catch (e) {}
+    // not signed in: they stay in the save file, and go up when they do sign in
+    if (!session || typeof DEFAULT_SERVER !== 'string' || !DEFAULT_SERVER) return;
+    /* A handful at a time. Nobody tames a hundred creatures in six seconds,
+       but a guest signing in after a long session hands over everything they
+       found at once, and that is worth sending in pieces rather than as one
+       message large enough to be refused. */
+    const all = Array.from(waiting);
+    const species = all.slice(0, 120);
+    const rest = all.slice(120);
+    const base = /^https?:\/\//.test(DEFAULT_SERVER) ? DEFAULT_SERVER
+      : ((location.protocol === 'https:' ? 'https://' : 'http://') + DEFAULT_SERVER);
+    this._toRemember = new Set(rest);
+    if (rest.length) this._rememberTimer = setTimeout(() => this.sendCreatures(), 1200);
+    try {
+      fetch(base.replace(/\/$/, '') + '/account/creatures', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session, species })
+      }).then((r) => r.json()).then((out) => {
+        if (out && out.ok && out.count !== undefined) this.creaturesOnAccount = out.count;
+      }).catch(() => {
+        // it did not go: put them back and let the next one carry them
+        for (const k of species) this._toRemember.add(k);
+      });
+    } catch (e) {
+      for (const k of species) this._toRemember.add(k);
+    }
+  },
+
+  /** What the account already knows, folded into this world's index. */
+  takeCreaturesFromAccount(list, count) {
+    if (!this.seen) this.seen = {};
+    let added = 0;
+    for (const k of (list || [])) {
+      if (ANIMALS[k] && !this.seen[k]) { this.seen[k] = true; added++; }
+    }
+    this.creaturesOnAccount = (count === undefined) ? (list || []).length : count;
+    /* Anything this world knows that the account does not goes the other
+       way, so signing in after playing as a guest does not lose it. */
+    for (const k of Object.keys(this.seen)) this.rememberCreature(k);
+    if (added) { try { UI.renderBag && UI.renderBag(); } catch (e) {} }
+    return added;
   }
 });
 

@@ -194,34 +194,70 @@ const Thumbs = {
     return this.painter;
   },
 
-  /** Draw one figure into a small canvas, putting the renderer back after. */
+  /**
+   * Draw one figure into a small canvas.
+   *
+   * This draws into a picture of its own rather than into the one on screen.
+   *
+   * Reading the pixels back off the visible canvas is only reliable in the
+   * same breath as the drawing — a browser is free to clear it the moment it
+   * has put it on screen — and worse, this page lives in a frame the game
+   * hides rather than closes. Hidden, that canvas has no size at all, so a
+   * picture taken while it was away came back empty, and an empty picture
+   * was then kept for good. That is why the characters were there, and then
+   * after a trip into the game and back, were blank squares.
+   *
+   * A render target has a size of its own and does not care whether anything
+   * is on screen, so the same drawing works whether the page is showing or
+   * not, and the preview is never resized out from under itself.
+   */
   paint(object) {
     const p = this.painter;
     const r = p.renderer;
-    const was = new THREE.Vector2();
-    r.getSize(was);
-    const px = r.getPixelRatio();
+    const N = this.SIZE * 2;
+    if (!p.target) p.target = new THREE.WebGLRenderTarget(N, N);
+
     const out = document.createElement('canvas');
     out.width = out.height = this.SIZE;
+    const wasTarget = r.getRenderTarget();
     try {
-      r.setPixelRatio(1);
-      r.setSize(this.SIZE * 2, this.SIZE * 2, false);
       p.scene.add(object);
+      r.setRenderTarget(p.target);
       r.render(p.scene, p.camera);
+      const buf = new Uint8Array(N * N * 4);
+      r.readRenderTargetPixels(p.target, 0, 0, N, N, buf);
       p.scene.remove(object);
+
+      /* A render target counts its rows from the bottom and a canvas from
+         the top, so the rows go back in the other order or everybody comes
+         out standing on their head. */
+      const big = document.createElement('canvas');
+      big.width = big.height = N;
+      const bg = big.getContext('2d');
+      const img = bg.createImageData(N, N);
+      for (let y = 0; y < N; y++) {
+        const from = (N - 1 - y) * N * 4;
+        img.data.set(buf.subarray(from, from + N * 4), y * N * 4);
+      }
+      bg.putImageData(img, 0, 0);
+
       const g = out.getContext('2d');
       g.imageSmoothingEnabled = true;
-      g.drawImage(r.domElement, 0, 0, this.SIZE, this.SIZE);
+      g.drawImage(big, 0, 0, this.SIZE, this.SIZE);
     } finally {
-      /* Always put it back, even if the drawing threw — leaving the preview
-         at thumbnail size would shrink the character on screen to a stamp. */
-      try {
-        r.setPixelRatio(px);
-        r.setSize(was.x, was.y, false);
-        if (Preview3D && Preview3D.resize) Preview3D.resize();
-      } catch (e) {}
+      try { r.setRenderTarget(wasTarget || null); } catch (e) {}
     }
     return out;
+  },
+
+  /** Is there anything actually in this picture? */
+  drawn(canvas) {
+    try {
+      const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let lit = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 12) lit++;
+      return lit > canvas.width * canvas.height * 0.01;
+    } catch (e) { return true; }      // cannot tell: assume it is fine
   },
 
   /** A picture of this character, drawn when it gets to the front. */
@@ -257,6 +293,14 @@ const Thumbs = {
         av.object.position.y = -0.04;
         const out = this.paint(av.object);
         av.dispose();
+        /* An empty picture is not worth keeping — kept, it would be handed
+           back for ever and the character would stay a blank square. Left
+           uncached, the flat figure shows instead and the next time the
+           grid is built it is drawn again properly. */
+        if (!this.drawn(out)) {
+          console.info('no picture for ' + job.presetId + ' this time');
+          return;
+        }
         this.shots.set(job.stamp, out);
         job.onDone(out);
       })
