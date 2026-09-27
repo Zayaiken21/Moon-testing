@@ -54,7 +54,8 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
           max(14px, env(safe-area-inset-right))}
 .screen.open{display:block}
 .sheet{max-width:640px;margin:0 auto;background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--radius-lg);padding:24px}
+  border-radius:var(--radius-lg);padding:24px;overflow-x:hidden;min-width:0}
+.sheet *{min-width:0}
 .sheet h2{font-size:22px;margin-bottom:4px}
 .sheet p.lede{color:var(--muted);margin:0 0 20px;font-size:14px;line-height:1.5}
 
@@ -461,7 +462,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   background:rgba(20,18,28,.85);border:1px solid var(--line);color:var(--text);font-size:18px;cursor:pointer}
 /* split screen: a divider down the middle and player two's line of text */
 #split-panel{display:none}
-body.desktop #split-panel{display:flex}
+body.desktop #split-panel{display:block}
 #split-pads{display:flex;flex-direction:column;gap:6px;margin:4px 0}
 .pad-row{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
   border-radius:10px;padding:8px 10px}
@@ -881,11 +882,28 @@ body.creative-mode #meters{display:none !important}
 #p2-panel{display:none}
 body.split-on #p2-panel{display:block;position:fixed;top:0;bottom:0;left:50%;right:0;
   z-index:32;pointer-events:none}
-body.split-on #p2-top{position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;
-  display:flex;justify-content:center;pointer-events:none}
-body.split-on #p2-pause{pointer-events:auto;min-height:30px;padding:0 14px;border-radius:999px;
-  background:rgba(20,18,28,.86);border:1px solid var(--line);color:var(--text);
-  font-family:var(--display);font-size:12px;cursor:pointer}
+/* Player two's strip is the same object as player one's, over their own half:
+   the same pill, the same button, the same height off the top edge. */
+body.split-on #p2-top{position:absolute;top:calc(10px + env(safe-area-inset-top));
+  left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:calc(9px * var(--ui));width:auto;pointer-events:none;
+  background:rgba(20,18,28,.7);border:1px solid var(--line);border-radius:999px;
+  padding:calc(5px * var(--ui)) calc(8px * var(--ui));
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  box-shadow:0 6px 20px rgba(0,0,0,.35)}
+body.split-on #p2-pause{pointer-events:auto;min-height:calc(32px * var(--ui));
+  min-width:calc(46px * var(--ui));display:inline-flex;align-items:center;justify-content:center;
+  padding:0 calc(13px * var(--ui));border-radius:999px;cursor:pointer;
+  background:linear-gradient(180deg, rgba(46,40,70,.92), rgba(18,16,28,.92));
+  border:1px solid rgba(255,255,255,.1);color:var(--text);
+  font-family:var(--display);font-size:calc(13px * var(--ui));white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1)}
+body.split-on #p2-pause:hover{border-color:var(--moon);color:var(--moon);
+  box-shadow:0 0 0 3px rgba(111,227,196,.18), 0 6px 18px rgba(0,0,0,.45)}
+/* the two bars are the same two bars, in the same two colours */
+#p2-stamina{background:linear-gradient(90deg,#FFB347,#FF7A3D);box-shadow:0 0 10px rgba(255,138,76,.55)}
+#p2-breath{background:linear-gradient(90deg,#7FE3FF,#6FE3C4);box-shadow:0 0 10px rgba(111,227,196,.5)}
 body.split-on #p2-map-wrap{pointer-events:auto;position:absolute;
   top:calc(46px + env(safe-area-inset-top));right:14px;width:96px;height:96px;padding:0;
   border-radius:50%;overflow:hidden;cursor:pointer;
@@ -1278,6 +1296,125 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   #char-frame-close{width:36px;height:36px;font-size:15px;
     top:calc(5px + env(safe-area-inset-top))}
 }
+
+
+/* =================================================================
+   The home screen, on a computer.
+
+   It used to be laid out as a tall page that happened to be taller than the
+   window, so the title was cut off at the top and the biome cards had a
+   scrollbar of their own inside a page that also scrolled. Everything now
+   fits the window it is given: the panel on the left keeps its own height,
+   the cards sit two or three abreast beside it, and nothing scrolls unless
+   there are more cards than there is room for.
+   ================================================================= */
+@media (pointer:fine){
+  #home.screen{overflow:hidden}
+  #home.screen.open{display:block}
+  #home .home-wrap{height:100dvh;max-width:min(1520px,95vw);margin:0 auto;
+    display:grid;grid-template-columns:minmax(300px,0.86fr) minmax(0,1.14fr);
+    gap:clamp(16px,2.6vw,44px);align-items:stretch;
+    padding:clamp(10px,2.4vh,30px) 0}
+  #home .home-wrap > div{min-height:0;min-width:0}
+  #home .home-wrap > div:first-child{display:flex;flex-direction:column;
+    justify-content:center;overflow-y:auto;overflow-x:hidden;padding-right:8px}
+  #home .home-wrap > div:last-child{display:flex;min-height:0}
+  #home .tagline{margin-bottom:clamp(10px,2vh,22px)}
+  #home .field{margin-bottom:clamp(8px,1.6vh,16px)}
+  #home .play{margin-top:clamp(8px,1.6vh,18px)}
+  /* the eight little buttons in three neat columns rather than a ragged row */
+  #home .minor-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;margin-top:clamp(8px,1.4vh,14px)}
+  #home .minor-row .btn{min-width:0;width:100%;text-align:center}
+  #home .preview-note{margin-top:clamp(6px,1.2vh,14px)}
+  /* the maps, side by side, filling the height beside the panel */
+  #home .biome-strip{height:100%;max-height:none;width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    /* each row is as tall as the card it holds: rows used to be squeezed to
+       share the height, which cut the last line off every card */
+    grid-auto-rows:max-content;align-content:safe center;align-items:start;
+    gap:clamp(8px,1.1vw,14px);
+    padding:2px 8px 8px 2px;overflow-y:auto;overflow-x:hidden}
+}
+@media (pointer:fine) and (min-width:1180px){
+  #home .biome-strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+/* A card the width of a column and only as tall as it needs to be: the
+   colours of the place stand on the left, its name, a line about it and what
+   lives there on the right. Ten of them then sit in view together instead of
+   running off the bottom. */
+@media (pointer:fine){
+  #home .biome-card{display:grid;
+    grid-template-columns:clamp(34px,3.2vw,52px) minmax(0,1fr);
+    grid-template-areas:"sw name" "sw blurb" "sw facts";
+    column-gap:12px;row-gap:1px;padding:11px 13px;align-content:start}
+  #home .biome-swatch{grid-area:sw;width:100%;height:100%;min-height:70px;
+    margin:0;border-radius:10px}
+  #home .biome-card h3{grid-area:name;margin-bottom:2px}
+  #home .biome-card p{grid-area:blurb;margin:0 0 5px;font-size:12px;line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #home .biome-card dl{grid-area:facts;font-size:11.5px}
+  #home .biome-card dt{line-height:1.35}
+  /* "353 species · feed them Sunberry" says what it is on its own, so the
+     word Residents above it is only taking up a line */
+  #home .biome-card dt:nth-of-type(2){display:none}
+  #home .biome-card dd{margin:0 0 3px;line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #home .biome-card dd:last-child{margin-bottom:0}
+}
+/* a shorter window: the same screen, a size down, still whole */
+@media (pointer:fine) and (max-height:900px){
+  #home .wordmark h1{font-size:clamp(30px,4.4vw,44px)}
+  #home .tagline{font-size:13px;line-height:1.5}
+  #home .play{padding:13px;font-size:17px}
+  #home .biome-card{padding:11px}
+  #home .biome-swatch{height:40px;margin-bottom:8px}
+  #home .biome-card p{margin-bottom:7px}
+}
+@media (pointer:fine) and (max-height:780px){
+  #home .wordmark h1{font-size:clamp(26px,3.6vw,36px)}
+  #home .wordmark span{font-size:12px}
+  #home .tagline{font-size:12.5px;margin-bottom:10px}
+  #home .seed-row input,#home .btn{padding:9px 11px;font-size:13px}
+  #home .mode-option{padding:10px}
+  #home .play{padding:11px;font-size:16px}
+  #home .biome-card{padding:9px}
+  #home .biome-swatch{height:32px;margin-bottom:6px}
+  #home .biome-card h3{font-size:13.5px}
+  #home .biome-card p{font-size:11.5px}
+  #home .biome-card dl{font-size:11px}
+}
+
+/* A card you can point at: it lifts a little, lights its edge, and the
+   colours of the place it stands for widen slightly. */
+.biome-card{position:relative;overflow:hidden;cursor:default;
+  transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease}
+.biome-card::after{content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(140deg, rgba(111,227,196,.10), rgba(160,120,255,.08) 60%, transparent);
+  opacity:0;transition:opacity .18s ease;pointer-events:none}
+.biome-card:hover{transform:translateY(-3px);border-color:var(--moon);
+  background:rgba(38,34,54,.92);
+  box-shadow:0 16px 34px rgba(0,0,0,.45), 0 0 0 1px rgba(111,227,196,.3)}
+.biome-card:hover::after{opacity:1}
+.biome-card:active{transform:translateY(-1px)}
+.biome-swatch{transition:transform .22s ease, box-shadow .22s ease}
+.biome-card:hover .biome-swatch{transform:scale(1.03);
+  box-shadow:0 6px 18px rgba(0,0,0,.35)}
+@media (prefers-reduced-motion:reduce){
+  .biome-card,.biome-swatch{transition:none}
+  .biome-card:hover{transform:none}
+}
+
+
+/* Whose bag, whose map. Only ever shown while two people are playing. */
+.whose{display:inline-block;margin:0 0 10px;padding:4px 12px;border-radius:999px;
+  background:rgba(111,227,196,.14);border:1px solid rgba(111,227,196,.4);
+  color:var(--moon);font-family:var(--display);font-size:11.5px;
+  letter-spacing:.1em;text-transform:uppercase}
+#bag.for-p2 .sheet,#worldmap.for-p2 .sheet{box-shadow:0 0 0 2px rgba(160,120,255,.45),
+  0 18px 60px rgba(0,0,0,.5)}
+#bag.for-p2 .whose,#worldmap.for-p2 .whose{background:rgba(160,120,255,.16);
+  border-color:rgba(160,120,255,.5);color:var(--amethyst)}
 </style>
 </head>
 <body>
@@ -1396,11 +1533,11 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <!-- player two's own readouts, on player two's own half of the screen -->
   <div id="p2-panel">
     <i id="p2-crosshair"></i>
-    <div id="p2-top"><button id="p2-pause" title="Pause">&#9208; Pause</button></div>
+    <div id="p2-top"><button id="p2-pause" title="Pause">&#10074;&#10074;</button></div>
     <button id="p2-map-wrap"><canvas id="p2-map" width="132" height="132"></canvas></button>
     <div id="p2-meters">
-      <div class="meter-row"><span>AIR</span><div class="meter"><i id="p2-breath"></i></div></div>
-      <div class="meter-row"><span>LEGS</span><div class="meter"><i id="p2-stamina"></i></div></div>
+      <div class="meter-row"><span>Stamina</span><span class="meter"><i id="p2-stamina" style="width:100%"></i></span></div>
+      <div class="meter-row" id="p2-breath-row"><span>Breath</span><span class="meter"><i id="p2-breath" style="width:100%"></i></span></div>
     </div>
     <div id="p2-bar"></div>
   </div>
@@ -5221,8 +5358,15 @@ Object.assign(Game, {
     const jumpHeld = Input.keys.Space || Input.buttons.jump || (pad && pad.jump);
     const jumpTap = Input.consume('Space') || (jumpHeld && !this.prevJump);
     this.prevJump = jumpHeld;
+    /* Run yourself out and you have to get your breath back. Sprinting used
+       to come straight back the instant the bar left zero, which made it
+       stutter on and off; now running out sets you winded, and you stay
+       winded until the bar has climbed back to a useful level. The bar fills
+       at exactly the same rate as before. */
+    if (p.stamina <= 0.001) p.winded = true;
+    else if (p.stamina >= 0.55) p.winded = false;
     const sprinting = (Input.keys.ShiftLeft || (pad && pad.crouch) || Input.sprintLatch) && mag > 0.1 &&
-                      (this.mode === 'creative' || p.stamina > 0.02);
+                      (this.mode === 'creative' || !p.winded);
 
     /* abilities from the active companion */
     const has = (a) => this.hasAbility(a);
@@ -5271,7 +5415,7 @@ Object.assign(Game, {
       if (has('glide') && jumpHeld && p.vel.y < -1.6) p.vel.y = -1.6;
       if (has('climb') && jumpHeld && !p.onGround && this.wallInFront()) p.vel.y = 3.4;
     }
-    if (creativeMode) { p.breath = 1; p.stamina = 1; }
+    if (creativeMode) { p.breath = 1; p.stamina = 1; p.winded = false; }
     else {
       if (!BLOCKS[headId].liquid || aquatic) p.breath = Math.min(1, p.breath + dt * 0.25);
       if (p.breath <= 0) this.surfaceRescue();
@@ -6527,13 +6671,13 @@ Object.assign(Game, {
       this._master.gain.value = Settings.sound
         ? (Settings.soundVolume === undefined ? Settings.volume : Settings.soundVolume) : 0;
     }
-    if (this._musicGain) this._musicGain.gain.value = Settings.music;
+    if (this._musicGain) this._musicGain.gain.value = Settings.musicVolume;
   },
 
   /* a slow chord that drifts with the biome you are standing in */
   updateMusic(dt) {
     const ctx = this.audio();
-    if (!ctx || !Settings.music) return;
+    if (!ctx || !Settings.musicVolume || Music.muted) return;
     this.musicTimer = (this.musicTimer || 0) - dt;
     if (this.musicTimer > 0) return;
     this.musicTimer = 7 + Math.random() * 4;
@@ -7699,9 +7843,18 @@ const UI = {
     this.initController();
     bindCheck('#set-sound', 'sound');
     bindRange('#set-volume', 'volume', v => Math.round(v * 100) + '%');
-    bindRange('#set-music', 'music', v => Math.round(v * 100) + '%');
+    bindRange('#set-music', 'musicVolume', v => Math.round(v * 100) + '%');
     on('#set-volume', 'input', () => Game.applyVolumes());
-    on('#set-music', 'input', () => Game.applyVolumes());
+    on('#set-music', 'input', () => {
+      Game.applyVolumes();
+      // all the way down is off; lifting it off the floor turns it back on
+      if (Settings.musicVolume <= 0.001) { if (!Music.muted) Music.mute(true); }
+      else if (Music.muted) Music.mute(false);
+      else Music.refresh();
+      const box = $('#set-mute'); if (box) box.checked = !!Music.muted;
+      const quick = $('#set-music-quick');
+      if (quick) quick.value = Math.round(Settings.musicVolume * 100);
+    });
     on('#set-sound', 'change', () => Game.applyVolumes());
     bindCheck('#set-fps', 'showFps');
     bindCheck('#set-caves', 'caves');
@@ -7742,7 +7895,13 @@ const UI = {
           const other = $(s2);
           if (other && other !== el) other.value = el.value;
         });
-        if (key === 'musicVolume') Music.refresh();
+        if (key === 'musicVolume') {
+          if (Settings.musicVolume <= 0.001) { if (!Music.muted) Music.mute(true); }
+          else if (Music.muted) Music.mute(false);
+          else Music.refresh();
+          const box = $('#set-mute');
+          if (box) box.checked = !!Music.muted;
+        }
         else Game.blip(520);
       });
     });
@@ -7862,6 +8021,22 @@ const UI = {
       else if (e.code === 'KeyM' && Game.running) this.openMap();
     });
 
+    /* Both players share one bag screen and one map screen, so before any
+       press inside them is handled the game is swapped to whoever opened it,
+       and swapped back the moment the browser has finished with that press.
+       Listening on the way down means a handler that swallows the event
+       cannot leave the wrong player's things on show. */
+    ['#bag', '#worldmap'].forEach((sel) => {
+      const el = $(sel);
+      if (!el || el.__owned) return;
+      el.__owned = true;
+      const whose = () => (sel === '#bag' ? this.bagOwner : this.mapOwner);
+      ['pointerdown', 'mousedown', 'click', 'input', 'change', 'touchstart', 'wheel'].forEach((ev) => {
+        el.addEventListener(ev, () => { Split.enter(whose()); }, true);
+      });
+    });
+    on('#p2-map-wrap', 'click', () => this.openMapFor(2));
+
     this.initBag();
     this.drawServers();
 
@@ -7958,16 +8133,20 @@ const UI = {
     }
   },
 
-  openMap() {
+  openMap() { this.openMapFor(1); },
+
+  openMapInner() {
     if (!Game.running) return;
     this.mapZoom = this.mapZoom || 6;
-    this.toggle('worldmap');
+    $('#worldmap').classList.add('open');
+    this.releaseControls();
+    if (document.pointerLockElement) document.exitPointerLock();
     this.bindMapGestures();
     this.redrawMap();
     this.renderWaypoints();
     clearInterval(this._mapTimer);
     this._mapTimer = setInterval(() => {
-      if ($('#worldmap').classList.contains('open')) this.redrawMap();
+      if ($('#worldmap').classList.contains('open')) Split.as(this.mapOwner, () => this.redrawMap());
       else clearInterval(this._mapTimer);
     }, 700);
   },
@@ -8351,7 +8530,8 @@ const UI = {
       ['forward', 'Walk forward'], ['back', 'Walk back'], ['left', 'Step left'], ['right', 'Step right'],
       ['lookUp', 'Look up'], ['lookDown', 'Look down'], ['lookLeft', 'Look left'], ['lookRight', 'Look right'],
       ['jump', 'Jump'], ['crouch', 'Crouch'], ['mine', 'Dig'], ['place', 'Build'],
-      ['interact', 'Use'], ['fly', 'Fly'], ['prev', 'Thing before'], ['next', 'Thing after']
+      ['interact', 'Use'], ['fly', 'Fly'], ['prev', 'Thing before'], ['next', 'Thing after'],
+      ['bag', 'Open their bag'], ['map', 'Open their map']
     ];
     const binds = Split.loadBinds().p2;
     box.innerHTML = '';
@@ -8938,6 +9118,29 @@ const UI = {
     }, 40);
   },
 
+  /* Whatever was being held when a screen opened must not still be held when
+     it closes. Opening the bag or the map used to leave the key you were
+     walking with pressed and the mouse button you were digging with down, so
+     you came back to the world already running, or already mining. */
+  releaseControls() {
+    Input.buttons.mine = false;
+    Input.buttons.place = false;
+    Input.buttons.jump = false;
+    Input.buttons.interact = false;
+    Input.buttons.crouch = false;
+    Input.mouseMine = false;
+    Input.mousePlace = false;
+    Input.mouseDX = 0;
+    Input.mouseDY = 0;
+    Input.sprintLatch = false;
+    Input.moveStick = { x: 0, y: 0, active: false };
+    Input.lookStick = { x: 0, y: 0, active: false };
+    for (const k of Object.keys(Input.keys)) Input.keys[k] = false;
+    for (const k of Object.keys(Input.pressed)) Input.pressed[k] = false;
+    Game.breakProgress = 0;
+    if (Split.on && Split.p2) Split.p2.breakProgress = 0;
+  },
+
   toggle(name) {
     if (name === 'multiplayer') {
       this.drawServers();
@@ -8950,8 +9153,16 @@ const UI = {
     this.closeAll();
     if (!open) {
       el.classList.add('open');
+      this.releaseControls();
       // whatever this screen shows, show it as it is right now
-      if (name === 'settings') { this.renderSplitPanel(); this.refreshModeButtons(); }
+      if (name === 'settings') {
+        this.renderSplitPanel();
+        this.refreshModeButtons();
+        const box = $('#set-mute'); if (box) box.checked = !!Music.muted;
+        const sl = $('#set-music');
+        if (sl) { sl.value = Settings.musicVolume; const o = $('#set-music-out');
+                  if (o) o.textContent = Math.round(Settings.musicVolume * 100) + '%'; }
+      }
       if (document.pointerLockElement) document.exitPointerLock();
     }
   },
@@ -8978,7 +9189,11 @@ const UI = {
   anyOpen() { return $$('.screen.open').length > 0; },
 
   closeAll() {
+    const had = this.anyOpen();
     $$('.screen.open').forEach(el => { if (el.id !== 'home') el.classList.remove('open'); });
+    if (had) this.releaseControls();
+    this.bagOwner = 1;
+    this.mapOwner = 1;
     if (Game.running && !IS_TOUCH && !this.anyOpen()) Game.lockPointer();
   },
 
@@ -9133,7 +9348,8 @@ const Split = {
     p2: { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
           jump: 'ShiftRight', crouch: 'ControlRight', interact: 'KeyP', fly: 'KeyY',
           lookUp: 'KeyI', lookDown: 'KeyK', lookLeft: 'KeyJ', lookRight: 'KeyL',
-          mine: 'KeyU', place: 'KeyO', next: 'BracketRight', prev: 'BracketLeft' }
+          mine: 'KeyU', place: 'KeyO', next: 'BracketRight', prev: 'BracketLeft',
+          bag: 'Semicolon', map: 'Quote' }
   },
   binds: null,
 
@@ -9171,6 +9387,10 @@ const Split = {
       .replace('ShiftRight', 'R Shift').replace('ShiftLeft', 'L Shift')
       .replace('ControlRight', 'R Ctrl').replace('ControlLeft', 'L Ctrl')
       .replace('BracketRight', ']').replace('BracketLeft', '[')
+      .replace('Semicolon', ';').replace('Quote', "'")
+      .replace('Comma', ',').replace('Period', '.').replace('Slash', '/')
+      .replace('Backslash', '\\').replace('Backquote', '`')
+      .replace('Minus', '-').replace('Equal', '=')
       .replace('Space', 'Space');
   },
 
@@ -9227,6 +9447,43 @@ const Split = {
 
   /** Whether this player is the one holding the mouse. */
   hasMouse(which) { return (Settings.mouseTo || 1) === which; },
+
+  /* Run something as one player or the other.
+
+     A screen such as the bag or the map reads whatever is in Game at the
+     moment it is drawn, and Game normally holds player one. Player two's own
+     bag is drawn by swapping their things in for exactly as long as it takes
+     and swapping them straight back, so both players really do carry their
+     own satchel, their own row of things and their own marks on the map. */
+  as(which, fn) {
+    if (which !== 2 || !this.on || !this.p2) return fn();
+    this.swap();
+    const wasActing = this.acting;
+    this.acting = 2;
+    try { return fn(); }
+    finally { this.swap(); this.acting = wasActing; }
+  },
+
+  /* The same, for a run of events rather than one call: the screens hand
+     their clicks to whichever player opened them, and the state goes back
+     the moment the browser is finished with that press. */
+  enter(which) {
+    if (which !== 2 || !this.on || !this.p2 || this.held) return false;
+    this.held = true;
+    this.swap();
+    this.acting = 2;
+    const back = () => {
+      if (!this.held) return;
+      this.held = false;
+      this.swap();
+      this.acting = 1;
+    };
+    // after every handler on this press has run, whether or not one of them
+    // stopped the event from going any further
+    Promise.resolve().then(back);
+    setTimeout(back, 0);
+    return true;
+  },
 
   /* the fields that belong to a player, not to the world */
   FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
@@ -9400,6 +9657,7 @@ const Split = {
 
     // player two starts beside player one, with their own everything
     const me = Game.player;
+    if (!me || !Game.running) { Game.toast('Enter a world first, then add player two.'); return; }
     const cam = new THREE.PerspectiveCamera(Game.camera.fov, 1, 0.1, Game.camera.far);
     const body = Object.assign(Object.create(Object.getPrototypeOf(me)), JSON.parse(JSON.stringify({
       yaw: me.yaw + Math.PI, pitch: 0, flying: false, onGround: true,
@@ -9594,6 +9852,7 @@ const Split = {
     const savedMouseMine = Input.mouseMine, savedMousePlace = Input.mousePlace;
     const savedToast = Game.toast;
     const stubs = {};
+    let wants = null;
     const view = this.viewFor(2, savedKeys, savedPressed);
     const look = this.lookFromKeys(view.binds, savedKeys, dt);
     this.swap();
@@ -9628,6 +9887,8 @@ const Split = {
       // choosing a different thing to hold, with their own two keys
       if (savedPressed[view.binds.next]) { savedPressed[view.binds.next] = false; Game.slot = (Game.slot + 1) % 9; }
       if (savedPressed[view.binds.prev]) { savedPressed[view.binds.prev] = false; Game.slot = (Game.slot + 8) % 9; }
+      if (savedPressed[view.binds.bag]) { savedPressed[view.binds.bag] = false; wants = 'bag'; }
+      if (savedPressed[view.binds.map]) { savedPressed[view.binds.map] = false; wants = 'map'; }
     } catch (e) {
       console.warn('split screen: player two update failed', e);
     } finally {
@@ -9642,6 +9903,8 @@ const Split = {
       this.acting = 1;
       Input.forcePad = this.p1Pad;
     }
+    if (wants === 'bag') UI.openBagFor(2);
+    if (wants === 'map') UI.openMapFor(2);
     this.sendP2();
   },
 
@@ -9705,6 +9968,8 @@ const Split = {
     const st = document.getElementById('p2-stamina');
     if (br) br.style.width = Math.round(Math.max(0, Math.min(1, pl.breath)) * 100) + '%';
     if (st) st.style.width = Math.round(Math.max(0, Math.min(1, pl.stamina)) * 100) + '%';
+    const brow = document.getElementById('p2-breath-row');
+    if (brow) brow.style.opacity = pl.breath < 0.999 ? '1' : '0.25';
 
     // their own map, centred on them
     const map = document.getElementById('p2-map');
@@ -11143,11 +11408,51 @@ Object.assign(UI, {
     on('#btn-bag', 'touchstart', (e) => { e.preventDefault(); this.toggleBag(); }, { passive: false });
   },
 
-  toggleBag() {
+  bagOwner: 1,
+  mapOwner: 1,
+
+  toggleBag() { this.openBagFor(1); },
+
+  /* One bag each. The satchel, the row of things and the marks on the map all
+     belong to a player rather than to the game, so opening either screen says
+     whose it is first and everything inside it is drawn, clicked and changed
+     as that player. */
+  openBagFor(which) {
     const open = $('#bag').classList.contains('open');
-    if (open) { this.closeAll(); return; }
-    this.renderBag();
-    this.toggle('bag');
+    if (open && this.bagOwner === which) { this.closeAll(); return; }
+    this.closeAll();
+    this.bagOwner = which;
+    Split.as(which, () => { this.renderBag(); });
+    $('#bag').classList.add('open');
+    this.releaseControls();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.markOwner('#bag', which);
+  },
+
+  openMapFor(which) {
+    if (!Game.running) return;
+    const open = $('#worldmap').classList.contains('open');
+    if (open && this.mapOwner === which) { this.closeAll(); return; }
+    this.closeAll();
+    this.mapOwner = which;
+    Split.as(which, () => { this.openMapInner(); });
+    this.markOwner('#worldmap', which);
+  },
+
+  /** A quiet line at the top of a shared screen, so nobody loses track. */
+  markOwner(sel, which) {
+    const el = $(sel);
+    if (!el) return;
+    el.classList.toggle('for-p2', which === 2);
+    let tag = el.querySelector('.whose');
+    if (!Split.on) { if (tag) tag.remove(); return; }
+    if (!tag) {
+      tag = document.createElement('div');
+      tag.className = 'whose';
+      const sheet = el.querySelector('.sheet') || el;
+      sheet.insertBefore(tag, sheet.firstChild);
+    }
+    tag.textContent = which === 2 ? (Split.p2Name || 'Player 2') : 'Player 1';
   },
 
   renderBag() {
@@ -14881,6 +15186,11 @@ const Music = {
   mute(on) {
     this.muted = (on === undefined) ? !this.muted : !!on;
     try { localStorage.setItem('voxelia.muted', this.muted ? '1' : '0'); } catch (e) {}
+    /* A piece that was on its way in had its own timer waiting to start it,
+       so the music came back a second after it was turned off. Everything
+       already arranged is called off first. */
+    clearTimeout(this.soon);
+    this.pending = null;
     for (const key of Object.keys(this.tracks)) {
       const t = this.tracks[key];
       if (!t) continue;
@@ -14888,7 +15198,20 @@ const Music = {
       t.el.muted = this.muted;
       if (this.muted) { try { t.el.pause(); } catch (e) {} t.el.volume = 0; }
     }
-    if (!this.muted && this.current) this.begin(this.current);
+    if (!this.muted) {
+      /* Turning it back on always makes a sound: whatever belongs to where
+         the player is now starts from the beginning, rather than waiting for
+         them to walk somewhere new. Nothing here may ever throw: a browser
+         that will not let us look for a file must not leave the music stuck
+         off with no way back. */
+      try {
+        this.unlocked = true;
+        const key = this.current || this.pick();
+        this.current = null;
+        if (key) this.play(key);
+        this.watchdog();
+      } catch (e) { this.current = this.current || null; }
+    }
     return this.muted;
   },
 
