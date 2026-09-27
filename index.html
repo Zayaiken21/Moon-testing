@@ -244,7 +244,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #alt-fill{position:absolute;left:0;right:0;bottom:0;height:50%;
   background:linear-gradient(180deg,var(--moon),rgba(111,227,196,.25))}
 #alt-read{color:var(--muted);font-size:calc(9.5px * var(--ui));white-space:nowrap}
-#drive-hint b i#hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
+#drive-hint b i.hint-clock{font-style:normal;color:var(--muted);font-size:calc(10px * var(--ui));
   margin-left:auto;margin-right:8px}
 @media (orientation:landscape) and (max-height:560px){
   /* the row at the top: centred on the viewport, above everything, and only
@@ -281,10 +281,6 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   #meters .meter-row{font-size:calc(9px * var(--ui));margin-bottom:3px}
   #meters .meter{height:5px}
   #mic-desktop,#chat-desktop{top:calc(4px + env(safe-area-inset-top)) !important}
-  #btn-voice,#btn-chat{position:absolute !important;top:calc(4px + env(safe-area-inset-top));
-    width:calc(38px * var(--ui));height:calc(38px * var(--ui));font-size:calc(9px * var(--ui))}
-  #btn-voice{right:calc(58px + env(safe-area-inset-right))}
-  #btn-chat{right:calc(102px + env(safe-area-inset-right))}
   #home{overflow:hidden}
   #home .home-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;
     padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));
@@ -531,7 +527,22 @@ body.split-joining #split-divider{display:block;position:fixed;top:0;bottom:0;le
   text-transform:uppercase;letter-spacing:.08em}
 #p2-name{width:100%;height:44px;padding:0 12px;border-radius:10px;background:var(--panel-2);
   border:1px solid var(--line);color:var(--text);font-family:var(--display);font-size:15px}
-#p2-join-status{font-size:11.5px;color:var(--muted);margin:10px 0 14px}
+#p2-join-status{font-size:11.5px;color:var(--muted);margin:8px 0 12px}
+/* signing in as yourself, rather than playing as a guest */
+#p2-who{margin-top:10px}
+#p2-signin-open{width:100%;min-height:38px;border-radius:10px;cursor:pointer;
+  background:transparent;border:1px dashed var(--line);color:var(--moon);font-size:12.5px}
+#p2-signin-open:hover{border-color:var(--moon)}
+.p2-who-note{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.4}
+#p2-signin{display:none;margin-top:8px;gap:6px;flex-direction:column}
+#p2-signin.open{display:flex}
+#p2-signin input{height:40px;padding:0 12px;border-radius:10px;background:var(--panel-2);
+  border:1px solid var(--line);color:var(--text);font-size:14px}
+.p2-signin-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.p2-signin-row button{min-height:38px;border-radius:10px;cursor:pointer;font-size:12.5px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text)}
+#p2-signin-go{background:var(--moon);border-color:var(--moon);color:#0E1116;font-weight:700}
+#p2-signed{font-size:12px;color:var(--moon);margin:8px 0 0;min-height:1em}
 #p2-join .p2-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
 #p2-join .p2-actions button{min-height:46px;border-radius:12px;cursor:pointer;
   font-family:var(--display);font-size:14px}
@@ -939,6 +950,41 @@ body.split-on #ability-badge{display:none}
    than fits, that part alone slides, and its scrollbar is hidden so the game
    never shows one.
    ================================================================= */
+/* The two-player panel: a tidy card rather than a run of loose controls. */
+#split-panel{background:rgba(255,255,255,.025);border:1px solid var(--line);
+  border-radius:14px;padding:14px !important;margin-top:8px}
+#split-panel > b{font-family:var(--display);font-size:14px}
+#split-panel > small{display:block;color:var(--muted);font-size:11.5px;line-height:1.45;
+  margin:4px 0 10px;max-width:60ch}
+.split-assign{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.split-assign label{display:flex;flex-direction:column;gap:5px;font-size:11px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.split-assign select,#split-mouse{background:var(--panel-2);border:1px solid var(--line);
+  border-radius:9px;padding:9px;color:var(--text);font-family:var(--display);font-size:12.5px}
+#split-panel .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+#split-panel .seg .btn{min-height:40px}
+.split-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;
+  padding:10px;background:rgba(0,0,0,.18);border-radius:11px}
+.split-opt{display:flex;flex-direction:column;gap:5px;font-size:11px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.split-opt input[type=range]{width:100%}
+.split-opt output{color:var(--moon);font-family:var(--display);font-size:12.5px}
+.split-keys-head{display:block;margin:14px 0 2px;font-family:var(--display);font-size:13px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--moon)}
+#split-keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:6px;margin:8px 0 10px}
+#split-keys .bind-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+  padding:8px 11px;cursor:pointer;font-size:12px;text-align:left;color:var(--text)}
+#split-keys .bind-row:hover{border-color:var(--moon)}
+#split-keys .bind-row.lit{border-color:var(--moon);box-shadow:0 0 0 2px rgba(111,227,196,.25)}
+#split-keys kbd{background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:6px;
+  padding:3px 8px;font-family:var(--display);font-size:11px;color:var(--moon);white-space:nowrap}
+#split-pads{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+@media (max-width:620px){
+  .split-assign,.split-opts,#split-panel .seg{grid-template-columns:1fr}
+}
+
 /* A thumb button a player has moved, and one being moved right now. */
 #touch-layer .tbtn.moved{position:fixed !important;transform:translate(-50%,-50%) !important;
   right:auto !important;bottom:auto !important;margin:0 !important}
@@ -1376,6 +1422,20 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <div id="p2-grid"></div>
     <label for="p2-name">Your name</label>
     <input id="p2-name" maxlength="18" placeholder="Player 2" autocomplete="off" />
+    <div id="p2-who">
+      <button type="button" id="p2-signin-open">Sign in to my own account</button>
+      <p class="p2-who-note">As a guest you can play everything. Sign in and what you
+        catch is paid into your own wallet.</p>
+      <div id="p2-signin">
+        <input id="p2-email" type="email" placeholder="your email" autocomplete="off" />
+        <input id="p2-pass" type="password" placeholder="password" autocomplete="off" />
+        <div class="p2-signin-row">
+          <button type="button" id="p2-signin-cancel">Not now</button>
+          <button type="button" id="p2-signin-go">Sign in</button>
+        </div>
+      </div>
+      <p id="p2-signed"></p>
+    </div>
     <p id="p2-join-status"></p>
     <div class="p2-actions">
       <button type="button" id="p2-cancel">Cancel</button>
@@ -1473,9 +1533,19 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
           <button class="btn" id="split-start">Start split screen</button>
           <button class="btn" id="split-stop">Stop split screen</button>
         </div>
+        <div class="split-opts">
+          <label class="split-opt"><span>Who uses the mouse</span>
+            <select id="split-mouse">
+              <option value="1">Player 1</option>
+              <option value="2">Player 2</option>
+            </select></label>
+          <label class="split-opt"><span>Player 2 look speed</span>
+            <input type="range" id="split-look" min="0.4" max="2.2" step="0.1" />
+            <output id="split-look-out"></output></label>
+        </div>
         <div id="split-keys-wrap">
-          <b style="display:block;margin-top:12px">Player two&rsquo;s keys</b>
-          <small>Click one and press the key you want. Player one keeps W A S D and the mouse.</small>
+          <b class="split-keys-head">Player two&rsquo;s keys</b>
+          <small>Click one and press the key you want.</small>
           <div id="split-keys"></div>
           <button class="btn" id="split-keys-reset">Put the keys back to normal</button>
         </div>
@@ -4123,6 +4193,8 @@ const Settings = {
   renderDistance: IS_TOUCH ? 3 : 5,
   sharpness: 1.0,           // how much of the screen's own sharpness to use
   movablePads: false,       // whether the thumb buttons can be dragged about
+  mouseTo: 1,               // which player, in split screen, steers with the mouse
+  p2LookSpeed: 1.0,         // how fast player two's look keys turn
   fov: 82,
   sensitivity: 1.0,
   invertY: false,
@@ -5247,7 +5319,7 @@ Object.assign(Game, {
     this.updateGear(dt, jumpHeld);
     if (this.hintTimer > 0) {
       this.hintTimer -= dt;
-      const clock = document.getElementById('hint-clock');
+      const clock = document.querySelector('#drive-hint .hint-clock');
       if (clock) clock.textContent = Math.max(0, Math.ceil(this.hintTimer)) + 's';
       if (this.hintTimer <= 0) $('#drive-hint').classList.remove('show');
     }
@@ -5600,8 +5672,9 @@ Object.assign(Game, {
     const kill = (ev) => {
       const t = ev.target;
       if (!t) return;
-      const onX = (t.id === 'hint-close' || t.id === 'hint-clock' ||
-                   (t.closest && t.closest('#hint-close')));
+      const cl = t.classList;
+      const onX = !!(cl && (cl.contains('hint-close') || cl.contains('hint-clock'))) ||
+                  !!(t.closest && t.closest('.hint-close'));
       if (!onX) return;
       ev.preventDefault();
       ev.stopPropagation();
@@ -5649,8 +5722,8 @@ Object.assign(Game, {
     if (!el || !v) return;
     this.hintTimer = 30;
     if (asPassenger) {
-      el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i id="hint-clock">30s</i>' +
-        '<i id="hint-close" title="Close">\u2715</i></b>' +
+      el.innerHTML = '<b>' + v.def.name + ' \u00b7 passenger<i class="hint-clock">30s</i>' +
+        '<i class="hint-close" title="Close">\u2715</i></b>' +
         '<span>Someone else is driving. Sit back.</span>' +
         `<span><kbd>${Game.controlWords().exit}</kbd>hop off</span>`;
       el.classList.add('show');
@@ -5660,7 +5733,7 @@ Object.assign(Game, {
         Game.hintTimer = 0;
         Game.hintDismissed = true;
       };
-      const c0 = document.getElementById('hint-close');
+      const c0 = el.querySelector('.hint-close');
       if (c0) { c0.addEventListener('click', shut0); c0.addEventListener('touchstart', shut0, { passive: false }); }
       el.addEventListener('click', shut0);
       return;
@@ -5679,7 +5752,7 @@ Object.assign(Game, {
     }
     rows.push([W.exit, 'get out']);
     el.innerHTML = '<b>' + v.def.name + ' \u00b7 ' + v.def.seats + (v.def.seats > 1 ? ' seats' : ' seat') +
-      '<i id="hint-clock">30s</i><i id="hint-close" title="Close">\u2715</i></b>' +
+      '<i class="hint-clock">30s</i><i class="hint-close" title="Close">\u2715</i></b>' +
       rows.map(r => `<span><kbd>${r[0]}</kbd>${r[1]}</span>`).join('');
     el.classList.add('show');
     const shut = (ev) => {
@@ -5688,7 +5761,7 @@ Object.assign(Game, {
       this.hintTimer = 0;
       this.hintDismissed = true;          // do not pop back up this ride
     };
-    const close = document.getElementById('hint-close');
+    const close = el.querySelector('.hint-close');
     if (close) {
       close.addEventListener('click', shut);
       close.addEventListener('touchstart', shut, { passive: false });
@@ -6166,6 +6239,7 @@ Object.assign(Game, {
     if (Math.floor(p.x) === x && Math.floor(p.z) === z && (Math.floor(p.y) === y || Math.floor(p.y + 1) === y)) return;
     if (this.world.setBlock(x, y, z, id)) {
       this.net.sendEdit(x, y, z, id);
+      this.placedAt = (this.placedAt || 0) + 1;    // so your character reaches out and sets it
       if (this.mode === 'survival') {
         this.inventory[id]--;
         if (this.inventory[id] <= 0) { delete this.inventory[id]; this.hotbar[this.slot] = null; }
@@ -7335,7 +7409,10 @@ Object.assign(Game, {
     }
   },
 
-  swing() { this.swingT = 0.3; },
+  swing() {
+    this.swingT = 0.3;
+    this.swingAt = (this.swingAt || 0) + 1;    // a count, so a figure can tell one swing from the next
+  },
 
   animateHand(dt) {
     if (!this.hand) return;
@@ -7397,6 +7474,26 @@ const UI = {
       if (Split.start(p1, p2)) this.closeAll();
     });
     on('#split-stop', 'click', () => { Split.stop(); this.closeAll(); });
+    const mouseTo = $('#split-mouse');
+    if (mouseTo) {
+      mouseTo.value = String(Settings.mouseTo || 1);
+      mouseTo.addEventListener('change', () => {
+        Settings.mouseTo = parseInt(mouseTo.value, 10) === 2 ? 2 : 1;
+        Game.toast('The mouse now steers Player ' + Settings.mouseTo + '.');
+        try { Game.saveSettings && Game.saveSettings(); } catch (e) {}
+      });
+    }
+    const lookSpeed = $('#split-look');
+    if (lookSpeed) {
+      const out = $('#split-look-out');
+      const sync = () => {
+        Settings.p2LookSpeed = parseFloat(lookSpeed.value);
+        if (out) out.textContent = Settings.p2LookSpeed.toFixed(1) + '\u00d7';
+      };
+      lookSpeed.value = Settings.p2LookSpeed || 1;
+      lookSpeed.addEventListener('input', sync);
+      sync();
+    }
     on('#split-keys-reset', 'click', () => {
       Split.resetBinds(); this.renderSplitKeys(); Game.toast('Player two\u2019s keys are back to normal.');
     });
@@ -7442,6 +7539,19 @@ const UI = {
     on('#summon-no', 'click', () => Game.answerSummon(false));
     on('#p2-pause', 'click', () => UI.toggle('pause'));
     on('#p2-map-wrap', 'click', () => UI.openMap());
+    /* Player two, as themselves. */
+    on('#p2-signin-open', 'click', () => {
+      const box = $('#p2-signin');
+      if (box) box.classList.add('open');
+      const e = document.getElementById('p2-email');
+      if (e) e.focus();
+    });
+    on('#p2-signin-cancel', 'click', () => {
+      const box = $('#p2-signin');
+      if (box) box.classList.remove('open');
+    });
+    on('#p2-signin-go', 'click', () => Split.signInSecond());
+    on('#p2-pass', 'keydown', (e) => { if (e.key === 'Enter') Split.signInSecond(); });
     on('#p2-spawn', 'click', () => Split.confirmJoin());
     on('#p2-cancel', 'click', () => Split.cancelJoin());
     on('#p2-name', 'keydown', (e) => { if (e.key === 'Enter') Split.confirmJoin(); });
@@ -7480,7 +7590,6 @@ const UI = {
       if (v) { this.rememberServer(v); this.probeServers(); }
     });
     // leave is handled by the back button
-    if (false) on('#mp-leave', 'click', () => { Game.net.disconnect(); Game.toast('Left the server.'); });
     // on a phone this is the pause pill; on a computer it is fullscreen
     on('#fullscreen', 'click', () => {
       if (IS_TOUCH) this.pause(); else this.toggleFullscreen();
@@ -7614,17 +7723,6 @@ const UI = {
     on('#offer-yes', 'click', () => Game.acceptOffer());
     on('#offer-no', 'click', () => Game.declineOffer());
     on('#bar-pause', 'click', () => this.pause());
-    on('#bar-mic', 'click', () => {
-      Game.voice.toggle().then(() => this.refreshSocialButtons());
-    });
-    on('#bar-chat', 'click', () => {
-      const box = $('#chat-input');
-      if (box) { box.parentElement.classList.add('show'); box.focus(); }
-    });
-
-    on('#pause-map', 'click', () => {
-      this.closeAll(); this.openMap();
-    });
     on('#pause-companions', 'click', () => {
       this.closeAll(); this.openCompanions();
     });
@@ -7647,9 +7745,6 @@ const UI = {
         if (key === 'musicVolume') Music.refresh();
         else Game.blip(520);
       });
-    });
-    on('#mp-roll', 'click', () => {
-      $('#mp-seed').value = randomSeed();
     });
     on('#companion-close', 'click', () => this.closeCompanions());
     on('#space-chart', 'click', () => this.openStarChart());
@@ -7723,28 +7818,11 @@ const UI = {
       if (Input.typing() || !Game.running) return;
       if (e.code === 'KeyT' || e.code === 'Enter') { e.preventDefault(); openChat(); }
     });
-    on('#btn-chat', 'touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (!Game.net.connected) { Game.toast('Chat works in multiplayer. Host or join a room first.'); return; }
-      openChat();
-    }, { passive: false });
-
     on('#btn-drop', 'touchstart', (e) => { e.preventDefault(); Game.dropHeld(false); }, { passive: false });
-    on('#btn-voice', 'touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (!Game.net.connected) { Game.toast('The microphone works in multiplayer. Host or join a room first.'); return; }
-      Game.voice.toggle();
-    }, { passive: false });
-    on('#voice-toggle', 'click', () => Game.voice.toggle());
     bindRange('#set-voice', 'voiceVolume', v => Math.round(v * 100) + '%');
     on('#set-voice', 'input', () => Game.voice.applyVolume());
     on('#mic-desktop', 'click', () => Game.voice.toggle());
     this.refreshSocialButtons();
-    on('#chat-desktop', 'click', () => {
-      const box = $('#chat-input');
-      box.parentElement.classList.add('show');
-      box.focus();
-    });
     on('#chat-desktop', 'click', () => {
       const box = $('#chat-input');
       box.parentElement.classList.add('show');
@@ -8106,13 +8184,9 @@ const UI = {
   },
 
   refreshVoiceButton() {
-    const b = $('#btn-voice');
-    const s = $('#voice-toggle');
     const d = $('#mic-desktop');
     const on = Game.voice.on;
-    if (b) { b.classList.toggle('on', on); b.textContent = on ? 'Mic on' : 'Mic'; }
     if (d) { d.classList.toggle('on', on); d.textContent = on ? '\ud83c\udf99 On' : '\ud83c\udf99 Mic'; }
-    if (s) s.textContent = on ? 'Turn the microphone off' : 'Turn the microphone on';
   },
 
   renderWaypoints() {
@@ -9039,6 +9113,7 @@ Object.assign(Game, {
    =================================================================== */
 const Split = {
   on: false,
+  acting: 1,            // which player the game is running the turn for
   p1Pad: -1,          // keyboard and mouse by default
   p2Pad: 0,
   p2: null,
@@ -9137,9 +9212,11 @@ const Split = {
     return { keys, pressed, binds: b, real: realKeys };
   },
 
-  /** Player two looks around with keys instead of a mouse. */
+  /* Player two looks around with keys instead of a mouse — unless the mouse
+     has been given to them in Settings, in which case player one uses a
+     controller and player two gets the smoother of the two. */
   lookFromKeys(b, realKeys, dt) {
-    const rate = 320 * dt * 60 / 60;          // about the speed of a slow mouse sweep
+    const rate = 320 * dt * 60 * (Settings.p2LookSpeed || 1) / 60;
     let dx = 0, dy = 0;
     if (realKeys[b.lookLeft]) dx -= rate;
     if (realKeys[b.lookRight]) dx += rate;
@@ -9147,6 +9224,9 @@ const Split = {
     if (realKeys[b.lookDown]) dy += rate;
     return { dx: Math.max(-400, Math.min(400, dx)), dy: Math.max(-400, Math.min(400, dy)) };
   },
+
+  /** Whether this player is the one holding the mouse. */
+  hasMouse(which) { return (Settings.mouseTo || 1) === which; },
 
   /* the fields that belong to a player, not to the world */
   FIELDS: ['player', 'camera', 'slot', 'hotbar', 'inventory', 'gear', 'riding', 'passengerIn',
@@ -9265,6 +9345,33 @@ const Split = {
     this.joinSex = (sex === 'female') ? 'female' : 'male';
     this.joinPick = null;
     this.renderJoinGrid();
+  },
+
+  /** Player two signs in, so what they catch is theirs. */
+  signInSecond() {
+    const email = (document.getElementById('p2-email') || {}).value || '';
+    const pass = (document.getElementById('p2-pass') || {}).value || '';
+    const said = document.getElementById('p2-signed');
+    if (!window.VoxeliaWallet || !VoxeliaWallet.signInSecond) {
+      if (said) said.textContent = 'Accounts are not available here.';
+      return;
+    }
+    if (!email || !pass) { if (said) said.textContent = 'Both an email and a password, please.'; return; }
+    if (said) said.textContent = 'Signing in\u2026';
+    VoxeliaWallet.signInSecond(email.trim(), pass).then((res) => {
+      if (!res.ok) { if (said) said.textContent = res.why; return; }
+      this.p2Account = res.account;
+      if (said) said.textContent = 'Signed in as ' + res.account.username + '. What you catch is yours.';
+      const nameBox = document.getElementById('p2-name');
+      if (nameBox && !nameBox.value) nameBox.value = res.account.username;
+      const form = document.getElementById('p2-signin');
+      if (form) form.classList.remove('open');
+      const openBtn = document.getElementById('p2-signin-open');
+      if (openBtn) openBtn.textContent = 'Signed in as ' + res.account.username;
+      // clear what was typed: this is a shared computer
+      const e = document.getElementById('p2-email'), pw = document.getElementById('p2-pass');
+      if (e) e.value = ''; if (pw) pw.value = '';
+    });
   },
 
   confirmJoin() {
@@ -9427,6 +9534,8 @@ const Split = {
       if (this.p2.selfBody.avatar) { try { this.p2.selfBody.avatar.dispose(); } catch (e) {} }
     }
     this.p2 = null;
+    this.p2Account = null;
+    try { window.VoxeliaWallet && VoxeliaWallet.signOutSecond && VoxeliaWallet.signOutSecond(); } catch (e) {}
     Input.forcePad = undefined;
     document.body.classList.remove('split-on');
     if (Game.renderer) Game.renderer.setScissorTest(false);
@@ -9452,11 +9561,26 @@ const Split = {
      are handed to player two, so the two never fight over the same button. */
   updateP1(dt) {
     const savedKeys = Input.keys, savedPressed = Input.pressed;
+    const savedDX = Input.mouseDX, savedDY = Input.mouseDY;
+    const savedMine = Input.mouseMine, savedPlace = Input.mousePlace;
     const view = this.viewFor(1, savedKeys, savedPressed);
     Input.keys = view.keys; Input.pressed = view.pressed;
     Input.forcePad = this.p1Pad;
+    // if the mouse was handed to player two, player one steers some other way
+    if (!this.hasMouse(1)) {
+      Input.mouseDX = 0; Input.mouseDY = 0;
+      Input.mouseMine = false; Input.mousePlace = false;
+      Input.buttons.mine = !!view.keys[view.binds.mine];
+      Input.buttons.place = !!view.keys[view.binds.place];
+    }
     try { Game.update(dt); }
-    finally { Input.keys = savedKeys; Input.pressed = savedPressed; }
+    finally {
+      Input.keys = savedKeys; Input.pressed = savedPressed;
+      if (!this.hasMouse(1)) {
+        Input.mouseDX = savedDX; Input.mouseDY = savedDY;
+        Input.mouseMine = savedMine; Input.mousePlace = savedPlace;
+      }
+    }
   },
 
   /* Player two's turn: their state, their keys, their controller, and none of
@@ -9473,6 +9597,7 @@ const Split = {
     const view = this.viewFor(2, savedKeys, savedPressed);
     const look = this.lookFromKeys(view.binds, savedKeys, dt);
     this.swap();
+    this.acting = 2;                 // player two is holding the reins
     try {
       Input.keys = view.keys;
       Input.pressed = view.pressed;
@@ -9483,10 +9608,19 @@ const Split = {
         interact: !!view.keys.KeyE,
         crouch: !!view.keys.ShiftLeft
       };
-      Input.mouseMine = !!savedKeys[view.binds.mine];
-      Input.mousePlace = !!savedKeys[view.binds.place];
       Input.moveStick = { x: 0, y: 0, active: false }; Input.lookStick = { x: 0, y: 0, active: false };
-      Input.mouseDX = look.dx; Input.mouseDY = look.dy;
+      if (this.hasMouse(2)) {
+        // the mouse is theirs: its movement and its buttons come through as they are
+        Input.mouseDX = savedDX; Input.mouseDY = savedDY;
+        Input.mouseMine = savedMouseMine || !!savedKeys[view.binds.mine];
+        Input.mousePlace = savedMousePlace || !!savedKeys[view.binds.place];
+        Input.buttons.mine = Input.mouseMine;
+        Input.buttons.place = Input.mousePlace;
+      } else {
+        Input.mouseMine = !!savedKeys[view.binds.mine];
+        Input.mousePlace = !!savedKeys[view.binds.place];
+        Input.mouseDX = look.dx; Input.mouseDY = look.dy;
+      }
       Input.forcePad = this.p2Pad;
       Game.toast = (msg) => savedToast.call(Game, (this.p2Name || 'Player 2') + ': ' + msg);
       for (const f of this.WORLD_ONLY) { if (typeof Game[f] === 'function') { stubs[f] = Game[f]; Game[f] = () => {}; } }
@@ -9505,6 +9639,7 @@ const Split = {
       Input.mouseMine = savedMouseMine; Input.mousePlace = savedMousePlace;
       Input.pressed = savedPressed;
       this.swap();
+      this.acting = 1;
       Input.forcePad = this.p1Pad;
     }
     this.sendP2();
@@ -9606,6 +9741,9 @@ const Split = {
     }
   }
 };
+
+/* the wallet needs to know which of the two is playing, to pay the right one */
+try { window.Split = Split; } catch (e) {}
 
 const Visits = {
   base() {
@@ -10589,11 +10727,22 @@ Game.net = {
     if (s.jetpack) g.add(box(0.42, 0.5, 0.22, '#C87A3E', 0, 1.1, -0.3));
     const slim = s.body === 'female';
     g.add(box(slim ? 0.52 : 0.62, 0.7, 0.3, s.torso, 0, 1.0, 0));
-    g.add(box(slim ? 0.17 : 0.21, 0.68, 0.24, s.arms, slim ? -0.36 : -0.42, 1.0, 0));
-    g.add(box(slim ? 0.17 : 0.21, 0.68, 0.24, s.arms, slim ? 0.36 : 0.42, 1.0, 0));
+    /* The arms and legs are named, and hang from the shoulder and the hip
+       rather than from their own middles, so turning them swings them the way
+       a limb swings instead of spinning them on the spot. */
+    const limb = (w, h, d, col, x, top, kind) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(x, top, 0);
+      pivot.userData.limb = kind;
+      const m = box(w, h, d, col, 0, -h / 2, 0);
+      pivot.add(m);
+      return pivot;
+    };
+    g.add(limb(slim ? 0.17 : 0.21, 0.68, 0.24, s.arms, slim ? -0.36 : -0.42, 1.34, 'arm'));
+    g.add(limb(slim ? 0.17 : 0.21, 0.68, 0.24, s.arms, slim ? 0.36 : 0.42, 1.34, 'arm'));
     if (slim) g.add(box(0.56, 0.22, 0.34, s.hair, 0, 1.62, -0.06));
-    g.add(box(0.26, 0.65, 0.28, s.legs, -0.16, 0.33, 0));
-    g.add(box(0.26, 0.65, 0.28, s.legs, 0.16, 0.33, 0));
+    g.add(limb(0.26, 0.65, 0.28, s.legs, -0.16, 0.66, 'leg'));
+    g.add(limb(0.26, 0.65, 0.28, s.legs, 0.16, 0.66, 'leg'));
     const tag = makeNameTag(name);
     if (tag) { tag.position.set(0, 2.35, 0); g.add(tag); }
     const peer = { id, name, model: g, target: new THREE.Vector3(), yaw: 0, worn: 0 };
@@ -13304,8 +13453,14 @@ Object.assign(Game, {
     this.characterStamp = JSON.stringify(ok);
     this.needsBodyChoice = false;
     try { localStorage.setItem('voxeliaCharacterV2', JSON.stringify(ok)); } catch (e) {}
-    const nameBox = document.getElementById('player-name');
-    if (nameBox && ok.name) nameBox.value = ok.name;
+    // the name you chose on the character screen is the name the room sees
+    if (ok.name) {
+      const nameBox = document.getElementById('skin-name');
+      if (nameBox) nameBox.value = ok.name;
+      this.skin.name = ok.name;
+      this.saveSkin();
+      if (this.net) this.net.sentSkin = null;   // the room hears the new name on the next tick
+    }
     this.applyCharacterToHand();
     this.closeCharacterScreen();
     this.toast(ok.name + ' is ready.');
@@ -13383,15 +13538,51 @@ Object.assign(Game, {
     fig.model.position.set(pl.pos.x, pl.pos.y, pl.pos.z);
     fig.model.rotation.y = pl.yaw + Math.PI;
     const sp = Math.hypot(pl.vel ? pl.vel.x : 0, pl.vel ? pl.vel.z : 0);
+    /* Everything the figure needs to know to pick the right movement.
+
+       Digging, building and sitting in something were all missing, so your
+       own character stood there idle while you worked. They are all here now,
+       and a swing of the arm is fired the moment you start on a block. */
+    const aboard = !!(this.riding || this.passengerIn || this.mount);
+    const digging = !!(Input.buttons.mine || Input.mouseMine);
+    const state = {
+      speed: sp,
+      grounded: !!pl.onGround,
+      flying: !!pl.flying,
+      swimming: !!pl.inWater,
+      mining: digging && !aboard,
+      inVehicle: aboard
+    };
     if (fig.avatar) {
-      fig.avatar.update(dt, {
-        speed: sp, grounded: !!pl.onGround, flying: !!pl.flying,
-        swimming: !!pl.inWater, inVehicle: false
-      });
+      fig.avatar.update(dt, state);
+      // the one-off movements: a swing as a block gives way, a reach as one goes down
+      if (this.swingAt && this.swingAt !== fig.sawSwing) { fig.sawSwing = this.swingAt; fig.avatar.play('mine'); }
+      if (this.placedAt && this.placedAt !== fig.sawPlace) { fig.sawPlace = this.placedAt; fig.avatar.play('place'); }
+      if (!pl.onGround && fig.wasDown !== false) { fig.wasDown = false; fig.avatar.play('jumpAnticipation'); }
+      if (pl.onGround) fig.wasDown = true;
     } else {
-      // the block body gets the same walk bob the other players get
-      fig.step = (fig.step || 0) + (sp > 0.4 ? dt * Math.min(11, 4 + sp) : 0);
-      fig.model.position.y += sp > 0.4 ? Math.abs(Math.sin(fig.step)) * 0.06 : 0;
+      /* The block body walks, swims, sits and swings too, so a player whose
+         model has not arrived is never a statue sliding about. */
+      const moving = sp > 0.4;
+      fig.step = (fig.step || 0) + (moving ? dt * Math.min(11, 4 + sp) : 0);
+      fig.model.position.y += moving ? Math.abs(Math.sin(fig.step)) * 0.06 : 0;
+      // arms and legs, if this body has them
+      const kids = fig.model.children;
+      const swing = moving ? Math.sin(fig.step) * Math.min(0.7, 0.22 + sp * 0.06) : 0;
+      fig.limbT = (fig.limbT || 0) + dt;
+      const dig = state.mining ? Math.abs(Math.sin(fig.limbT * 11)) * 1.1 : 0;
+      let arms = 0, legs = 0;
+      for (const k of kids) {
+        if (!k.userData || !k.userData.limb) continue;
+        if (k.userData.limb === 'arm') {
+          k.rotation.x = (arms === 0 ? swing : -swing) - dig;
+          arms++;
+        } else if (k.userData.limb === 'leg') {
+          k.rotation.x = (legs === 0 ? -swing : swing) * (state.inVehicle ? 0 : 1);
+          legs++;
+        }
+      }
+      if (state.inVehicle) fig.model.position.y += 0.1;
     }
   },
 

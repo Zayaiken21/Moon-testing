@@ -457,11 +457,66 @@
           const key = world + ':' + (c.spawnKey || c.id) + ':' + c.species;
           const def = c.def || {};
           const rarity = def.rarity || (def.rare ? 'rare' : 'common');
-          claim(key, rarity);
+          /* Whoever actually tamed it is paid. In split screen the game runs
+             player two's turn with their state swapped in, so the flag below
+             says which of the two is holding the reins right now. */
+          const who = (window.Split && window.Split.on && window.Split.acting === 2) ? 2 : 1;
+          claimFor(who, key, rarity);
         }
       } catch (e) {}
       return out;
     };
+  }
+
+  /* ------------------------------------------------------------------
+     A second person at the same computer.
+
+     Split screen starts with player two as a guest, which needs nothing at
+     all. If they would rather be themselves, they sign in here and from then
+     on what they catch is paid into their own account, not player one's.
+     Their session is held in memory only: it never touches the saved one, so
+     signing player two in cannot sign player one out, and closing the tab
+     leaves no trace of them on a shared computer.
+     ------------------------------------------------------------------ */
+  let guest2 = null;                 // { session, username, email, balance, ... }
+
+  async function signInSecond(email, password) {
+    const out = await api('/account/signin', { email: email, password: password });
+    if (!out || !out.ok || !out.session) {
+      return { ok: false, why: (out && out.why) || 'Those details were not recognised.' };
+    }
+    const me = await api('/account/me?session=' + encodeURIComponent(out.session));
+    guest2 = me && me.username ? Object.assign({ session: out.session }, me) : null;
+    if (!guest2) return { ok: false, why: 'Signed in, but the account could not be read.' };
+    return { ok: true, account: guest2 };
+  }
+
+  function signOutSecond() { guest2 = null; }
+
+  /** What player two catches is paid to player two. */
+  async function claimFor(who, creatureKey, rarity) {
+    const base = serverBase();
+    const acc = (who === 2 && guest2) ? guest2 : null;
+    if (!acc) return claim(creatureKey, rarity);       // a guest earns nothing of their own
+    const body = {
+      account: acc.id || acc.username, session: acc.session,
+      creature: creatureKey, rarity,
+      mode: (window.Game && window.Game.mode) || 'survival'
+    };
+    if (!base) return null;
+    try {
+      const res = await fetch(base + '/claim', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const out = await res.json();
+      if (out && out.ok) {
+        guest2.balance = out.balance;
+        guest2.caught = out.caught;
+        toast(acc.username + ' caught one \u2014 ' + money(out.cents) + ' to their wallet.');
+      } else if (out && out.why) toast(acc.username + ': ' + out.why);
+      return out;
+    } catch (e) { return null; }
   }
 
   window.VoxeliaWallet = {
@@ -469,7 +524,10 @@
     openAccount, closeAccount, signedIn: () => account, session,
     account: accountId,
     balance: () => cache.balance,
-    caught: () => cache.caught
+    caught: () => cache.caught,
+    // the second person at this computer
+    signInSecond, signOutSecond, claimFor,
+    second: () => guest2
   };
 
   function attach() {
