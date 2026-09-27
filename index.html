@@ -1536,6 +1536,50 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 .mode-option.locked,button.locked{opacity:.5;cursor:not-allowed}
 .mode-option.locked:hover{border-color:var(--line)}
 
+/* Emptying a square by holding it.
+
+   The important rule here is the first one. On a phone, holding anything
+   with text in it starts selecting and raises the copy-and-paste callout —
+   so the stack dropped and the player was left staring at "Copy | Look Up |
+   Share" over the top of their bag. Turning selection and the callout off
+   for the squares themselves stops it without breaking an ordinary tap,
+   which is what preventing the touch outright would have done. */
+.slot,.block-chip,#hotbar,#bag .bag-grid,#pouch,#btn-drop{
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation}
+/* And everything inside them.
+
+   Turning selection off on the square was not enough on an iPhone. A square
+   holds a little canvas, the number carried and the slot's own digit, and a
+   long press lands on one of those rather than on the button — at which
+   point it is that child's settings that decide, not the button's, and up
+   came "Copy | Look Up | Share" over the top of the bag.
+
+   Making the children invisible to touch altogether is what settles it: the
+   press can only ever land on the button, so there is nothing underneath a
+   finger that could be selected, dragged, or looked up. */
+.slot *,.block-chip *,#pouch *{
+  pointer-events:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-user-drag:none}
+
+/* A ring that fills while you hold, so the wait is visibly doing something
+   rather than looking like nothing happened. */
+.slot.holding,.block-chip.holding{position:relative}
+.slot.holding::after,.block-chip.holding::after{
+  content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;
+  background:conic-gradient(var(--moon) calc(var(--held,0) * 360deg), transparent 0);
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  opacity:.95}
+@media (prefers-reduced-motion:reduce){
+  .slot.holding::after,.block-chip.holding::after{background:none;
+    outline:2px solid var(--moon);outline-offset:2px}
+}
+
 /* A square being emptied by a long press. */
 .slot.dropping,.block-chip.dropping{outline:2px solid var(--ember);
   outline-offset:2px;transform:scale(.94);transition:transform .12s ease}
@@ -4223,8 +4267,23 @@ class Drop {
     this.life = 0;
     this.spin = Math.random() * 6;
     this.settled = false;
-    const b = BLOCKS[blockId];
-    this.mesh = new THREE.Mesh(dropGeometry(), new THREE.MeshLambertMaterial({ color: b.tint }));
+    /* Blocks and items both.
+
+       This used to read BLOCKS[blockId] and nothing else, so an item — which
+       has no entry there — came back undefined and threw. dropHeld worked
+       around it by simply not making a drop for items at all: they left your
+       bag and were gone. Dropping a stack of berries, or a pet's food, threw
+       it away with nothing left on the floor to pick back up.
+
+       An item is drawn smaller and flatter than a block, so the two are told
+       apart at a glance on the ground. */
+    const item = isItem(blockId);
+    const def = item ? itemDef(blockId) : BLOCKS[blockId];
+    this.isItem = item;
+    const colour = item ? itemColour(def) : ((def && def.tint) || '#B9B4C8');
+    this.mesh = new THREE.Mesh(
+      item ? new THREE.BoxGeometry(0.2, 0.1, 0.2) : dropGeometry(),
+      new THREE.MeshLambertMaterial({ color: colour }));
     this.mesh.position.copy(this.pos);
   }
 
@@ -7263,23 +7322,268 @@ Object.assign(Game, {
 /* ---------------------------------------------------------------
    12. HUD, inspector, character shop-front
    --------------------------------------------------------------- */
+/**
+ * A colour of this item's own.
+ *
+ * Items were given a colour per family, not per item: every vehicle the same
+ * grey, every food the same orange, every scrap of cloth the same lilac.
+ * Twenty-six vehicles shared one colour. Since the picture is a coloured
+ * shape and nothing else, that meant twenty-six identical pictures — you
+ * could not tell a Roadster from a Coach without reading the label, and on a
+ * hotbar there is no label.
+ *
+ * The family colour is kept as the anchor, because a food still ought to look
+ * like a food, and each item is then moved a little way around it — a
+ * different hue, a lighter or darker shade — by its own name. Two items in a
+ * family always differ, the same item is always the same colour, and the
+ * family still reads as a family.
+ */
+const ITEM_COLOUR = {};
+
+/* What colour each thing is drawn in.
+ *
+ * Most items are given a colour for their family rather than for themselves:
+ * twenty-six soft materials all start life as the same pale lilac, fourteen
+ * craft as the same grey. Nudging each one by a hash of its name — which is
+ * what this used to do — spread twenty-six things across sixty degrees of
+ * hue, so they landed two degrees apart and were, to the eye, one picture. A
+ * bag of wool and a bag of sea lace were indistinguishable.
+ *
+ * Three things are needed to fix that properly, and all three have to happen
+ * together, which is why the whole table is worked out in one pass rather
+ * than one item at a time:
+ *
+ *   1. Spread a family around as much of the colour wheel as its size needs.
+ *   2. Give a near-grey family enough saturation for that spread to show.
+ *      Turning the hue of something almost colourless barely moves it: the
+ *      pale-lilac vehicles were being spread properly and still coming out
+ *      within five points of each other.
+ *   3. Then check the result and separate anything still too close, because
+ *      some colours are hand-picked and two of them can simply be nearly the
+ *      same — void iron and osmium were one point apart.
+ *
+ * Anything with a colour of its own keeps it unless it clashes with another.
+ */
+let ITEM_COLOURS_BUILT = false;
+
+function hexDistance(a, b) {
+  const x = hex2rgb(a), y = hex2rgb(b);
+  return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]);
+}
+
+function hexToHsl(hex) {
+  const [r, g, b] = hex2rgb(hex).map(v => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d) % 6;
+    else if (max === g) hue = (b - r) / d + 2;
+    else hue = (r - g) / d + 4;
+    hue *= 60;
+  }
+  return { h: (hue + 360) % 360, s: sat, l: l };
+}
+
+function buildItemColours() {
+  if (ITEM_COLOURS_BUILT) return;
+  ITEM_COLOURS_BUILT = true;
+
+  /* Families: the same kind of thing, started from the same colour. Two
+     items drawn as different shapes are already told apart, so they are
+     allowed to share. */
+  const groups = {};
+  for (const it of ITEMS) {
+    const key = (it.kind || 'material') + '|' +
+                (/^#[0-9a-fA-F]{6}$/.test(it.tint || '') ? it.tint.toLowerCase() : 'none');
+    (groups[key] || (groups[key] = [])).push(it);
+  }
+
+  const picked = {};                 // name -> colour
+  for (const key of Object.keys(groups).sort()) {
+    // sorted, so a thing is the same colour on every visit
+    const family = groups[key].slice().sort((a, b) => a.name.localeCompare(b.name));
+    const base = /^#[0-9a-fA-F]{6}$/.test(family[0].tint || '') ? family[0].tint : '#B9B4C8';
+    const hsl = hexToHsl(base);
+
+    if (family.length === 1) {
+      picked[family[0].name] = base;          // a family of one keeps its colour
+      continue;
+    }
+
+    /* Enough of the wheel to keep everybody apart, and no more, plus enough
+       colour in them for that to be visible at all. */
+    const span = Math.min(330, Math.max(60, family.length * 26));
+    const step = span / family.length;
+    const sat = Math.max(0.42, Math.min(0.9, hsl.s));
+    family.forEach((it, i) => {
+      const shift = -span / 2 + step * i + step / 2;
+      /* Lightness moves in a cycle of three as well, so two neighbours on the
+         wheel are also a shade apart — which is what keeps them separate for
+         anybody who does not see hue well. */
+      const lit = [-0.12, 0.02, 0.14][i % 3];
+      picked[it.name] = hslHex(hsl.h + shift,
+                               sat,
+                               Math.max(0.30, Math.min(0.76, hsl.l + lit)));
+    });
+  }
+
+  /* And now separate whatever is still too close to something drawn as the
+     same shape. Walked in a fixed order so the answer never changes. */
+  const APART = 26;
+  const byKind = {};
+  for (const it of ITEMS) (byKind[it.kind || 'material'] || (byKind[it.kind || 'material'] = [])).push(it);
+  for (const kind of Object.keys(byKind).sort()) {
+    const list = byKind[kind].slice().sort((a, b) => a.name.localeCompare(b.name));
+    const settled = [];
+    for (const it of list) {
+      let c = picked[it.name];
+      // two things with the very same name are the same thing to a player
+      const twin = settled.find(s => s.name === it.name);
+      if (twin) { picked[it.name] = twin.c; continue; }
+      for (let tries = 0; tries < 24; tries++) {
+        const clash = settled.find(s => hexDistance(s.c, c) < APART);
+        if (!clash) break;
+        const h = hexToHsl(c);
+        /* Walk it round the wheel and up and down in brightness together, a
+           step at a time, until it is plainly its own colour. */
+        c = hslHex(h.h + 37 * (tries + 1),
+                   Math.max(0.35, Math.min(0.92, h.s + (tries % 2 ? 0.08 : -0.05))),
+                   Math.max(0.28, Math.min(0.80, h.l + ((tries % 3) - 1) * 0.09)));
+      }
+      picked[it.name] = c;
+      settled.push({ name: it.name, c: c });
+    }
+  }
+
+  for (const name of Object.keys(picked)) ITEM_COLOUR[name] = picked[name];
+}
+
+function itemColour(def) {
+  if (!def) return '#B9B4C8';
+  if (!ITEM_COLOURS_BUILT) {
+    try { buildItemColours(); } catch (e) { ITEM_COLOURS_BUILT = true; }
+  }
+  if (ITEM_COLOUR[def.name]) return ITEM_COLOUR[def.name];
+  const base = /^#[0-9a-fA-F]{6}$/.test(def.tint || '') ? def.tint : '#B9B4C8';
+  ITEM_COLOUR[def.name] = base;
+  return base;
+}
+
+/**
+ * The picture for an item.
+ *
+ * Colour alone is not enough — at forty pixels, two hues thirty degrees apart
+ * are two similar circles. So the shape says what kind of thing it is: you
+ * can tell a tool from a boat from a seed across the room, and the colour
+ * tells you which tool. Anything without a shape of its own falls back to a
+ * rounded lozenge rather than a circle, so it still reads as a thing.
+ */
 function itemSwatch(def, size) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
+  if (!g) return c;
+  const S = (n) => size * n;
   g.fillStyle = 'rgba(0,0,0,0.18)';
   g.fillRect(0, 0, size, size);
-  g.fillStyle = def.tint;
-  if (def.kind === 'tool') {
-    g.fillRect(size * 0.44, size * 0.3, size * 0.12, size * 0.6);      // handle
-    g.fillRect(size * 0.22, size * 0.18, size * 0.56, size * 0.18);    // head
-  } else if (def.kind === 'bucket') {
-    g.fillRect(size * 0.26, size * 0.3, size * 0.48, size * 0.5);
-    g.fillRect(size * 0.2, size * 0.24, size * 0.6, size * 0.1);
-  } else {
+
+  const main = itemColour(def);
+  const [r, gg, b] = hex2rgb(main);
+  const dark = 'rgb(' + Math.max(0, r - 60) + ',' + Math.max(0, gg - 60) + ',' + Math.max(0, b - 60) + ')';
+  const light = 'rgb(' + Math.min(255, r + 55) + ',' + Math.min(255, gg + 55) + ',' + Math.min(255, b + 55) + ')';
+  const box = (x, y, w, h, col) => { g.fillStyle = col || main; g.fillRect(S(x), S(y), S(w), S(h)); };
+  const disc = (x, y, rad, col) => {
+    g.fillStyle = col || main;
+    g.beginPath(); g.arc(S(x), S(y), S(rad), 0, Math.PI * 2); g.fill();
+  };
+  const poly = (pts, col) => {
+    g.fillStyle = col || main;
     g.beginPath();
-    g.arc(size / 2, size / 2, size * 0.28, 0, Math.PI * 2);
-    g.fill();
+    pts.forEach((p, i) => (i ? g.lineTo(S(p[0]), S(p[1])) : g.moveTo(S(p[0]), S(p[1]))));
+    g.closePath(); g.fill();
+  };
+
+  switch (def.kind) {
+    case 'tool':
+      box(0.44, 0.30, 0.12, 0.58, '#6B4A2A');           // a wooden handle
+      box(0.20, 0.16, 0.60, 0.20);                      // the head
+      box(0.20, 0.16, 0.60, 0.07, light);               // a shine along the top
+      break;
+    case 'bucket':
+      poly([[0.28, 0.32], [0.72, 0.32], [0.66, 0.80], [0.34, 0.80]]);
+      box(0.24, 0.26, 0.52, 0.09, light);               // the rim
+      break;
+    case 'food':
+      disc(0.5, 0.56, 0.26);                            // fruit
+      disc(0.42, 0.48, 0.09, light);                    // a highlight
+      box(0.47, 0.22, 0.06, 0.14, '#5C7A3A');           // stalk
+      poly([[0.53, 0.26], [0.74, 0.20], [0.58, 0.34]], '#6FA53F');   // leaf
+      break;
+    case 'produce':
+      poly([[0.30, 0.34], [0.70, 0.34], [0.78, 0.80], [0.22, 0.80]]);  // a full sack
+      box(0.36, 0.26, 0.28, 0.10, dark);                // tied at the neck
+      break;
+    case 'seed':
+      poly([[0.50, 0.22], [0.70, 0.56], [0.50, 0.80], [0.30, 0.56]]);  // a teardrop
+      disc(0.5, 0.56, 0.07, light);
+      break;
+    case 'material':
+      poly([[0.24, 0.62], [0.34, 0.40], [0.76, 0.40], [0.66, 0.62]]);  // an ingot
+      box(0.24, 0.62, 0.42, 0.12, dark);
+      break;
+    case 'part':
+      disc(0.5, 0.5, 0.28);                             // a cog
+      disc(0.5, 0.5, 0.11, '#191622');
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        g.fillStyle = main;
+        g.fillRect(S(0.5) + Math.cos(a) * S(0.27) - S(0.055),
+                   S(0.5) + Math.sin(a) * S(0.27) - S(0.055), S(0.11), S(0.11));
+      }
+      break;
+    case 'vehicle': case 'cart':
+      box(0.16, 0.40, 0.68, 0.24);                      // a body
+      box(0.30, 0.28, 0.38, 0.14, light);               // a cabin
+      disc(0.30, 0.70, 0.10, '#241F2E');
+      disc(0.70, 0.70, 0.10, '#241F2E');
+      break;
+    case 'boat': case 'sub':
+      poly([[0.14, 0.50], [0.86, 0.50], [0.72, 0.76], [0.28, 0.76]]);  // a hull
+      box(0.44, 0.26, 0.07, 0.24, '#6B4A2A');           // a mast
+      poly([[0.51, 0.26], [0.76, 0.48], [0.51, 0.48]], light);          // a sail
+      break;
+    case 'plane':
+      poly([[0.50, 0.16], [0.60, 0.62], [0.40, 0.62]]);  // fuselage
+      box(0.12, 0.52, 0.76, 0.11);                       // wings
+      box(0.40, 0.72, 0.20, 0.08, dark);                 // tailplane
+      break;
+    case 'rocket':
+      poly([[0.50, 0.14], [0.66, 0.44], [0.34, 0.44]], '#D9534F');      // nose
+      box(0.36, 0.44, 0.28, 0.32);                                      // body
+      poly([[0.36, 0.76], [0.36, 0.60], [0.24, 0.84]], '#D9534F');      // fins
+      poly([[0.64, 0.76], [0.64, 0.60], [0.76, 0.84]], '#D9534F');
+      disc(0.5, 0.56, 0.07, '#7FD8FF');                                 // a window
+      break;
+    case 'gear':
+      poly([[0.30, 0.24], [0.70, 0.24], [0.78, 0.78], [0.22, 0.78]]);   // worn kit
+      box(0.42, 0.24, 0.16, 0.54, dark);
+      break;
+    case 'trade':
+      disc(0.5, 0.5, 0.28, light);                       // a coin
+      disc(0.5, 0.5, 0.20);
+      break;
+    default:
+      // a rounded lozenge: still a thing, and plainly not a fruit or a cog
+      g.fillStyle = main;
+      g.beginPath();
+      if (g.roundRect) g.roundRect(S(0.26), S(0.32), S(0.48), S(0.40), S(0.12));
+      else g.rect(S(0.26), S(0.32), S(0.48), S(0.40));
+      g.fill();
+      box(0.26, 0.32, 0.48, 0.09, light);
+      break;
   }
   return c;
 }
@@ -7423,36 +7727,119 @@ Object.assign(Game, {
      first when they want rid of a hundred blocks of dirt, and which used to
      do nothing at all. It works on the hotbar and on every square in the bag.
      A short press is left alone, so nothing is dropped by accident. */
+  /**
+   * Hold a square to empty it.
+   *
+   * The awkward part is not the timer, it is the phone. A long press on
+   * anything with text in it raises the copy-and-paste callout and starts
+   * selecting — so the stack dropped and the player was left looking at
+   * "Copy | Look Up | Share". preventDefault on touchstart would stop it and
+   * would also stop the tap that picks the square, so the real fix is in the
+   * CSS: `user-select:none` and `-webkit-touch-callout:none` on the squares
+   * themselves, which is set where they are styled.
+   *
+   * What is left here is the feel of it: a ring that fills while you hold so
+   * you can see it working, a small buzz when it starts and a firmer one
+   * when it goes, and a hold that gives up the moment your finger moves —
+   * because a finger that moved was scrolling the bag, not emptying a
+   * square.
+   */
   holdToDropAll(el, id) {
     if (!el || el.__dropHold) return;
     el.__dropHold = true;
-    let hold = null, fired = false;
-    const start = () => {
+    const HOLD = 520;
+    let hold = null, fired = false, from = null, tick = null;
+
+    const clear = () => {
+      clearTimeout(hold); hold = null;
+      cancelAnimationFrame(tick); tick = null;
+      el.classList.remove('holding');
+      el.style.removeProperty('--held');
+    };
+
+    const start = (x, y) => {
       fired = false;
-      clearTimeout(hold);
+      from = { x, y };
+      clear();
+      el.classList.add('holding');
+      const began = performance.now();
+      const paint = () => {
+        if (!el.classList.contains('holding')) return;
+        el.style.setProperty('--held', Math.min(1, (performance.now() - began) / HOLD).toFixed(3));
+        tick = requestAnimationFrame(paint);
+      };
+      tick = requestAnimationFrame(paint);
+      try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+
       hold = setTimeout(() => {
         fired = true;
-        try { navigator.vibrate && navigator.vibrate(16); } catch (e) {}
+        clear();
+        try { navigator.vibrate && navigator.vibrate([18, 40, 18]); } catch (e) {}
         el.classList.add('dropping');
         setTimeout(() => el.classList.remove('dropping'), 260);
         Game.dropHeld(true, id);
         Game.refreshHotbar();
         if (typeof UI !== 'undefined' && $('#bag').classList.contains('open')) UI.renderBag();
-      }, 450);
+      }, HOLD);
     };
+
+    // a finger that wandered was scrolling, not holding
+    const moved = (x, y) => {
+      if (!from || !hold) return;
+      if (Math.abs(x - from.x) > 12 || Math.abs(y - from.y) > 12) clear();
+    };
+
     const stop = (e) => {
-      clearTimeout(hold);
+      clear();
       // a press that became a drop must not also count as a tap
       if (fired && e) { e.preventDefault(); e.stopPropagation(); }
       fired = false;
     };
-    el.addEventListener('mousedown', start);
-    el.addEventListener('mouseup', stop);
-    el.addEventListener('mouseleave', () => clearTimeout(hold));
-    el.addEventListener('touchstart', start, { passive: true });
-    el.addEventListener('touchend', stop, { passive: false });
-    el.addEventListener('touchcancel', () => clearTimeout(hold), { passive: true });
+
+    /* One path for finger, pen and mouse alike.
+
+       There were two before — a set of mouse handlers and a set of touch
+       handlers — and a phone fires both for the same press. So a single hold
+       started the timer twice, and letting go raised the second start again
+       after the first had already fired, which is how a hold sometimes
+       dropped a stack and sometimes did nothing at all. Pointer events are
+       the same press however it was made, once.
+
+       Capturing the pointer means the press stays with this square even if
+       the finger drifts off it, so letting go always reaches `stop` and the
+       ring never gets stuck part-filled. */
+    const usePointer = typeof window.PointerEvent === 'function';
+    if (usePointer) {
+      el.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;   // right click is not a hold
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+        start(e.clientX, e.clientY);
+      });
+      el.addEventListener('pointermove', (e) => moved(e.clientX, e.clientY));
+      el.addEventListener('pointerup', stop);
+      el.addEventListener('pointercancel', clear);
+      el.addEventListener('lostpointercapture', clear);
+    } else {
+      el.addEventListener('mousedown', (e) => start(e.clientX, e.clientY));
+      el.addEventListener('mousemove', (e) => moved(e.clientX, e.clientY));
+      el.addEventListener('mouseup', stop);
+      el.addEventListener('mouseleave', clear);
+      el.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) { clear(); return; }
+        start(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      el.addEventListener('touchmove', (e) => {
+        if (e.touches.length) moved(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      el.addEventListener('touchend', stop, { passive: false });
+      el.addEventListener('touchcancel', clear, { passive: true });
+    }
+    /* Belt and braces alongside the CSS: some Android browsers raise the
+       menu from a long press regardless, and a selection started elsewhere
+       can still try to extend into this square. */
     el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('selectstart', (e) => e.preventDefault());
+    el.addEventListener('dragstart', (e) => e.preventDefault());
   },
 
   give(id, n) {
@@ -7857,7 +8244,21 @@ Object.assign(Game, {
     this.refreshHotbar();
   },
 
-  /** Drop what is in your hand. Everything of it, if asked. */
+  /**
+   * Drop what is in your hand. Everything of it, if asked.
+   *
+   * Two things used to go missing here.
+   *
+   * Items were never given a drop at all — only blocks were — so a stack of
+   * berries or a pet's food left your bag and landed nowhere.
+   *
+   * And a big stack was destroyed on the way out. At most sixteen things are
+   * thrown on the floor, because a hundred of them bouncing about is not a
+   * gift to anybody's frame rate — but the whole stack was taken from your
+   * bag regardless, so dropping forty planks gave back sixteen and burned the
+   * other twenty-four. The sixteen that land now carry the lot between them,
+   * which is what the comment claimed all along.
+   */
   dropHeld(all, whichId) {
     const id = (whichId === undefined || whichId === null) ? this.heldId() : whichId;
     if (id === null || id === undefined) { this.toast('Nothing in hand to drop.'); return; }
@@ -7866,19 +8267,23 @@ Object.assign(Game, {
     if (!n) return;
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
-    /* At most sixteen things are thrown on the floor, however big the stack
-       — a hundred blocks bouncing about is not a gift to anybody's frame
-       rate — but the whole stack does leave your bag, and the pile that
-       lands carries the lot. */
-    const visible = Math.min(n, 16);
-    for (let i = 0; i < n; i++) {
-      if (!isItem(id) && i < visible) {
-        this.spawnDropForced(id, this.player.pos.x + dir.x * 1.2 + (Math.random() - 0.5) * 0.4,
-                             this.player.pos.y + 1.2,
-                             this.player.pos.z + dir.z * 1.2 + (Math.random() - 0.5) * 0.4);
+
+    const piles = Math.min(n, 16);
+    const each = Math.floor(n / piles);
+    let over = n - each * piles;                  // shared out, one extra each
+    for (let i = 0; i < piles; i++) {
+      const carries = each + (over-- > 0 ? 1 : 0);
+      const d = this.spawnDropForced(id,
+        this.player.pos.x + dir.x * 1.2 + (Math.random() - 0.5) * 0.4,
+        this.player.pos.y + 1.2,
+        this.player.pos.z + dir.z * 1.2 + (Math.random() - 0.5) * 0.4);
+      if (d && carries > 1) {
+        d.stack = carries;
+        // a fuller pile looks fuller, up to a point
+        d.mesh.scale.setScalar(1 + Math.min(0.6, carries * 0.05));
       }
-      this.take(id, 1);
     }
+    this.take(id, n);
     this.toast('Dropped ' + (n > 1 ? n + ' \u00d7 ' : '') + thingName(id) + '.');
     this.updateHeld(true);
   },
@@ -7892,8 +8297,10 @@ Object.assign(Game, {
        yours alone, so handing a friend a stack of planks by dropping them did
        nothing at all on their screen. */
     if (!fromRoom && this.net && this.net.connected) {
-      this.net.send({ t: 'drop', b: blockId, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2) });
+      this.net.send({ t: 'drop', b: blockId, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2),
+                      n: d.stack || 1 });
     }
+    return d;          // the caller may want to say how much this pile holds
   },
 
   nearestCreature(range) {
@@ -8127,7 +8534,7 @@ Object.assign(Game, {
     const d = itemDef(id);
     if (d.kind === 'tool') {
       this.heldMount.add(box(0.05, 0.05, 0.46, '#8A6A44', 0, 0, 0.08));
-      this.heldMount.add(box(0.26, 0.09, 0.1, d.tint, 0, 0.02, -0.16));
+      this.heldMount.add(box(0.26, 0.09, 0.1, itemColour(d), 0, 0.02, -0.16));
     } else if (d.kind === 'bucket') {
       this.heldMount.add(box(0.24, 0.26, 0.24, '#9AA0AE', 0, 0, 0));
       this.heldMount.add(box(0.28, 0.04, 0.28, '#7A8090', 0, 0.14, 0));
@@ -8144,7 +8551,10 @@ Object.assign(Game, {
         this.heldFish = fish;
       }
     } else {
-      this.heldMount.add(box(0.18, 0.18, 0.18, d.tint, 0, 0, 0));
+      /* itemColour rather than the family tint, so what you are holding is
+         the same colour as its square in the hotbar and as the one lying on
+         the ground. They used to be three different colours for one thing. */
+      this.heldMount.add(box(0.18, 0.18, 0.18, itemColour(d), 0, 0, 0));
     }
   },
 
@@ -12025,7 +12435,14 @@ Game.net = {
       case 'drop': {
         // somebody put something on the ground
         if (m.id === this.selfId) return;
-        try { Game.spawnDropForced(m.b | 0, +m.x, +m.y, +m.z, true); } catch (e) {}
+        try {
+          const d = Game.spawnDropForced(m.b | 0, +m.x, +m.y, +m.z, true);
+          const many = Math.max(1, Math.min(999, (m.n | 0) || 1));
+          if (d && many > 1) {
+            d.stack = many;
+            d.mesh.scale.setScalar(1 + Math.min(0.6, many * 0.05));
+          }
+        } catch (e) {}
         break;
       }
       case 'bust': {
@@ -12433,6 +12850,25 @@ const ITEM_BY_NAME = Object.create(null);
 const I = {};
 
 function defItem(o) {
+  /* One name, one thing.
+
+     `Jungleplum` was defined twice — once from the list of foods every world
+     grows, and once by hand further down — so there were two different items
+     with the same name in the bag, and `ITEM_BY_NAME` could only point at
+     one of them. Everything that asked for a Jungleplum got the second, and
+     the first sat in the catalogue unreachable, taking up a slot and turning
+     up in the bag as a twin of something else.
+
+     Asking for a name that already exists now hands back the thing that
+     already has it, so the two definitions become one item and every
+     reference to it still works. */
+  if (o && o.name && ITEM_BY_NAME[o.name] !== undefined) {
+    const already = ITEM_BY_NAME[o.name];
+    const it = ITEMS[already - ITEM_BASE];
+    // let the later definition fill in anything the first one did not say
+    if (it) for (const k of Object.keys(o)) if (it[k] === undefined) it[k] = o[k];
+    return already;
+  }
   const id = ITEM_BASE + ITEMS.length;
   const item = Object.assign({ id, name: 'Item', kind: 'material', tint: '#B9B4C8', tier: 0, tool: null }, o);
   ITEMS.push(item);
@@ -16878,6 +17314,22 @@ try {
   ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'click'].forEach((ev) => {
     document.addEventListener(ev, wake, true);
   });
+} catch (e) {}
+
+/* The catalogue, and the colours things are drawn in.
+
+   These are exported from down here rather than with Game and Settings
+   further up, because `const ITEMS` is declared later in this same script:
+   reaching for it earlier is a ReferenceError, and because the export
+   block is one try, that error took the whole block with it — the things
+   listed after it were silently never exported at all. Anything defined
+   late has to be handed over late. */
+try {
+  window.ITEMS = ITEMS;
+  window.BLOCKS = BLOCKS;
+  window.itemColour = itemColour;
+  window.thingPicture = thingPicture;
+  window.thingName = thingName;
 } catch (e) {}
 </script>
 <div id="char-frame-wrap" aria-hidden="true">

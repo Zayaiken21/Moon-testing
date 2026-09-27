@@ -96,6 +96,24 @@
           var mat = new THREE.MeshLambertMaterial({ color: colour });
           root.traverse(function (o) {
             if (!o.isMesh) return;
+            /* Work out which way each face points, because the model does
+               not say.
+
+               Not one model in the pack carries normals. A normal is what
+               tells a lit material which way a surface faces, and without
+               one every face is lit as though it faces away from every lamp
+               — which is to say, not lit at all. So every block in the
+               hotbar, in the bag and held in your hand came out as a flat
+               black silhouette, and the only ones that looked right were
+               the handful with no model at all, quietly falling back to the
+               old flat picture. None of the colours were ever wrong; the
+               light had nothing to bounce off.
+
+               Computing them from the geometry is exact for shapes like
+               these, and it happens once per model, as it loads. */
+            if (o.geometry && o.geometry.attributes && !o.geometry.attributes.normal) {
+              try { o.geometry.computeVertexNormals(); } catch (err) {}
+            }
             o.material = mat;
             o.castShadow = false;
             o.receiveShadow = false;
