@@ -1,5 +1,5 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v18';
+const CACHE = 'voxelia-v19';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',

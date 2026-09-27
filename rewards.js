@@ -163,7 +163,9 @@
          screen sitting on one message with nothing happening. Each attempt
          now gives up after twelve seconds and another one is made. */
       const stop = new AbortController();
-      const cut = setTimeout(() => stop.abort(), 12000);
+      // a machine that has just woken can be slow to answer its first real
+      // request, so this is patient, but never endless
+      const cut = setTimeout(() => stop.abort(), 25000);
       let res;
       try {
         res = await fetch(base + route, {
@@ -205,8 +207,9 @@
                    (text && text.length < 120 ? ' It said: ' + text.trim() : '') };
         }
       } catch (e) {
-        // no connection at all, or the browser refused it
-        last = 'Could not reach ' + base.replace(/^https?:\/\//, '') + '.';
+        last = (e && e.name === 'AbortError')
+          ? 'The server took too long to answer. Trying again\u2026'
+          : 'Could not reach ' + base.replace(/^https?:\/\//, '') + '.';
       }
       if (go === 0 && onWaking) { try { onWaking(); } catch (e) {} }
       await waited(2500);

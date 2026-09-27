@@ -1937,11 +1937,6 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <div id="mp-list"><p class="lede">Open games appear here on their own, refreshed every few seconds.</p></div>
     <p class="lede" id="mp-status"></p>
 
-    <div class="field" id="server-field">
-      <div class="seed-row">
-        <button class="btn" id="mp-refresh">Find games</button>
-      </div>
-    </div>
 
 
     <button class="btn close-screen">Close</button>
@@ -7818,7 +7813,6 @@ const UI = {
     // zooming is bound once, with the map's own gestures, so the two do not fight
     on('#mp-host-btn', 'click', () => this.hostGame());
     on('#mp-join-btn', 'click', () => this.joinByCode());
-    on('#mp-refresh', 'click', () => this.probeServers(true));
     // leave is handled by the back button
     // on a phone this is the pause pill; on a computer it is fullscreen
     on('#fullscreen', 'click', () => {
@@ -9097,7 +9091,6 @@ const UI = {
     this._probedAt = now;
     const cands = this.knownServers();
     const status = $('#mp-status');
-    const field = $('#server-field');
     if (!cands.length) {
       this.liveServers = [];
       this.drawServers();
@@ -9117,14 +9110,14 @@ const UI = {
       this.liveServers = results.filter(Boolean);
       this.drawServers();
       if (!status) return this.liveServers;
+      /* One line, and only when there is something worth saying. The screen
+         used to show "Server ready" and "No answer from the server" one above
+         the other, which is worse than saying nothing at all. */
       if (this.liveServers.length) {
-        status.textContent = 'Server ready: ' + this.liveServers[0] + '. Press Host, or join with a code.';
+        status.textContent = '';
         this.refreshServerList(true);
       } else {
-        status.innerHTML = 'None of those answered. A static host such as GitHub Pages serves the game ' +
-          'but cannot run the server \u2014 put <b>server.js</b> on Render (free) and paste that address above. ' +
-          'Single player works either way.';
-        if (field) field.style.display = 'block';
+        status.textContent = 'The server is waking up. Press Host and it will wait for it.';
       }
       return this.liveServers;
     });
@@ -9215,7 +9208,9 @@ const UI = {
       })
       .catch(() => {
         this._mpBackoff = 4;      // wait about a minute before trying again
-        listEl.innerHTML = '<p class="lede">No answer from the server. Trying again shortly.</p>';
+        // the list is simply not ready yet; hosting still works, so this does
+        // not need to look like a failure
+        listEl.innerHTML = '<p class="lede">Looking for open games\u2026</p>';
       });
   },
 
