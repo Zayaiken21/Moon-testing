@@ -144,19 +144,56 @@
     try { t ? localStorage.setItem(SESSION_KEY, t) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
   }
 
-  async function api(route, body) {
+  /* Talking to the server, patiently and honestly.
+
+     A free Render service goes to sleep after a quarter of an hour of quiet
+     and takes the better part of a minute to wake up. While it is waking it
+     answers with a holding page rather than an answer, and reading that as
+     JSON throws — which used to come out as "Could not reach the server",
+     the one message that is certainly wrong, because the server had in fact
+     answered. So a sleeping server is waited for rather than reported as
+     broken, and anything that really did go wrong says what it was. */
+  async function api(route, body, onWaking) {
     const base = serverBase();
     if (!base) return { ok: false, why: 'No server configured.' };
-    try {
+
+    const once = async () => {
       const res = await fetch(base + route, {
         method: body ? 'POST' : 'GET',
         headers: body ? { 'content-type': 'application/json' } : undefined,
         body: body ? JSON.stringify(body) : undefined
       });
-      return await res.json();
-    } catch (e) {
-      return { ok: false, why: 'Could not reach the server.' };
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      return { res, data, text };
+    };
+
+    const waited = (ms) => new Promise((r) => setTimeout(r, ms));
+    let last = '';
+    // a little under a minute, which covers a cold start with room to spare
+    for (let go = 0; go < 7; go++) {
+      try {
+        const { res, data, text } = await once();
+        if (data) return data;                       // a real answer
+        if (res.status >= 500 || res.status === 0) {
+          // waking up, or briefly unwell: say so and try again
+          last = 'The server is waking up (' + res.status + ').';
+        } else if (res.status === 404) {
+          return { ok: false, why: 'The server is running an older build: ' + route + ' is not there.' };
+        } else {
+          return { ok: false, why: 'The server answered with ' + res.status +
+                   ', not an answer we understand.' +
+                   (text && text.length < 120 ? ' It said: ' + text.trim() : '') };
+        }
+      } catch (e) {
+        // no connection at all, or the browser refused it
+        last = 'Could not reach ' + base.replace(/^https?:\/\//, '') + '.';
+      }
+      if (go === 0 && onWaking) { try { onWaking(); } catch (e) {} }
+      await waited(go < 2 ? 2500 : 9000);
     }
+    return { ok: false, why: last + ' It may be asleep — give it a minute and try again.' };
   }
 
   let account = null;
@@ -177,6 +214,14 @@
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
     padding:max(20px, env(safe-area-inset-top)) 16px 28px}
   #account-screen.open{display:block}
+  #account-screen .acc-sheet{position:relative}
+  #account-screen .acc-x{position:absolute;top:10px;right:10px;width:38px;height:38px;
+    border-radius:50%;background:#262236;border:1px solid #332E47;color:#EDE9F5;
+    font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+  #account-screen .acc-x:hover{border-color:#7FFFD9;color:#7FFFD9}
+  #account-screen .acc-where{margin:14px 0 0;color:#6C7793;font-size:11px;
+    text-align:center;word-break:break-all}
+  #account-screen h2{padding-right:46px}
   .acc-sheet{max-width:440px;margin:0 auto;background:#12182B;border:1px solid #27324E;
     border-radius:20px;padding:24px;color:#EDE9F5;
     font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -221,20 +266,46 @@
 
     const screen = document.createElement('section');
     screen.id = 'account-screen';
+    /* A cross in the corner, always there.
+
+       The only way out used to be the Done button, and that is only drawn
+       once you are signed in — so anybody looking at the sign-in form was
+       stuck on it with no way back to the game, on every device. */
     screen.innerHTML =
       '<div class="acc-sheet">' +
+        '<button class="acc-x" id="acc-x" aria-label="Close" title="Close">\u2715</button>' +
         '<h2>Your account</h2>' +
         '<p class="lede">An account keeps your companions and what you have earned, ' +
         'on every device you play on.</p>' +
         '<div id="acc-body"></div>' +
+        '<p class="acc-where" id="acc-where"></p>' +
       '</div>';
     document.body.appendChild(screen);
+    screen.querySelector('#acc-x').addEventListener('click', closeAccount);
+    // a press on the dark part outside the card closes it too
+    screen.addEventListener('click', (e) => { if (e.target === screen) closeAccount(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (screen.classList.contains('open')) { e.preventDefault(); closeAccount(); }
+      const w = document.getElementById('wallet-screen');
+      if (w && w.classList.contains('open')) { e.preventDefault(); w.classList.remove('open'); }
+    });
     renderAccount();
   }
 
   function renderAccount() {
     const body = document.getElementById('acc-body');
     if (!body) return;
+    /* Which server this is talking to, in small print. When something is
+       wrong it is nearly always this, and guessing at it from the outside is
+       no fun for anybody. */
+    const where = document.getElementById('acc-where');
+    if (where) {
+      const base = serverBase();
+      where.textContent = base
+        ? 'Talking to ' + base.replace(/^https?:\/\//, '')
+        : 'No server address set in the game.';
+    }
 
     if (account) {
       body.innerHTML =
@@ -316,17 +387,18 @@
   };
 
   async function doSignUp() {
-    say('Creating it…');
+    say('Creating it\u2026');
     const out = await api('/account/signup', {
       email: val('acc-email'), username: val('acc-user'), password: val('acc-pass')
-    });
+    }, () => say('Waking the server up. This can take up to a minute the first time.'));
     if (out.ok) { setSession(out.session); account = out.account; renderAccount(); toast('Welcome, ' + account.username + '.'); }
     else say(out.why || 'That did not work.', 'bad');
   }
 
   async function doSignIn() {
-    say('Checking…');
-    const out = await api('/account/signin', { email: val('acc-email'), password: val('acc-pass') });
+    say('Checking\u2026');
+    const out = await api('/account/signin', { email: val('acc-email'), password: val('acc-pass') },
+      () => say('Waking the server up. This can take up to a minute the first time.'));
     if (out.ok) { setSession(out.session); account = out.account; renderAccount(); toast('Signed in.'); }
     else say(out.why || 'That did not work.', 'bad');
   }
