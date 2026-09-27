@@ -10123,7 +10123,19 @@ const Split = {
 };
 
 /* the wallet needs to know which of the two is playing, to pay the right one */
-try { window.Split = Split; } catch (e) {}
+/* The wallet and the store are separate files, and a `const` at the top of a
+   script is not a property of window — so `window.Game` and
+   `window.DEFAULT_SERVER` were both undefined in them. The wallet therefore
+   never attached to a tame, and every account screen said there was no server
+   even when there was one. These four lines are what let the other files see
+   the game at all. */
+try {
+  window.Game = Game;
+  window.Split = Split;
+  window.UI = UI;
+  window.Settings = Settings;
+  window.DEFAULT_SERVER = DEFAULT_SERVER;
+} catch (e) {}
 
 const Visits = {
   base() {
@@ -11301,7 +11313,16 @@ Game.net = {
           flying: !!(a & 2), mining: !!(a & 4), swimming: !!(a & 8), inVehicle: !!(a & 16)
         });
       }
-      let dy = p.yaw - p.model.rotation.y;
+      /* Which way somebody is facing.
+
+         A character is built looking along +Z — the goggles sit on the front
+         of the head at +0.26 — while a player walks towards
+         (-sin yaw, -cos yaw), which is the way an object turned by yaw alone
+         looks along -Z. Turning a peer by their yaw alone therefore pointed
+         every one of them the wrong way, and everybody in a room walked
+         about backwards. Half a turn puts them right, and it is the same half
+         turn your own character already used. */
+      let dy = (p.yaw + Math.PI) - p.model.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       p.model.rotation.y += dy * Math.min(1, dt * 12);
@@ -14493,7 +14514,7 @@ Object.assign(Game, {
       }
       peer.spaceModel.visible = true;
       peer.spaceModel.position.lerp(peer.target, Math.min(1, dt * 8));
-      peer.spaceModel.rotation.y = peer.yaw;
+      peer.spaceModel.rotation.y = peer.yaw + Math.PI;
     }
 
     this.camera.position.copy(this.spacePos);

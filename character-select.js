@@ -28,6 +28,12 @@ const COLOR_FIELDS = [
 
 let state = {sex:'male',presetId:'male_01_explorer',name:'Player',colors:{}};
 let rotated = false;
+/* Which colours the player has deliberately chosen. Picking a different style
+   used to throw every one of them away, so changing a colour and then trying
+   another outfit put you back to that outfit's factory colours and it looked
+   as though the customiser did nothing. What you have chosen is now carried
+   from one style to the next, until you press Reset. */
+let touched = new Set();
 
 /* ------------------------------------------------------------------
    The real thing. The flat panels above are drawn with CSS so the page
@@ -287,8 +293,8 @@ function renderColors(){
     const color=document.createElement('input');color.type='color';color.value=state.colors[key];color.id=`color_${key}`;color.setAttribute('aria-label',`${label} color`);
     const text=document.createElement('input');text.type='text';text.value=state.colors[key];text.maxLength=7;text.setAttribute('aria-label',`${label} hex value`);
     const lab=document.createElement('label');lab.textContent=label;lab.htmlFor=color.id;
-    color.addEventListener('input',()=>{state.colors[key]=color.value.toUpperCase();text.value=state.colors[key];refreshAvatarColors()});
-    text.addEventListener('change',()=>{if(/^#[0-9A-F]{6}$/i.test(text.value)){state.colors[key]=text.value.toUpperCase();color.value=state.colors[key];refreshAvatarColors()}else{text.value=state.colors[key]}});
+    color.addEventListener('input',()=>{state.colors[key]=color.value.toUpperCase();touched.add(key);text.value=state.colors[key];refreshAvatarColors()});
+    text.addEventListener('change',()=>{if(/^#[0-9A-F]{6}$/i.test(text.value)){state.colors[key]=text.value.toUpperCase();touched.add(key);color.value=state.colors[key];refreshAvatarColors()}else{text.value=state.colors[key]}});
     wrap.append(color,lab,text);colorGrid.appendChild(wrap);
   });
 }
@@ -316,8 +322,14 @@ function refreshAvatarColors(){
   }
   Preview3D.recolor(state.colors);
 }
-function selectPreset(id){state.presetId=id;const p=currentPreset();state.sex=p.sex;state.colors=presetColors(p);syncSexButtons();renderAll()}
-function setSex(sex){state.sex=sex;const p=CHARACTER_PRESETS.find(p=>p.sex===sex);state.presetId=p.id;state.colors=presetColors(p);syncSexButtons();renderAll()}
+/* The new outfit's own colours, with anything the player chose kept on top. */
+function rebase(p){
+  const fresh=presetColors(p);
+  for(const k of touched) if(state.colors[k]) fresh[k]=state.colors[k];
+  return fresh;
+}
+function selectPreset(id){state.presetId=id;const p=currentPreset();state.sex=p.sex;state.colors=rebase(p);syncSexButtons();renderAll()}
+function setSex(sex){state.sex=sex;const p=CHARACTER_PRESETS.find(p=>p.sex===sex);state.presetId=p.id;state.colors=rebase(p);syncSexButtons();renderAll()}
 function syncSexButtons(){document.querySelectorAll('[data-sex]').forEach(btn=>{const active=btn.dataset.sex===state.sex;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active))})}
 function renderAll(){renderPresets();renderLarge();renderColors()}
 function randomFrom(arr){return arr[Math.floor(Math.random()*arr.length)]}
@@ -325,9 +337,12 @@ function randomColors(){
   const palettes=[
     ['#2F80ED','#F2C94C','#223246','#40516B','#111827'],['#139E8F','#E4C988','#2A4C46','#30435C','#18212B'],['#8E3B46','#EAD7B7','#4B3444','#3B3C4A','#241D24'],['#6C5CE7','#48CAE4','#26364A','#384B67','#101820'],['#E76F51','#F4A261','#39444D','#5C6770','#20262D']
   ];
-  const p=randomFrom(palettes);state.colors={...state.colors,shirt:p[0],accent:p[1],jacket:p[2],pants:p[3],pants2:p[2],shoes:p[4],sole:'#0E1116',sleeves:p[0],acc1:p[1],acc2:p[0]};renderAll()
+  const p=randomFrom(palettes);
+  state.colors={...state.colors,shirt:p[0],accent:p[1],jacket:p[2],pants:p[3],pants2:p[2],shoes:p[4],sole:'#0E1116',sleeves:p[0],acc1:p[1],acc2:p[0]};
+  ['shirt','accent','jacket','pants','pants2','shoes','sole','sleeves','acc1','acc2'].forEach(k=>touched.add(k));
+  renderAll()
 }
-function randomCharacter(){const sex=Math.random()>.5?'male':'female';const list=CHARACTER_PRESETS.filter(p=>p.sex===sex);selectPreset(randomFrom(list).id);randomColors()}
+function randomCharacter(){touched.clear();const sex=Math.random()>.5?'male':'female';const list=CHARACTER_PRESETS.filter(p=>p.sex===sex);selectPreset(randomFrom(list).id);randomColors()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
 function payload(){return {characterVersion:2,sex:state.sex,presetId:state.presetId,name:state.name.trim()||'Player',colors:{skin:state.colors.skin,hair:state.colors.hair,eyes:state.colors.eyes,eyebrows:state.colors.hair,shirt:state.colors.shirt,shirtSecondary:state.colors.accent,jacket:state.colors.jacket,sleeves:state.colors.sleeves,pants:state.colors.pants,pantsSecondary:state.colors.pants2,shoes:state.colors.shoes,sole:state.colors.sole,accessoryPrimary:state.colors.acc1,accessorySecondary:state.colors.acc2},options:{glasses:currentPreset().style==='scholar'}}}
 
@@ -342,7 +357,7 @@ document.querySelectorAll('[data-sex]').forEach(btn=>btn.addEventListener('click
 $('#playerName').addEventListener('input',e=>state.name=e.target.value.replace(/[<>]/g,''));
 $('#randomColorsBtn').addEventListener('click',randomColors);
 $('#randomCharacterBtn').addEventListener('click',randomCharacter);
-$('#resetBtn').addEventListener('click',()=>selectPreset(state.presetId));
+$('#resetBtn').addEventListener('click',()=>{touched.clear();selectPreset(state.presetId);toast('Back to this character\u2019s own colours.')});
 $('#rotatePreviewBtn').addEventListener('click',()=>{rotated=!rotated;document.querySelector('.avatar-stage .avatar').classList.toggle('rotated',rotated)});
 $('#confirmBtn').addEventListener('click',()=>{const data=payload();localStorage.setItem('voxeliaCharacterV2',JSON.stringify(data));window.dispatchEvent(new CustomEvent('voxelia-character-confirmed',{detail:data}));
   // when this screen is opened inside the game, hand the choice back to it
