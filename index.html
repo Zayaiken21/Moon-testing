@@ -1006,7 +1006,13 @@ body.split-on #ability-badge{display:none}
 /* A thumb button a player has moved, and one being moved right now. */
 #touch-layer .tbtn.moved{position:fixed !important;transform:translate(-50%,-50%) !important;
   right:auto !important;bottom:auto !important;margin:0 !important}
-body.pads-loose #touch-layer .tbtn{outline:1px dashed rgba(111,227,196,.45);outline-offset:2px}
+body.pads-loose #touch-layer .tbtn,body.pads-loose #minimap-wrap,
+body.pads-loose #alt-lever,body.pads-loose #pouch{
+  outline:1px dashed rgba(111,227,196,.45);outline-offset:2px}
+/* whatever has been moved is placed by hand, wherever it started life */
+#minimap-wrap.moved,#alt-lever.moved,#pouch.moved{
+  position:fixed !important;transform:translate(-50%,-50%) !important;
+  right:auto !important;bottom:auto !important;top:auto;margin:0 !important}
 #touch-layer .tbtn.dragging{z-index:80;opacity:.85;
   box-shadow:0 0 0 4px rgba(111,227,196,.35),0 10px 26px rgba(0,0,0,.5);
   transform:translate(-50%,-50%) scale(1.08) !important}
@@ -1219,7 +1225,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 
 /* Being asked over by a friend. Always a question, never a shove. */
 #summon-card{position:fixed;left:50%;transform:translateX(-50%);
-  top:calc(96px + env(safe-area-inset-top));z-index:72;display:none;
+  top:calc(96px + env(safe-area-inset-top));z-index:96;display:none;
   background:rgba(20,18,28,.96);border:1px solid var(--line);border-radius:14px;
   padding:14px 16px;max-width:min(92vw,380px);box-shadow:0 12px 34px rgba(0,0,0,.55)}
 #summon-card.show{display:block}
@@ -1645,8 +1651,12 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <div class="setting"><b>Voices</b><small>How loud other players sound.</small>
       <input type="range" id="set-voice" min="0" max="1" step="0.05" /><output id="set-voice-out"></output></div>
 
+    <h3 class="set-head">The map</h3>
+    <div class="setting"><b>Rare animals on the map</b><small>Shows a ring where a rare animal is. Off by default, so the map stays about the land.</small>
+      <input type="checkbox" id="set-rare-map" /></div>
+
     <h3 class="set-head">Touch controls</h3>
-    <div class="setting"><b>Move the buttons</b><small>Hold a button on the right of the screen and drag it wherever your thumb falls. The stick on the left stays where it is.</small>
+    <div class="setting"><b>Move the buttons</b><small>Hold anything on the right of the screen — a button, the map, the height lever — and drag it wherever your thumb falls. The stick on the left stays where it is.</small>
       <input type="checkbox" id="set-padmove" /></div>
     <div class="setting"><b>Put the buttons back</b><small>Returns every button to where it started.</small>
       <button class="btn" id="pad-reset-places">Reset places</button></div>
@@ -3758,6 +3768,7 @@ class Creature {
     this.pitch = 0;
     this.trust = 0;
     this.tamed = false;
+    this.breath = 1;          // a chase is hard work for the animal too
     this.companion = false;
     this.timer = Math.random() * 3;
     this.produceTimer = 0;
@@ -3803,9 +3814,20 @@ class Creature {
       this.heading = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
       target = Math.min(7, 2 + dist * 0.35);
       if (this.domain !== 'land') this.pitch = Math.max(-0.7, Math.min(0.7, (player.pos.y + 1 - this.pos.y) * 0.25));
-    } else if (def.temper === 'skittish' && !this.tamed && dist < 4.5) {
-      this.heading = Math.atan2(this.pos.x - player.pos.x, this.pos.z - player.pos.z);
-      target = 3.4;
+    } else if (!this.tamed && this.scare && this.scare.near < this.scare.range) {
+      /* Away from whoever is closest — and that is everybody, not only the
+         player whose computer is doing the thinking. Two people closing in
+         from either side really does corner it now, which is the point: a
+         wild animal is meant to take work.
+
+         It runs hard while it has the breath for it, then tires, which is the
+         opening a patient player gets. */
+      const t = this.scare;
+      this.heading = Math.atan2(this.pos.x - t.x, this.pos.z - t.z);
+      const fast = def.temper === 'skittish' ? 7.6 : 6.2;
+      target = this.breath > 0.05 ? fast * (0.55 + this.breath * 0.45) : 2.1;
+      this.breath = Math.max(0, this.breath - dt * 0.17);
+      this.alarmed = 2.5;
     } else if (this.tamed && dist < 6 && !this.companion) {
       target = 0.4;                                   // stays near, grazing
     } else {
@@ -3822,7 +3844,10 @@ class Creature {
       target = this.wander ? (this.domain === 'water' ? 1.9 : 1.3) : 0;
     }
 
-    this.speed += (target - this.speed) * Math.min(1, dt * 3.5);
+    // it gets its wind back while nobody is chasing it
+    this.alarmed = Math.max(0, (this.alarmed || 0) - dt);
+    if (!this.alarmed) this.breath = Math.min(1, this.breath + dt * 0.1);
+    this.speed += (target - this.speed) * Math.min(1, dt * (this.alarmed ? 5.5 : 3.5));
     this.phase += dt * (1.6 + this.speed * 2.4);
 
     const fwd = this.speed * dt;
@@ -4330,6 +4355,7 @@ const Settings = {
   renderDistance: IS_TOUCH ? 3 : 5,
   sharpness: 1.0,           // how much of the screen's own sharpness to use
   movablePads: false,       // whether the thumb buttons can be dragged about
+  rareOnMap: false,         // wild rare animals shown on the big map
   mouseTo: 1,               // which player, in split screen, steers with the mouse
   p2LookSpeed: 1.0,         // how fast player two's look keys turn
   fov: 82,
@@ -4730,7 +4756,11 @@ const Game = {
     /* Where the map is looking. Normally straight down at you, but you can
        drag it about to see somewhere else, and it stays there until you ask
        to be centred again. */
-    const pan = (blocksPerPixel > 3 && this.mapPan) ? this.mapPan : { x: 0, z: 0 };
+    /* The big map stays wherever you dragged it, however far in you have
+       zoomed. It used to throw the drag away below three blocks to the pixel,
+       which is exactly the zoom you use to see where you actually are.
+       The little map in the corner is always centred on you. */
+    const pan = (radiusCircle || !this.mapPan) ? { x: 0, z: 0 } : this.mapPan;
     const px = this.player.pos.x + pan.x, pz = this.player.pos.z + pan.z;
     const cell = CX / blocksPerPixel;                 // a chunk, in pixels
 
@@ -4761,14 +4791,25 @@ const Game = {
       g.globalCompositeOperation = 'source-over';
     }
 
-    // animals worth noticing, and any marks you have dropped
+    /* Your own tamed animals are always drawn, in the same green as
+       everything of yours. Wild rare ones used to be splashed all over the
+       map in gold, which buried everything else; they are off unless you ask
+       for them in Settings, and then they are a quiet open ring. */
+    const showWild = !!Settings.rareOnMap;
     for (const c of this.creatures) {
-      if (!c.def.rare && !c.tamed) continue;
+      const mine = c.tamed || c.companion;
+      const scarce = c.rarity === 'rare' || c.rarity === 'exotic' || c.rarity === 'legendary';
+      if (!mine && !(showWild && scarce)) continue;
       const sx = W / 2 + (c.pos.x - px) / blocksPerPixel;
       const sy = H / 2 + (c.pos.z - pz) / blocksPerPixel;
       if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
-      g.fillStyle = c.tamed ? '#6FE3C4' : '#FFC24C';
-      g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fill();
+      if (mine) {
+        g.fillStyle = '#6FE3C4';
+        g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fill();
+      } else {
+        g.strokeStyle = 'rgba(237,233,245,.7)'; g.lineWidth = 1.4;
+        g.beginPath(); g.arc(sx, sy, 3.2, 0, Math.PI * 2); g.stroke();
+      }
     }
     for (const p of this.net.peers.values()) {
       // somebody on another world is not on this map
@@ -4959,6 +5000,42 @@ const Game = {
       }
       if (add.length) this.net.send({ t: 'life', add });
     }
+  },
+
+  /* Everybody an animal can see coming.
+
+     The host does the animals' thinking for the whole room, so "the player"
+     was only ever the host: an animal would bolt from them and stand quite
+     still while three other people walked up to it. This gathers everyone who
+     is actually in this world — you, player two on a shared screen, and
+     every player in the room — once a frame, for all the animals to share. */
+  everyoneNear() {
+    const out = [this.player.pos];
+    if (typeof Split !== 'undefined' && Split.on && Split.p2 && Split.p2.player) {
+      out.push(Split.p2.player.pos);
+    }
+    const here = this.realm || 'ground';
+    for (const peer of this.net.peers.values()) {
+      if ((peer.realm || 'ground') !== here) continue;
+      out.push(peer.model.position);
+    }
+    return out;
+  },
+
+  /** Whoever is closest to this animal, and how close. */
+  nearestThreat(c, all) {
+    let bx = 0, bz = 0, best = Infinity;
+    for (const q of all) {
+      const dx = c.pos.x - q.x, dz = c.pos.z - q.z, dy = (c.pos.y - q.y) * 0.5;
+      const d = dx * dx + dz * dz + dy * dy;
+      if (d < best) { best = d; bx = q.x; bz = q.z; }
+    }
+    if (!isFinite(best)) return null;
+    /* How close somebody has to get. A tame animal is not frightened at all,
+       and a nervous one notices you further off. */
+    const temper = c.def.temper;
+    const range = temper === 'skittish' ? 9 : (temper === 'bold' || temper === 'placid' ? 4.5 : 6.5);
+    return { x: bx, z: bz, near: Math.sqrt(best), range };
   },
 
   /** Everyone else glides their animals to where the host says they are. */
@@ -5576,7 +5653,8 @@ Object.assign(Game, {
        wandering, which is why two players standing together saw different
        animals in different places. */
     if (this.lifeAuthority()) {
-      for (const c of this.creatures) c.update(dt, w, p);
+      const scary = this.everyoneNear();
+      for (const c of this.creatures) { c.scare = this.nearestThreat(c, scary); c.update(dt, w, p); }
       this.broadcastHerd(dt);
     } else {
       this.followHerd(dt);
@@ -6264,7 +6342,10 @@ Object.assign(Game, {
       try { localStorage.setItem('voxelia.padPlaces', JSON.stringify(saved)); } catch (e) {}
     };
 
-    document.querySelectorAll('#touch-layer .tbtn').forEach((b) => {
+    /* Anything on the right of the screen: the round buttons, the little
+       map in the corner and the height lever a flyer uses. */
+    const MOVABLE = '#touch-layer .tbtn, #minimap-wrap, #alt-lever, #pouch';
+    document.querySelectorAll(MOVABLE).forEach((b) => {
       if (!b.id) return;
       put(b);
       let hold = null, dragging = false;
@@ -7669,6 +7750,18 @@ const UI = {
     });
     Game.bindPadDragging();
 
+    /* Wild rare animals on the big map: off unless asked for. */
+    const rareBox = $('#set-rare-map');
+    if (rareBox) {
+      rareBox.checked = !!Settings.rareOnMap;
+      rareBox.addEventListener('change', () => {
+        Settings.rareOnMap = rareBox.checked;
+        saveSettings();
+        if ($('#worldmap').classList.contains('open')) this.redrawMap();
+        Game.toast(rareBox.checked ? 'Rare animals will show on the map.' : 'The map is about the land again.');
+      });
+    }
+
     /* Off means off, and on a shared screen it is one pair of speakers. */
     const muteBox = $('#set-mute');
     if (muteBox) {
@@ -8162,8 +8255,9 @@ const UI = {
       const sx = (clientX - r.left) / r.width * c.width;
       const sy = (clientY - r.top) / r.height * c.height;
       const bpp = this.mapZoom || 6;
-      const wx = Math.round(Game.player.pos.x + (sx - c.width / 2) * bpp);
-      const wz = Math.round(Game.player.pos.z + (sy - c.height / 2) * bpp);
+      const pan = Game.mapPan || { x: 0, z: 0 };
+      const wx = Math.round(Game.player.pos.x + pan.x + (sx - c.width / 2) * bpp);
+      const wz = Math.round(Game.player.pos.z + pan.z + (sy - c.height / 2) * bpp);
       if (!Game.waypoints) Game.waypoints = [];
       Game.waypoints.push({ name: Game.world.regionName(wx, wz), x: wx, y: Math.round(Game.player.pos.y), z: wz });
       Game.toast('Marked ' + Game.waypoints[Game.waypoints.length - 1].name + '.');
@@ -8204,8 +8298,12 @@ const UI = {
     }, { passive: true });
     c.addEventListener('touchmove', (e) => {
       moved = true;
-      if (e.touches.length === 1 && drag) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: true });
+      if (e.touches.length === 1 && drag) {
+        // without this the page scrolls underneath and the map never moves
+        if (e.cancelable) e.preventDefault();
+        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
     c.addEventListener('touchend', (e) => {
       const d = endDrag();
       if (d && d.moved < 8 && Date.now() - tapStart < 400 && e.changedTouches.length === 1) {
@@ -8226,7 +8324,7 @@ const UI = {
                            e.touches[0].clientY - e.touches[1].clientY);
       const ratio = pinch / d;
       pinch = d;
-      this.mapZoom = Math.max(0.12, Math.min(60, (this.mapZoom || 6) * ratio));
+      this.mapZoom = Math.max(this.MAP_IN, Math.min(this.MAP_OUT, (this.mapZoom || 6) * ratio));
       this.redrawMap();
     }, { passive: false });
     c.addEventListener('touchend', () => { pinch = 0; }, { passive: true });
@@ -8244,8 +8342,13 @@ const UI = {
     });
   },
 
+  /* How far in and out the map goes. In far enough to pick out one tree,
+     out far enough to see the whole of what you have walked. */
+  MAP_IN: 0.08,
+  MAP_OUT: 90,
+
   zoomMap(by) {
-    this.mapZoom = Math.max(0.6, Math.min(90, (this.mapZoom || 6) * by));
+    this.mapZoom = Math.max(this.MAP_IN, Math.min(this.MAP_OUT, (this.mapZoom || 6) * by));
     this.redrawMap();
   },
 
@@ -8450,7 +8553,18 @@ const UI = {
         Game.updateAbilityBadge();
       });
       const kind = document.createElement('small');
-      kind.textContent = c.def.name + ' \u00b7 ' + c.def.abilityName;
+      const rare = c.rarity && c.rarity !== 'common' ? ' \u00b7 ' + c.rarity : '';
+      const away = Math.round(Math.hypot(c.pos.x - Game.player.pos.x, c.pos.z - Game.player.pos.z));
+      kind.textContent = c.def.name + ' \u00b7 ' + c.def.abilityName + rare + ' \u00b7 ' + away + ' blocks away';
+      /* Where did it get to? The arrow points at it and keeps pointing while
+         it wanders, until you are standing next to it. */
+      const findIt = document.createElement('button');
+      findIt.className = 'btn';
+      findIt.textContent = 'Find';
+      findIt.addEventListener('click', () => {
+        Game.pointAtCompanion(c);
+        this.closeCompanions();
+      });
       const give = document.createElement('button');
       give.className = 'btn';
       give.textContent = 'Give';
@@ -8467,6 +8581,7 @@ const UI = {
       label.appendChild(kind);
       row.appendChild(dot);
       row.appendChild(label);
+      row.appendChild(findIt);
       row.appendChild(give);
       row.appendChild(follow);
       list.appendChild(row);
@@ -10318,7 +10433,10 @@ Game.COMMANDS = [
   { name: 'who', use: '/who', what: 'Who is in the room with you.' },
   { name: 'where', use: '/where', what: 'Where you are, and what this place is called.' },
   { name: 'mark', use: '/mark <name>', what: 'Put a mark on the map where you stand.' },
-  { name: 'find', use: '/find <name>', what: 'Point you at a mark you dropped.' },
+  { name: 'find', use: '/find <name>', what: 'Point you at a mark, a companion or an animal you have tamed.' },
+  { name: 'yes', use: '/yes', what: 'Say yes when somebody has asked you to come over.' },
+  { name: 'no', use: '/no', what: 'Say no to being asked over.' },
+  { name: 'wallet', use: '/wallet', what: 'What you have earned, and what each kind of animal is worth.' },
   { name: 'time', use: '/time day  |  /time night', what: 'Set the time of day (the host only, in a room).' },
   { name: 'weather', use: '/weather clear|rain|snow|cloudy', what: 'Set the weather (the host only, in a room).' },
   { name: 'gravity', use: '/gravity', what: 'How strongly this world pulls you down.' },
@@ -10333,6 +10451,26 @@ Object.assign(Game, {
   /** Tell the player something, in the chat rather than as a passing toast. */
   reply(msg) {
     this.pushChat('Voxelia', msg);
+  },
+
+  /* One of your own animals, by any part of its name. Your companion first,
+     since that is nearly always the one being looked for. */
+  findCompanion(want) {
+    const mine = this.creatures.filter((c) => c.tamed || c.companion);
+    const has = (c) => ((c.displayName || '') + ' ' + (c.def && c.def.name || '')).toLowerCase().indexOf(want) >= 0;
+    return mine.find((c) => c.companion && has(c)) || mine.find(has) || null;
+  },
+
+  /* Say where it is, put a mark on it, and leave the arrow pointing at it
+     until you get there. */
+  pointAtCompanion(c) {
+    const p = this.player.pos;
+    const d = Math.round(Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    this.activeWaypoint = { name: c.displayName, x: Math.round(c.pos.x),
+                            y: Math.round(c.pos.y), z: Math.round(c.pos.z), live: c };
+    this.reply(c.displayName + ' is ' + d + ' blocks away, at ' +
+               Math.round(c.pos.x) + ', ' + Math.round(c.pos.z) + '.');
+    this.toast('Following ' + c.displayName + '.');
   },
 
   /** Find a player by name, however it was typed. */
@@ -10381,7 +10519,8 @@ Object.assign(Game, {
     if (t) t.textContent = who + ' would like you to come over.';
     card.classList.add('show');
     clearTimeout(this._summonTimer);
-    this._summonTimer = setTimeout(() => this.answerSummon(false), 20000);
+    this.reply(who + ' asked you over — press Yes, or type /yes.');
+    this._summonTimer = setTimeout(() => this.answerSummon(false), 45000);
   },
 
   answerSummon(yes) {
@@ -10391,8 +10530,47 @@ Object.assign(Game, {
     const ask = this.pendingSummon;
     this.pendingSummon = null;
     if (!ask) return;
-    if (yes) { this.placeAt(ask.x, ask.y, ask.z); this.reply('Off to ' + ask.who + '.'); }
+    if (yes) {
+      /* Go to where they are now, not where they were when they asked: by
+         the time somebody has read the question and pressed Yes they have
+         usually walked on. Their own packets are the freshest thing we have;
+         the coordinates in the message are the fallback. */
+      const peer = this.net.peers.get(ask.fromId);
+      /* Only trust their own packets if they have actually sent one: a player
+         who has joined but not yet moved sits at nothing, and following that
+         would drop you at the middle of the world. */
+      const live = peer && peer.lastAt && peer.target &&
+                   (peer.realm || 'ground') === (this.realm || 'ground');
+      const at = live ? { x: peer.target.x, y: peer.target.y, z: peer.target.z }
+                      : { x: ask.x, y: ask.y, z: ask.z };
+      this.landBeside(at.x, at.y, at.z);
+      this.reply('Off to ' + ask.who + '.');
+      this.toast('Teleported to ' + ask.who + '.');
+    }
     if (this.net.connected) this.net.send({ t: 'summonReply', to: ask.fromId, ok: !!yes });
+  },
+
+  /* Put somebody down next to somebody else, on solid ground.
+
+     Landing on the exact spot drops you inside them, and landing before the
+     ground has been built drops you through the world. This steps aside by a
+     step and a half, builds the ground first, and settles onto the surface
+     once it is known. */
+  landBeside(x, y, z) {
+    const a = Math.random() * Math.PI * 2;
+    const tx = x + Math.sin(a) * 1.6, tz = z + Math.cos(a) * 1.6;
+    this.placeAt(tx, y, tz);
+    this.streamChunks(24);
+    // once the ground under the new spot exists, stand on it
+    const settle = () => {
+      const gy = this.world.surfaceY(Math.floor(tx), Math.floor(tz));
+      if (gy > 0 && Math.abs(this.player.pos.y - (gy + 1.2)) > 3) {
+        this.player.pos.y = gy + 1.2;
+        this.player.vel.set(0, 0, 0);
+      }
+    };
+    setTimeout(settle, 60);
+    setTimeout(settle, 400);
   },
 
   runCommand(raw) {
@@ -10401,6 +10579,18 @@ Object.assign(Game, {
     const lower = line.toLowerCase();
     const word = lower.split(/\s+/)[0];
     const rest = line.slice(word.length).trim();
+
+    /* ---- answering a "come over" without reaching for the card ---- */
+    if (word === 'yes' || word === 'tpyes' || word === 'tpaccept' || word === 'coming') {
+      if (!this.pendingSummon) { this.reply('Nobody has asked you to come over.'); return; }
+      this.answerSummon(true);
+      return;
+    }
+    if (word === 'no' || word === 'tpno' || word === 'tpdeny') {
+      if (!this.pendingSummon) { this.reply('Nobody has asked you to come over.'); return; }
+      this.answerSummon(false);
+      return;
+    }
 
     /* ---- help ---- */
     if (word === 'help' || word === 'commands' || word === '?') {
@@ -10458,14 +10648,29 @@ Object.assign(Game, {
       this.reply('Marked "' + name + '" here.');
       return;
     }
+    /* ---- finding things: a mark, or one of your own animals ---- */
     if (word === 'find') {
       const want = rest.toLowerCase();
-      const hit = (this.waypoints || []).find((w) => (w.name || '').toLowerCase().indexOf(want) >= 0);
-      if (!hit) { this.reply('No mark called "' + rest + '". Type /mark <name> to make one.'); return; }
+      if (!want) { this.reply('Type /find and part of a name — a mark, or an animal of yours.'); return; }
       const p = this.player.pos;
-      const d = Math.round(Math.hypot(hit.x - p.x, hit.z - p.z));
-      this.activeWaypoint = hit;
-      this.reply('"' + hit.name + '" is ' + d + ' blocks away, at ' + hit.x + ', ' + hit.z + '.');
+      const hit = (this.waypoints || []).find((w) => (w.name || '').toLowerCase().indexOf(want) >= 0);
+      if (hit) {
+        const d = Math.round(Math.hypot(hit.x - p.x, hit.z - p.z));
+        this.activeWaypoint = hit;
+        this.reply('"' + hit.name + '" is ' + d + ' blocks away, at ' + hit.x + ', ' + hit.z + '.');
+        return;
+      }
+      const beast = this.findCompanion(want);
+      if (beast) { this.pointAtCompanion(beast); return; }
+      this.reply('Nothing of yours called "' + rest + '". Try /mark <name>, or the companions screen.');
+      return;
+    }
+
+    /* ---- what you have earned ---- */
+    if (word === 'wallet' || word === 'money' || word === 'purse') {
+      this.reply('Common animals are company, not wages — they pay nothing.');
+      this.reply('Uncommon 2c · rare 6c · exotic 12c · legendary 30c, the first time anybody tames that one.');
+      try { if (window.VoxeliaWallet && VoxeliaWallet.open) VoxeliaWallet.open(); } catch (e) {}
       return;
     }
 
@@ -12534,6 +12739,18 @@ Object.assign(Game, {
     if (!el) return;
     const w = this.activeWaypoint;
     if (!w) { el.classList.remove('show'); return; }
+    /* An animal walks. If this mark is following one, it moves with it, and
+       it lets go once you have caught up. */
+    if (w.live) {
+      if (this.creatures.indexOf(w.live) < 0) { this.activeWaypoint = null; el.classList.remove('show'); return; }
+      w.x = w.live.pos.x; w.y = w.live.pos.y; w.z = w.live.pos.z;
+      if (Math.hypot(w.x - this.player.pos.x, w.z - this.player.pos.z) < 4) {
+        this.activeWaypoint = null;
+        el.classList.remove('show');
+        this.toast('Found ' + w.name + '.');
+        return;
+      }
+    }
     const dx = w.x - this.player.pos.x, dz = w.z - this.player.pos.z;
     const dist = Math.hypot(dx, dz);
     // where it is relative to the way you are facing
@@ -13107,7 +13324,11 @@ const BEAST_PREFIX = {
 };
 
 const TRAIT_WORD = ['tuft', 'stripe', 'spot', 'crest', 'horn', 'tail', 'paw', 'mane', 'back', 'snout', 'fang', 'claw', 'eye', 'shell'];
-const RARITIES = [['common', 0.56], ['uncommon', 0.28], ['rare', 0.13], ['legendary', 0.03]];
+/* Most creatures are ordinary. Only the ones above common are worth anything
+   at the wallet, so taming for money has to be earned rather than farmed:
+   roughly four in five of everything alive is common. */
+const RARITIES = [['common', 0.78], ['uncommon', 0.145], ['rare', 0.055],
+                  ['exotic', 0.015], ['legendary', 0.005]];
 const TEMPERS = ['skittish', 'curious', 'placid', 'playful', 'grumpy', 'bold', 'sleepy'];
 
 function hslHex(h, s, l) {
@@ -13298,7 +13519,8 @@ const REEF_SPECIES = [];
   const chance = (r, p) => r() < p;
   const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const weighted = (r, table) => { let n = r(); for (const [v, w] of table) if ((n -= w) <= 0) return v; return table[table.length - 1][0]; };
-  const RAR = [['common', 0.54], ['uncommon', 0.28], ['rare', 0.14], ['legendary', 0.04]];
+  const RAR = [['common', 0.76], ['uncommon', 0.155], ['rare', 0.06],
+               ['exotic', 0.02], ['legendary', 0.005]];
 
   for (let i = 0; i < 1000; i++) {
     const id = 1000 + i;
@@ -13758,6 +13980,20 @@ Object.assign(Game, {
     this.characterStamp = JSON.stringify(ok);
     this.needsBodyChoice = false;
     try { localStorage.setItem('voxeliaCharacterV2', JSON.stringify(ok)); } catch (e) {}
+    /* The colours you picked are worn by the block body too, so they show
+       even before the model has downloaded and on anybody whose copy of the
+       model pack has not arrived. Without this the customiser only changed
+       the rigged model, and the game showed the old default colours. */
+    const c = ok.colors || {};
+    const keep = (v, was) => (/^#[0-9a-fA-F]{6}$/.test(v || '') ? v : was);
+    this.skin.head = keep(c.skin, this.skin.head);
+    this.skin.hair = keep(c.hair, this.skin.hair);
+    this.skin.torso = keep(c.shirt, this.skin.torso);
+    this.skin.arms = keep(c.sleeves || c.shirt, this.skin.arms);
+    this.skin.legs = keep(c.pants, this.skin.legs);
+    this.skin.accent = keep(c.shirtSecondary || c.accessoryPrimary, this.skin.accent);
+    this.saveSkin();
+    if (this.selfBody) this.selfBody = this.redressFigure(this.selfBody, this.skin, ok);
     // the name you chose on the character screen is the name the room sees
     if (ok.name) {
       const nameBox = document.getElementById('skin-name');

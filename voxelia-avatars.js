@@ -112,6 +112,7 @@
 
   function Avatar(gltf, id) {
     this.id = id;
+    this.presetId = id;          // which palette this figure was baked from
     this.object = (THREE.SkeletonUtils && THREE.SkeletonUtils.clone)
       ? THREE.SkeletonUtils.clone(gltf.scene) : gltf.scene.clone(true);
     this.object.traverse((o) => {
@@ -184,25 +185,190 @@
     this.mixer.update(Math.min(0.1, dt));
   };
 
-  /** Repaint every region the model names as its own material. */
-  Avatar.prototype.recolor = function (colors) {
+  /* ------------------------------------------------------------------
+     Repainting a character.
+
+     The models carry no separate material per region — the whole figure is
+     one material called VoxeliaBody, and every colour, along with the shading
+     baked into each little face, lives in the mesh’s own vertex colours.
+     Looking for a material called "shirt" therefore found nothing, and the
+     colour pickers changed nothing at all.
+
+     So the shirt is found by its colour instead. Each model was baked from a
+     known palette (BAKED, above), and every vertex is some shaded amount of
+     one of those colours. For each vertex we work out which palette colour it
+     came from and how much darker or lighter it was made — once per model,
+     then kept — and repainting is then simply that same shading applied to
+     whichever colour the player picked.
+
+     Sleeves and eyebrows are baked with the same colour as the shirt and the
+     hair, so they cannot be told apart in the mesh: they follow the shirt and
+     the hair rather than being repainted wrongly.
+     ------------------------------------------------------------------ */
+
+  function srgbToLinear(v) {
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+
+  function hexToLinear(hex) {
+    const n = parseInt(String(hex).slice(1), 16);
+    return [srgbToLinear(((n >> 16) & 255) / 255),
+            srgbToLinear(((n >> 8) & 255) / 255),
+            srgbToLinear((n & 255) / 255)];
+  }
+
+  /* How much of a figure each region really covers. A region that is only a
+     few faces has to earn them. */
+  const SMALL = { eyes: 0.40, sole: 0.14, accent: 0.07, acc1: 0.06, acc2: 0.06, shoes: 0.03 };
+
+  /* The colours this model was baked from, in the order they are looked for. */
+  function bakedPalette(presetId) {
+    const b = BAKED[presetId] || {};
+    const out = [
+      { key: 'skin', hex: SKIN },
+      { key: 'eyes', hex: EYES },
+      { key: 'hair', hex: b.hair },
+      { key: 'shirt', hex: b.shirt },
+      { key: 'accent', hex: b.accent },
+      { key: 'jacket', hex: b.jacket },
+      { key: 'pants', hex: b.pants },
+      { key: 'pants2', hex: b.pants2 },
+      { key: 'shoes', hex: b.shoes },
+      { key: 'sole', hex: b.sole }
+    ];
+    // only the starfarers have the two lit panels
+    if (presetId.indexOf('starfarer') >= 0) {
+      out.push({ key: 'acc1', hex: '#dce5ee' }, { key: 'acc2', hex: '#3fe6ff' });
+    }
+    return out.filter((r) => HEX.test(r.hex || ''))
+              .map((r) => {
+                const rgb = hexToLinear(r.hex);
+                return { key: r.key, rgb, bias: SMALL[r.key] || 0,
+                         len: Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) };
+              });
+  }
+
+  /* Which palette colour each vertex came from, and how shaded it was.
+     Worked out once per model and kept on the geometry, because it depends
+     only on how the model was baked. */
+  function classify(geometry, presetId) {
+    if (geometry.userData.vxClass) return geometry.userData.vxClass;
+    const attr = geometry.attributes.color;
+    if (!attr) return null;
+    const pal = bakedPalette(presetId);
+    if (!pal.length) return null;
+    const top = attr.array.BYTES_PER_ELEMENT === 2 ? 65535
+              : attr.array.BYTES_PER_ELEMENT === 1 ? 255 : 1;
+    const n = attr.count;
+    const region = new Uint8Array(n);
+    const shade = new Float32Array(n);
+    const base = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const r = attr.getX(i) / top, g = attr.getY(i) / top, b = attr.getZ(i) / top;
+      base[i * 3] = r; base[i * 3 + 1] = g; base[i * 3 + 2] = b;
+      /* Which colour this is, rather than how bright it is. Shading multiplies
+         every channel by roughly the same amount, so the direction of the
+         colour survives it and the brightness does not: a shadowed red stays
+         red. Matching on direction is what tells a dark brown boot from a
+         dark blue trouser leg, which matching on distance alone could not. */
+      const len = Math.sqrt(r * r + g * g + b * b) || 1e-6;
+      let pick = 0, best = Infinity, k = 1;
+      for (let j = 0; j < pal.length; j++) {
+        const p = pal[j].rgb;
+        const pl = pal[j].len;
+        if (pl < 1e-5) continue;
+        const cos = (r * p[0] + g * p[1] + b * p[2]) / (len * pl);
+        const kk = len / pl;
+        /* Two things decide it: whether it is the same colour, and whether it
+           is a believable amount of shading of that colour. Direction alone
+           cannot tell two browns apart; brightness alone cannot tell a dark
+           red from a dark blue. Together they can do both. */
+        const away = Math.log(Math.max(0.02, kk));
+        /* Eyes, soles and the little lit panels cover a few faces each. Left
+           to compete on equal terms a dark eye colour swallows half a dark
+           costume, so they have to be a clearly better match to win. */
+        const e = (1 - cos) * 6 + away * away * 0.9 + pal[j].bias;
+        if (e < best) { best = e; pick = j; k = kk; }
+      }
+      if (k < 0.04) k = 0.04;
+      if (k > 3) k = 3;
+      region[i] = pick;
+      shade[i] = k;
+    }
+    geometry.userData.vxClass = { region, shade, base, keys: pal.map((p) => p.key), top };
+    return geometry.userData.vxClass;
+  }
+
+  /* The colours a character is actually wearing, with everything the player
+     did not choose falling back to what the model was baked with. */
+  function wanted(colors, presetId) {
     const c = colors || {};
-    const map = {
-      skin: c.skin, hair: c.hair, eyes: c.eyes, eyebrows: c.eyebrows || c.hair,
-      shirt: c.shirt, accent: c.shirtSecondary || c.accent, jacket: c.jacket,
-      sleeves: c.sleeves || c.shirt, pants: c.pants, pants2: c.pantsSecondary || c.pants2,
-      shoes: c.shoes, sole: c.sole, acc1: c.accessoryPrimary, acc2: c.accessorySecondary
+    const b = BAKED[presetId] || {};
+    const shirt = HEX.test(c.shirt || '') ? c.shirt : b.shirt;
+    const hair = HEX.test(c.hair || '') ? c.hair : b.hair;
+    const pickOne = (given, baked) => (HEX.test(given || '') ? given : baked);
+    return {
+      skin: pickOne(c.skin, SKIN),
+      eyes: pickOne(c.eyes, EYES),
+      hair: hair,
+      shirt: shirt,
+      accent: pickOne(c.shirtSecondary || c.accent, b.accent),
+      jacket: pickOne(c.jacket, b.jacket),
+      pants: pickOne(c.pants, b.pants),
+      pants2: pickOne(c.pantsSecondary || c.pants2, b.pants2),
+      shoes: pickOne(c.shoes, b.shoes),
+      sole: pickOne(c.sole, b.sole),
+      acc1: pickOne(c.accessoryPrimary, '#dce5ee'),
+      acc2: pickOne(c.accessorySecondary, '#3fe6ff')
     };
+  }
+
+  /** Repaint this character, keeping every bit of the shading it was baked with. */
+  Avatar.prototype.recolor = function (colors) {
+    const want = wanted(colors, this.presetId);
     let changed = 0;
     this.object.traverse((o) => {
-      if (!o.isMesh) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) {
-        if (!m || !m.name) continue;
-        const key = String(m.name).toLowerCase().replace(/^voxelia_?/, '');
-        const hex = map[key];
-        if (hex && HEX.test(hex)) { m.color.set(hex); changed++; }
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.color) return;
+      const cls = classify(o.geometry, this.presetId);
+      if (!cls) return;
+
+      /* Every character of this kind shares one set of buffers, so this one
+         is given a colour buffer of its own before anything is written to it.
+         Without this, dressing one player would redress everybody wearing
+         the same model. */
+      if (!o.userData.vxOwnColour) {
+        const src = o.geometry;
+        const geo = new THREE.BufferGeometry();
+        for (const name of Object.keys(src.attributes)) {
+          geo.setAttribute(name, name === 'color'
+            ? src.attributes.color.clone()
+            : src.attributes[name]);
+        }
+        if (src.index) geo.setIndex(src.index);
+        geo.groups = src.groups;
+        geo.boundingSphere = src.boundingSphere;
+        geo.boundingBox = src.boundingBox;
+        geo.userData = src.userData;              // the classification is shared
+        o.geometry = geo;
+        o.userData.vxOwnColour = true;
       }
+
+      const attr = o.geometry.attributes.color;
+      const top = cls.top;
+      const lin = cls.keys.map((k) => hexToLinear(want[k] || '#808080'));
+      const n = attr.count;
+      for (let i = 0; i < n; i++) {
+        const p = lin[cls.region[i]];
+        const k = cls.shade[i];
+        const r = Math.max(0, Math.min(1, k * p[0]));
+        const g = Math.max(0, Math.min(1, k * p[1]));
+        const b = Math.max(0, Math.min(1, k * p[2]));
+        attr.setX(i, Math.round(r * top));
+        attr.setY(i, Math.round(g * top));
+        attr.setZ(i, Math.round(b * top));
+      }
+      attr.needsUpdate = true;
+      changed += n;
     });
     this.recolorable = changed > 0;
     return changed;
@@ -212,8 +378,13 @@
     this.mixer.stopAllAction();
     this.object.traverse((o) => {
       if (!o.isMesh) return;
-      // geometry is shared by everyone wearing this model; only our materials are ours
+      // geometry is shared by everyone wearing this model; only our materials
+      // and, if we repainted, our own colour buffer are ours to let go of
       if (o.material && o.material.dispose) o.material.dispose();
+      /* The repainted colour buffer is left to the garbage collector rather
+         than disposed: this geometry shares its position, normal and skinning
+         buffers with every other character of the same kind, and disposing it
+         would pull those out from under them. */
     });
     if (this.object.parent) this.object.parent.remove(this.object);
   };

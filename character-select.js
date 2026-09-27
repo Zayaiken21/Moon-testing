@@ -124,6 +124,91 @@ const Preview3D = {
   }
 };
 
+/* ------------------------------------------------------------------
+   The picture on each tile.
+
+   The tiles used to be the same flat CSS figure for everybody, which made
+   ten different characters look like ten copies of one template. Each tile
+   now holds a picture of the actual model, drawn once into a small canvas by
+   a renderer kept aside for the purpose, and kept. If the model pack or the
+   browser's second drawing surface is not there, nothing is drawn and the
+   flat figure underneath stays exactly as it was.
+   ------------------------------------------------------------------ */
+const Thumbs = {
+  shots: new Map(),        // presetId@colourStamp -> canvas
+  queue: [],
+  busy: false,
+  failed: false,
+  SIZE: 132,
+
+  kit() {
+    if (this.painter !== undefined) return this.painter;
+    try {
+      if (!window.THREE || !window.VoxeliaAvatars) throw new Error('no model pack');
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = this.SIZE * 2;
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(this.SIZE * 2, this.SIZE * 2, false);
+      const scene = new THREE.Scene();
+      // far enough back that the whole figure fits, head to shoes
+      const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
+      camera.position.set(0.30, 0.94, 5.25);
+      camera.lookAt(0, 0.86, 0);
+      scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2438, 1.15));
+      const key = new THREE.DirectionalLight(0xffffff, 0.9);
+      key.position.set(2.2, 3.4, 3);
+      scene.add(key);
+      const rim = new THREE.DirectionalLight(0x8fd8ff, 0.45);
+      rim.position.set(-2.6, 1.8, -2.2);
+      scene.add(rim);
+      this.painter = { renderer, scene, camera, canvas };
+    } catch (e) {
+      this.painter = null;
+      this.failed = true;
+      console.info('character pictures unavailable:', e.message);
+    }
+    return this.painter;
+  },
+
+  /** A picture of this character, drawn when it gets to the front. */
+  want(presetId, colors, onDone) {
+    if (this.failed) return null;
+    const stamp = presetId + '@' + JSON.stringify(colors || {});
+    const have = this.shots.get(stamp);
+    if (have) { onDone(have); return have; }
+    this.queue.push({ presetId, colors, stamp, onDone });
+    this.pump();
+    return null;
+  },
+
+  pump() {
+    if (this.busy || this.failed || !this.queue.length) return;
+    const p = this.kit();
+    if (!p) return;
+    this.busy = true;
+    const job = this.queue.shift();
+    VoxeliaAvatars.create({ characterVersion: 2, presetId: job.presetId,
+                            name: 'Tile', colors: toPacket(job.colors) })
+      .then((av) => {
+        av.object.position.y = -0.04;
+        p.scene.add(av.object);
+        p.renderer.render(p.scene, p.camera);
+        p.scene.remove(av.object);
+        const out = document.createElement('canvas');
+        out.width = out.height = this.SIZE;
+        const g = out.getContext('2d');
+        g.imageSmoothingEnabled = true;
+        g.drawImage(p.canvas, 0, 0, this.SIZE, this.SIZE);
+        av.dispose();
+        this.shots.set(job.stamp, out);
+        job.onDone(out);
+      })
+      .catch((e) => { this.failed = true; console.info('character pictures unavailable:', e.message); })
+      .then(() => { this.busy = false; this.pump(); });
+  }
+};
+
 /* the colour names the game and the model pack use */
 function toPacket(c) {
   c = c || {};
@@ -166,7 +251,18 @@ function renderPresets(){
     card.type='button'; card.className='preset-card'+(p.id===state.presetId?' selected':'');
     card.setAttribute('role','option'); card.setAttribute('aria-selected',p.id===state.presetId?'true':'false');
     card.innerHTML=`<div class="thumb-stage"></div><strong>${p.name}</strong><small>${String(i+1).padStart(2,'0')}</small>`;
-    card.querySelector('.thumb-stage').appendChild(makeAvatar(p,true));
+    const stage=card.querySelector('.thumb-stage');
+    // the flat figure first, so the grid is never empty, then the real one
+    stage.appendChild(makeAvatar(p,true));
+    const cols=(p.id===state.presetId)?state.colors:presetColors(p);
+    Thumbs.want(p.id,cols,(shot)=>{
+      if(!stage.isConnected) return;
+      let img=stage.querySelector('canvas.thumb-3d');
+      if(!img){img=document.createElement('canvas');img.className='thumb-3d';stage.appendChild(img);}
+      img.width=shot.width;img.height=shot.height;
+      img.getContext('2d').drawImage(shot,0,0);
+      stage.classList.add('has-3d');
+    });
     card.addEventListener('click',()=>selectPreset(p.id));
     presetGrid.appendChild(card);
   });
@@ -196,7 +292,30 @@ function renderColors(){
     wrap.append(color,lab,text);colorGrid.appendChild(wrap);
   });
 }
-function refreshAvatarColors(){document.querySelectorAll('.avatar').forEach(el=>{const card=el.closest('.preset-card');if(!card) applyColors(el,state.colors)});renderPresets();Preview3D.recolor(state.colors)}
+/* Changing a colour repaints the one tile you are working on and the big
+   preview. It used to rebuild the whole grid on every nudge of a colour
+   picker, which threw away every picture and started them all again. */
+function refreshAvatarColors(){
+  document.querySelectorAll('.avatar').forEach(el=>{
+    const card=el.closest('.preset-card');
+    if(!card) applyColors(el,state.colors);
+  });
+  const mine=presetGrid.querySelector('.preset-card.selected');
+  if(mine){
+    const flat=mine.querySelector('.avatar');
+    if(flat) applyColors(flat,state.colors);
+    const stage=mine.querySelector('.thumb-stage');
+    Thumbs.want(state.presetId,state.colors,(shot)=>{
+      if(!stage||!stage.isConnected) return;
+      let img=stage.querySelector('canvas.thumb-3d');
+      if(!img){img=document.createElement('canvas');img.className='thumb-3d';stage.appendChild(img);}
+      img.width=shot.width;img.height=shot.height;
+      img.getContext('2d').drawImage(shot,0,0);
+      stage.classList.add('has-3d');
+    });
+  }
+  Preview3D.recolor(state.colors);
+}
 function selectPreset(id){state.presetId=id;const p=currentPreset();state.sex=p.sex;state.colors=presetColors(p);syncSexButtons();renderAll()}
 function setSex(sex){state.sex=sex;const p=CHARACTER_PRESETS.find(p=>p.sex===sex);state.presetId=p.id;state.colors=presetColors(p);syncSexButtons();renderAll()}
 function syncSexButtons(){document.querySelectorAll('[data-sex]').forEach(btn=>{const active=btn.dataset.sex===state.sex;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active))})}

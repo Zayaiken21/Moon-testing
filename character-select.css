@@ -196,3 +196,16 @@ body{display:block;
 .avatar-stage.has-3d .avatar-3d{opacity:1}
 .avatar-stage.has-3d .stage-glow{opacity:.5}
 .avatar-stage.has-3d>.avatar{opacity:0;transition:opacity .35s ease}
+
+/* ------------------------------------------------------------------
+   The picture on a preset tile.
+
+   Each tile shows the real character, drawn once into a canvas. The flat
+   CSS figure stays underneath and shows through whenever the model pack
+   has not arrived, so a tile is never empty.
+   ------------------------------------------------------------------ */
+.thumb-stage{position:relative}
+.thumb-stage canvas.thumb-3d{position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;transition:opacity .3s ease;pointer-events:none}
+.thumb-stage.has-3d canvas.thumb-3d{opacity:1}
+.thumb-stage.has-3d > .avatar{opacity:0;transition:opacity .3s ease}

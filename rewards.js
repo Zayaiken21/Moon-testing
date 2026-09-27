@@ -23,6 +23,9 @@
 
   const ACCOUNT_KEY = 'voxelia.account';
   const NAME_KEY = 'voxelia.account.name';
+  /* What each kind is worth, in cents. The server is the one that decides;
+     this is only what the wallet shows before it has been asked. */
+  const DEFAULT_RATES = { common: 0, uncommon: 2, rare: 6, exotic: 12, legendary: 30 };
   let cache = { balance: 0, caught: 0, today: 0, dailyCap: 0, rates: {} };
   let pending = [];                 // claims held while offline
 
@@ -74,6 +77,7 @@
       account: accountId(), session: session(), creature: creatureKey, rarity,
       mode: (window.Game && window.Game.mode) || 'survival'
     };
+    if (rarity === 'common') return { ok: false, why: '', cents: 0 };   // nothing to ask for
     if (!base) { pending.push(body); return null; }
     try {
       const res = await fetch(base + '/claim', {
@@ -87,6 +91,8 @@
         toast('Caught! ' + money(out.cents) + ' added. Wallet: ' + money(out.balance));
         render();
       } else if (out && out.why) {
+        // a common animal earns nothing; that is not a problem, so it is
+        // said once and quietly rather than as a warning
         toast(out.why);
       }
       return out;
@@ -422,10 +428,16 @@
     document.getElementById('w-caught').textContent = cache.caught || 0;
     document.getElementById('w-today').textContent = money(cache.today);
     document.getElementById('w-cap').textContent = cache.dailyCap ? money(cache.dailyCap) : '—';
-    const rates = cache.rates || {};
-    document.getElementById('w-rates').innerHTML = Object.keys(rates).map((k) =>
-      '<div class="rate-row"><span>' + k + '</span><b>' + money(rates[k]) + '</b></div>').join('') ||
-      '<p class="wallet-note">Connect to a server to see the rates.</p>';
+    const rates = cache.rates && Object.keys(cache.rates).length ? cache.rates : DEFAULT_RATES;
+    const order = ['common', 'uncommon', 'rare', 'exotic', 'legendary'];
+    const keys = order.filter((k) => rates[k] !== undefined)
+      .concat(Object.keys(rates).filter((k) => order.indexOf(k) < 0));
+    document.getElementById('w-rates').innerHTML =
+      '<p class="wallet-note">Only the first person anywhere to tame a particular animal is paid for it.</p>' +
+      keys.map((k) =>
+        '<div class="rate-row"><span>' + k + '</span><b>' +
+        (rates[k] > 0 ? money(rates[k]) : 'nothing') + '</b></div>').join('') +
+      '<p class="wallet-note">Most animals are common, so most of what you tame is for the company.</p>';
     document.getElementById('w-account').textContent =
       'Account ' + accountId() + (serverBase() ? '' : ' · offline, claims are held until you reconnect') +
       (pending.length ? ' · ' + pending.length + ' waiting to send' : '');
