@@ -1404,8 +1404,10 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
    character screen collapsed into a small box in the corner. The wrapper
    holds the gap for the notch; the frame simply fills what is left. */
 #char-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
-#char-frame-close{top:calc(8px + env(safe-area-inset-top));
-  right:calc(10px + env(safe-area-inset-right));z-index:3;
+/* Top right, clear of the notch, and above the frame. The page inside
+   leaves a gap at that end for it, so it never lands on a button. */
+#char-frame-close{top:calc(14px + env(safe-area-inset-top));
+  right:calc(14px + env(safe-area-inset-right));z-index:3;
   box-shadow:0 4px 16px rgba(0,0,0,.55)}
 @media (orientation:landscape) and (max-height:620px){
   #char-frame-close{width:36px;height:36px;font-size:15px;

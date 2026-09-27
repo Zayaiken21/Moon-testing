@@ -1,5 +1,5 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v28';
+const CACHE = 'voxelia-v29';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
@@ -30,6 +30,9 @@ self.addEventListener('activate', (e) => {
       .then(() => self.clients.claim())
   );
 });
+
+/* What has been looked at again since this worker started. */
+const checked = new Set();
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -89,18 +92,39 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  /* Everything else — models, music, pictures — never changes, so the
-     cached copy is the right answer and the fastest one. */
+  /* Everything else — models, music, pictures.
+
+     These were answered from the cache and never looked at again, on the
+     reasoning that a model or a piece of music does not change. That is true
+     right up until you replace one: a new .glb or a re-recorded track pushed
+     to GitHub under the same name would never reach anybody who had already
+     played, because their copy of it was already in the cache and nothing
+     ever went back to check.
+
+     Now the cached copy is still handed over at once — it is the fast answer
+     and it works with no connection — and a fresh copy is fetched quietly
+     behind it and put in the cache for next time. So anything replaced on
+     GitHub arrives on its own, one visit later, with nothing to bump and
+     nothing for anybody to clear. Files that have not changed cost one
+     conditional request the browser answers from its own HTTP cache. */
+  /* Once each per run. The models alone are nineteen megabytes; checking
+     every one of them on every request would be a lot of somebody's data for
+     files that mostly have not moved. */
+  const already = checked.has(req.url);
+  checked.add(req.url);
+
   e.respondWith(
     caches.match(req).then((hit) => {
-      if (hit) return hit;
-      return fetch(req).then((res) => {
-        if (res && res.ok && res.type === 'basic') {
+      if (hit && already) return hit;
+      const fresh = fetch(req).then((res) => {
+        if (res && res.ok && (res.type === 'basic' || res.type === 'cors')) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
-      }).catch(() => caches.match('./index.html'));
+      }).catch(() => null);
+      // the cached one now if there is one, otherwise whatever arrives
+      return hit || fresh.then((res) => res || caches.match('./index.html'));
     })
   );
 });

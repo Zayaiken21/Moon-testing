@@ -22,7 +22,10 @@ button{cursor:pointer;color:inherit}
 .orb-a{background:#09d9bd;left:-10vw;top:-12vw}.orb-b{background:#6157ff;right:-13vw;bottom:-17vw}
 .app-shell{position:relative;z-index:1;max-width:1460px;margin:0 auto;display:grid;gap:18px}
 .glass{background:linear-gradient(145deg,rgba(17,40,59,.78),rgba(7,20,33,.76));backdrop-filter:blur(18px) saturate(120%);-webkit-backdrop-filter:blur(18px) saturate(120%);border:1px solid var(--line);box-shadow:var(--shadow)}
-.topbar{min-height:88px;border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;padding:16px 20px;gap:16px}
+/* The right end keeps room for the game's own close button, which is drawn
+   over this page rather than in it. Without the gap the round X sat on top
+   of "Random Character" and you could not tell which one you were pressing. */
+.topbar{min-height:88px;border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;padding:16px 68px 16px 20px;gap:16px}
 .brand-wrap{display:flex;align-items:center;gap:14px}.brand-mark{width:54px;height:54px;border-radius:18px;display:grid;place-items:center;font-family:"Space Grotesk",sans-serif;font-weight:800;font-size:30px;background:linear-gradient(135deg,var(--mint),var(--cyan));color:#072033;box-shadow:0 10px 35px rgba(67,200,255,.25)}
 .eyebrow,.label{font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--mint);font-weight:800}.topbar h1{font-size:clamp(21px,2.6vw,36px);margin:2px 0 0;line-height:1;font-family:"Space Grotesk",sans-serif}
 .selector-layout{display:grid;grid-template-columns:minmax(320px,.88fr) minmax(0,1.6fr);gap:18px;min-height:calc(100dvh - 145px)}
@@ -204,10 +207,33 @@ body{display:block;
   .selector-layout{grid-template-columns:minmax(150px,.72fr) minmax(0,1.9fr);gap:7px}
   .preview-panel,.controls-panel{padding:8px;border-radius:14px}
   .avatar{max-width:min(110px,100%)}
-  .preset-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
   .preset-card{padding:4px;border-radius:10px}
   .preset-card small{display:none}
   .color-grid{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:5px}
+
+  /* Sideways on a phone, the characters go in one row you swipe along.
+
+     Five across and two down filled the panel from top to bottom, which put
+     the colour pickers below the fold — reachable by scrolling, but only if
+     you knew they were there, and from the outside that looks exactly like
+     the colours having gone missing. One row of characters leaves room for
+     the colours underneath, so choosing a character and changing its colours
+     are the same screen again. */
+  .preset-grid{display:grid;grid-template-columns:none;
+    grid-auto-flow:column;grid-auto-columns:clamp(72px,13vw,104px);
+    gap:6px;overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x proximity;overscroll-behavior-x:contain;
+    padding-bottom:4px}
+  .preset-card{scroll-snap-align:start}
+  .customizer-inner{max-height:38vh;overflow-y:auto;overscroll-behavior:contain}
+  .customizer summary{padding:6px 10px}
+  /* the headings say twice what the buttons beside them already say, and
+     sideways on a phone that is two lines the colours could have had */
+  .section-head h3{font-size:14px;margin:0}
+  .section-head .label{display:none}
+  .section-head.compact{margin-bottom:6px}
+  .customizer summary .label{display:none}
+  .customizer summary strong{margin-top:0;font-size:13px}
 }
 /* very little height indeed */
 @media (max-height:430px){
@@ -243,3 +269,17 @@ body{display:block;
   opacity:0;transition:opacity .3s ease;pointer-events:none}
 .thumb-stage.has-3d canvas.thumb-3d{opacity:1}
 .thumb-stage.has-3d > .avatar{opacity:0;transition:opacity .3s ease}
+
+/* A narrow screen: the Random Character button becomes its own symbol.
+
+   There is a rule for this much further up, but the block that sizes every
+   button for the fixed-height layout comes after it and put the text back —
+   so on a phone held upright the button kept its full width, and with the
+   gap now reserved at that end for the game's close button it ran off the
+   edge. Repeating it here, last, settles which one wins. */
+@media (max-width:560px){
+  .topbar{padding:12px 58px 12px 14px;gap:10px}
+  #randomCharacterBtn{font-size:0;width:42px;min-width:42px;padding:0;flex:0 0 auto}
+  #randomCharacterBtn::after{content:"\2726";font-size:17px}
+  .topbar h1{font-size:17px}
+}

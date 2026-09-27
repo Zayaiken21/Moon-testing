@@ -312,6 +312,22 @@ function renderPresets(){
     const stage=card.querySelector('.thumb-stage');
     // the flat figure first, so the grid is never empty, then the real one
     stage.appendChild(makeAvatar(p,true));
+    card.addEventListener('click',()=>selectPreset(p.id));
+    /* In the page before the picture is asked for.
+
+       This used to be the other way round, and that is why the characters
+       turned back into cut-outs the moment you chose one. A picture that has
+       been drawn before comes back immediately, in the same breath as the
+       asking — and at that moment the card was still a loose piece of markup
+       that had not been put into the grid yet, so `isConnected` was false and
+       the picture was thrown away. It only ever looked right on the very
+       first render, when every picture had to be drawn from scratch and so
+       arrived later, by which time the card had landed.
+
+       The guard below is still needed for those later arrivals: choosing
+       another character rebuilds the whole grid, and a picture finishing
+       after that belongs to a card that no longer exists. */
+    presetGrid.appendChild(card);
     const cols=(p.id===state.presetId)?state.colors:presetColors(p);
     Thumbs.want(p.id,cols,(shot)=>{
       if(!stage.isConnected) return;
@@ -321,8 +337,6 @@ function renderPresets(){
       img.getContext('2d').drawImage(shot,0,0);
       stage.classList.add('has-3d');
     });
-    card.addEventListener('click',()=>selectPreset(p.id));
-    presetGrid.appendChild(card);
   });
 }
 function renderLarge(){
