@@ -158,11 +158,21 @@
     if (!base) return { ok: false, why: 'No server configured.' };
 
     const once = async () => {
-      const res = await fetch(base + route, {
-        method: body ? 'POST' : 'GET',
-        headers: body ? { 'content-type': 'application/json' } : undefined,
-        body: body ? JSON.stringify(body) : undefined
-      });
+      /* A machine that is waking up can hold a connection open for as long
+         as it likes, and fetch will wait for ever. That is what left the
+         screen sitting on one message with nothing happening. Each attempt
+         now gives up after twelve seconds and another one is made. */
+      const stop = new AbortController();
+      const cut = setTimeout(() => stop.abort(), 12000);
+      let res;
+      try {
+        res = await fetch(base + route, {
+          method: body ? 'POST' : 'GET',
+          headers: body ? { 'content-type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: stop.signal
+        });
+      } finally { clearTimeout(cut); }
       const text = await res.text();
       let data = null;
       try { data = JSON.parse(text); } catch (e) {}
@@ -171,8 +181,16 @@
 
     const waited = (ms) => new Promise((r) => setTimeout(r, ms));
     let last = '';
-    // a little under a minute, which covers a cold start with room to spare
-    for (let go = 0; go < 7; go++) {
+    /* Before anything else, make sure the machine is up. The game pings it
+       every minute while anybody is playing, so nearly always it already is
+       and this returns at once. */
+    if (window.VoxeliaLive) {
+      const up = await window.VoxeliaLive.waitUntilUp(onWaking);
+      if (!up) return { ok: false, why: 'The server is not answering. Try again in a minute.' };
+      onWaking = null;                       // it is awake: no more "waking up"
+    }
+    // and then, briefly, in case it went down between the two
+    for (let go = 0; go < 4; go++) {
       try {
         const { res, data, text } = await once();
         if (data) return data;                       // a real answer
@@ -191,7 +209,7 @@
         last = 'Could not reach ' + base.replace(/^https?:\/\//, '') + '.';
       }
       if (go === 0 && onWaking) { try { onWaking(); } catch (e) {} }
-      await waited(go < 2 ? 2500 : 9000);
+      await waited(2500);
     }
     return { ok: false, why: last + ' It may be asleep — give it a minute and try again.' };
   }
@@ -219,8 +237,7 @@
     border-radius:50%;background:#262236;border:1px solid #332E47;color:#EDE9F5;
     font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
   #account-screen .acc-x:hover{border-color:#7FFFD9;color:#7FFFD9}
-  #account-screen .acc-where{margin:14px 0 0;color:#6C7793;font-size:11px;
-    text-align:center;word-break:break-all}
+
   #account-screen h2{padding-right:46px}
   .acc-sheet{max-width:440px;margin:0 auto;background:#12182B;border:1px solid #27324E;
     border-radius:20px;padding:24px;color:#EDE9F5;
@@ -278,7 +295,6 @@
         '<p class="lede">An account keeps your companions and what you have earned, ' +
         'on every device you play on.</p>' +
         '<div id="acc-body"></div>' +
-        '<p class="acc-where" id="acc-where"></p>' +
       '</div>';
     document.body.appendChild(screen);
     screen.querySelector('#acc-x').addEventListener('click', closeAccount);
@@ -296,16 +312,6 @@
   function renderAccount() {
     const body = document.getElementById('acc-body');
     if (!body) return;
-    /* Which server this is talking to, in small print. When something is
-       wrong it is nearly always this, and guessing at it from the outside is
-       no fun for anybody. */
-    const where = document.getElementById('acc-where');
-    if (where) {
-      const base = serverBase();
-      where.textContent = base
-        ? 'Talking to ' + base.replace(/^https?:\/\//, '')
-        : 'No server address set in the game.';
-    }
 
     if (account) {
       body.innerHTML =
@@ -391,16 +397,37 @@
     const out = await api('/account/signup', {
       email: val('acc-email'), username: val('acc-user'), password: val('acc-pass')
     }, () => say('Waking the server up. This can take up to a minute the first time.'));
-    if (out.ok) { setSession(out.session); account = out.account; renderAccount(); toast('Welcome, ' + account.username + '.'); }
-    else say(out.why || 'That did not work.', 'bad');
+    if (out.ok && out.account && out.account.username) {
+      setSession(out.session);
+      account = out.account;
+      renderAccount();
+      toast('Welcome, ' + account.username + '.');
+    } else if (out.ok) {
+      // it said yes but sent nothing back: ask it who we are
+      setSession(out.session || '');
+      const me = await refreshAccount();
+      if (!me) say('The server said yes but sent nothing back. Try signing in.', 'bad');
+    } else {
+      say(out.why || 'That did not work.', 'bad');
+    }
   }
 
   async function doSignIn() {
     say('Checking\u2026');
     const out = await api('/account/signin', { email: val('acc-email'), password: val('acc-pass') },
       () => say('Waking the server up. This can take up to a minute the first time.'));
-    if (out.ok) { setSession(out.session); account = out.account; renderAccount(); toast('Signed in.'); }
-    else say(out.why || 'That did not work.', 'bad');
+    if (out.ok && out.account && out.account.username) {
+      setSession(out.session);
+      account = out.account;
+      renderAccount();
+      toast('Signed in.');
+    } else if (out.ok) {
+      setSession(out.session || '');
+      const me = await refreshAccount();
+      if (!me) say('The server said yes but sent nothing back. Try again.', 'bad');
+    } else {
+      say(out.why || 'That did not work.', 'bad');
+    }
   }
 
   async function doForgot() {

@@ -1938,12 +1938,9 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <p class="lede" id="mp-status"></p>
 
     <div class="field" id="server-field">
-      <label for="mp-relay">Server</label>
       <div class="seed-row">
-        <select id="mp-server-pick"></select>
         <button class="btn" id="mp-refresh">Find games</button>
       </div>
-      <input id="mp-relay" spellcheck="false" placeholder="voxelia-yourname.onrender.com" style="margin-top:8px" />
     </div>
 
 
@@ -7822,10 +7819,6 @@ const UI = {
     on('#mp-host-btn', 'click', () => this.hostGame());
     on('#mp-join-btn', 'click', () => this.joinByCode());
     on('#mp-refresh', 'click', () => this.probeServers(true));
-    on('#mp-relay', 'change', () => {
-      const v = ($('#mp-relay').value || '').trim();
-      if (v) { this.rememberServer(v); this.probeServers(); }
-    });
     // leave is handled by the back button
     // on a phone this is the pause pill; on a computer it is fullscreen
     on('#fullscreen', 'click', () => {
@@ -8938,12 +8931,10 @@ const UI = {
     reader.readAsText(file);
   },
 
+  /* Where the room lives. One address, the game's own, with nothing for
+     anybody to type: a player should never have to know what Render is. */
   relayUrl() {
-    let raw = ($('#mp-relay').value || '').trim();
-    if (!raw) { const sel = $('#mp-server-pick'); raw = sel ? (sel.value || '').trim() : ''; }
-    if (!raw && this.liveServers && this.liveServers.length) raw = this.liveServers[0];
-    if (!raw) raw = DEFAULT_SERVER;
-    if (raw) this.rememberServer(raw);
+    let raw = DEFAULT_SERVER;
     if (!raw && location && location.host && /^https?:$/.test(location.protocol)) raw = location.host;
     if (!raw) return '';
     if (/^wss?:\/\//.test(raw)) return raw;
@@ -8995,7 +8986,7 @@ const UI = {
 
   hostGame() {
     const url = this.relayUrl();
-    if (!url) { $('#mp-status').textContent = 'Choose a server first.'; return; }
+    if (!url) { $('#mp-status').textContent = 'No server is set up for this copy of the game.'; return; }
     const choice = $('#mp-map').value;
     let seed, save = null;
 
@@ -9022,8 +9013,26 @@ const UI = {
       player: Game.skin.name || 'Wanderer',
       skin: Game.skin
     };
+    /* Make sure the machine is actually up before asking it for a room.
+       If it was asleep this waits for it, saying so on screen and in the
+       banner, rather than failing at a closed socket and leaving the player
+       to guess. */
     $('#mp-status').textContent = 'Opening your room\u2026';
+    Live.waitUntilUp(() => {
+      $('#mp-status').textContent = 'Waking the server up. This takes about a minute the first time today.';
+      Game.net.showLink('waking');
+    }).then((up) => {
+      if (!up) {
+        Game.net.showLink('off', 'Server not answering');
+        $('#mp-status').textContent = 'The server is not answering. Try again in a minute.';
+        return;
+      }
+      Game.net.showLink('ok');
+      this.openRoom(url, payload, save);
+    });
+  },
 
+  openRoom(url, payload, save) {
     Game.net.connect(url, (welcome) => {
       this.rememberRoomCode(seed, welcome.room);
       this.enterWorld(welcome);
@@ -9041,15 +9050,26 @@ const UI = {
 
   joinByCode(code) {
     const url = this.relayUrl();
-    if (!url) { $('#mp-status').textContent = 'Set a relay address under Advanced first.'; return; }
+    if (!url) { $('#mp-status').textContent = 'No server is set up for this copy of the game.'; return; }
     const room = String(code || $('#mp-room').value || '').replace(/\D/g, '');
     if (room.length !== 7) { $('#mp-status').textContent = 'A room code is seven digits.'; return; }
     $('#mp-status').textContent = 'Joining room ' + room + '\u2026';
-    Game.net.connect(url, (welcome) => {
-      this.enterWorld(welcome);
-      $('#mp-status').innerHTML = 'In room <b>' + welcome.room + '</b>.';
-    }, (err) => { $('#mp-status').textContent = err; },
-    { t: 'join', room, name: Game.skin.name || 'Wanderer', skin: Game.skin });
+    Live.waitUntilUp(() => {
+      $('#mp-status').textContent = 'Waking the server up. This takes about a minute the first time today.';
+      Game.net.showLink('waking');
+    }).then((up) => {
+      if (!up) {
+        Game.net.showLink('off', 'Server not answering');
+        $('#mp-status').textContent = 'The server is not answering. Try again in a minute.';
+        return;
+      }
+      Game.net.showLink('ok');
+      Game.net.connect(url, (welcome) => {
+        this.enterWorld(welcome);
+        $('#mp-status').innerHTML = 'In room <b>' + welcome.room + '</b>.';
+      }, (err) => { $('#mp-status').textContent = err; },
+      { t: 'join', room, name: Game.skin.name || 'Wanderer', skin: Game.skin });
+    });
   },
 
   knownServers() {
@@ -9119,19 +9139,15 @@ const UI = {
     try { st.setItem('voxelia.servers', JSON.stringify(list.slice(0, 6))); } catch (e) {}
   },
 
+  /* There is one server, it is the game's own, and a player never types an
+     address. Hosting and joining are therefore always offered: if the server
+     is asleep the connection waits for it and says so on screen, which is a
+     great deal kinder than a greyed-out button and no explanation. */
   drawServers() {
-    const sel = $('#mp-server-pick');
-    if (!sel) return;
-    const live = this.liveServers || [];
-    sel.innerHTML = live.length
-      ? live.map(a => `<option value="${a}">${a}</option>`).join('')
-      : '<option value="">no server yet</option>';
-    // the address box stays visible until something actually answers
-    setStyle('#server-field', 'display', live.length ? 'none' : 'block');
     const hostBtn = $('#mp-host-btn');
     const joinBtn = $('#mp-join-btn');
-    if (hostBtn) hostBtn.disabled = !live.length;
-    if (joinBtn) joinBtn.disabled = !live.length;
+    if (hostBtn) hostBtn.disabled = false;
+    if (joinBtn) joinBtn.disabled = false;
   },
 
   /* the host picks from the worlds already saved on their device */
@@ -10123,6 +10139,89 @@ const Split = {
 };
 
 /* the wallet needs to know which of the two is playing, to pay the right one */
+/* ===================================================================
+   Keeping the server awake.
+
+   The room, the accounts and the wallet all live on one small machine that
+   goes to sleep after a quarter of an hour with nothing to do, and takes the
+   better part of a minute to wake up again. That wait used to land on
+   whichever child happened to press Multiplayer first.
+
+   So every open copy of the game quietly says hello once a minute. As long as
+   one person anywhere has Voxelia open, the server never falls asleep and
+   nobody ever waits for it. There is nothing to see and nothing to set up:
+   it asks for /health, which is a few words of JSON and touches no disk.
+
+   It only does this while the page is actually on screen — a phone in a
+   pocket is not somebody playing — and it says hello at once when the game
+   comes back, which is exactly when somebody is about to need it.
+   =================================================================== */
+const Live = {
+  every: 60000,
+  timer: 0,
+  lastOk: 0,
+  awake: false,
+
+  url() {
+    const a = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
+    if (!a) return '';
+    if (/^https?:\/\//.test(a)) return a.replace(/\/$/, '') + '/health';
+    const proto = location.protocol === 'https:' ? 'https://' : 'http://';
+    return proto + a.replace(/\/$/, '') + '/health';
+  },
+
+  /** One hello. Never throws, never waits forever, never says anything. */
+  async ping(patient) {
+    const url = this.url();
+    if (!url) return false;
+    const stop = new AbortController();
+    // a sleeping machine can hold a connection open indefinitely, so give up
+    // and come back rather than hanging on to it
+    const cut = setTimeout(() => stop.abort(), patient ? 20000 : 8000);
+    try {
+      const res = await fetch(url + '?t=' + Date.now(), { signal: stop.signal, cache: 'no-store' });
+      const ok = res.ok;
+      if (ok) { this.lastOk = Date.now(); this.awake = true; }
+      return ok;
+    } catch (e) {
+      this.awake = false;
+      return false;
+    } finally {
+      clearTimeout(cut);
+    }
+  },
+
+  /* Wait for the server to be up, however long it takes, and say so on
+     screen while waiting so nobody is left looking at a dead button. Used
+     before joining a room and before anything to do with an account. */
+  async waitUntilUp(onWaking) {
+    if (Date.now() - this.lastOk < 45000) return true;       // it was up a moment ago
+    if (await this.ping()) return true;
+    if (onWaking) { try { onWaking(); } catch (e) {} }
+    for (let go = 0; go < 8; go++) {                          // about a minute and a half
+      await new Promise((r) => setTimeout(r, 4000));
+      if (await this.ping(true)) return true;
+    }
+    return false;
+  },
+
+  start() {
+    if (this.timer) return;
+    const beat = () => {
+      if (document.visibilityState === 'hidden') return;      // nobody is looking
+      this.ping();
+    };
+    beat();
+    this.timer = setInterval(beat, this.every);
+    // coming back to the game is exactly when it is about to be wanted
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.ping();
+    });
+    addEventListener('online', () => this.ping());
+  }
+};
+try { Live.start(); window.VoxeliaLive = Live; } catch (e) {}
+
 /* The wallet and the store are separate files, and a `const` at the top of a
    script is not a property of window — so `window.Game` and
    `window.DEFAULT_SERVER` were both undefined in them. The wallet therefore
@@ -10912,13 +11011,32 @@ Game.net = {
     return h;
   },
 
-  /** Tell the player, plainly, whether the room is reachable. */
-  showLink(state) {
+  /* What the connection is doing, on screen.
+
+     A banner that says the same thing for a minute looks broken even when it
+     is working perfectly, so this one counts the seconds it has been trying.
+     "Reconnecting… 8s" is plainly alive; "Reconnecting…" on its own is not.
+     It clears itself the moment the room answers. */
+  showLink(state, why) {
     const el = document.getElementById('link-state');
     if (!el) return;
-    if (state === 'ok') { el.classList.remove('show'); return; }
-    el.textContent = state === 'waiting' ? 'Reconnecting…' : 'Offline';
-    el.classList.add('show');
+    clearInterval(this._linkTick);
+    if (state === 'ok') {
+      el.classList.remove('show');
+      this.linkSince = 0;
+      return;
+    }
+    const words = state === 'waking' ? 'Waking the server up'
+                : state === 'waiting' ? 'Reconnecting'
+                : (why || 'Offline');
+    if (!this.linkSince) this.linkSince = Date.now();
+    const paint = () => {
+      const secs = Math.round((Date.now() - this.linkSince) / 1000);
+      el.textContent = words + '…' + (secs > 2 ? '  ' + secs + 's' : '');
+      el.classList.add('show');
+    };
+    paint();
+    this._linkTick = setInterval(paint, 1000);
   },
 
   /** Coming back to the game after it was swiped away or the screen slept. */
