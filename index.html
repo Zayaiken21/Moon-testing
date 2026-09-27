@@ -210,8 +210,37 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   padding:max(12px,env(safe-area-inset-top)) 14px 10px}
 .map-exit{border-color:var(--moon);color:var(--moon);white-space:nowrap}
 .map-body{flex:1;display:grid;place-items:center;min-height:0;padding:0 10px;position:relative}
-#bigmap{width:min(92vw, 58vh);height:min(92vw, 58vh);border-radius:14px;
-  border:1px solid var(--line);background:var(--ink);touch-action:none}
+/* As big as the screen will give it. It used to be capped at 58% of the
+   window's height, which on a phone held sideways left a small square in the
+   middle of a lot of nothing. */
+#bigmap{width:min(96vw, 74vh);height:min(96vw, 74vh);border-radius:14px;
+  border:1px solid var(--line);background:var(--ink);touch-action:none;
+  box-shadow:0 10px 40px rgba(0,0,0,.5)}
+
+/* What the marks mean. Small, quiet, and always there, so nobody has to
+   guess what a blue dot is worth. */
+.map-key{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;
+  padding:8px 14px 0;position:relative;z-index:3}
+.map-key span{display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;color:var(--muted);white-space:nowrap}
+.map-key i{width:11px;height:11px;border-radius:50%;display:inline-block;
+  border:2px solid rgba(0,0,0,.55);flex:0 0 auto}
+.map-key .k-me{background:#FFFFFF;border-color:#14121C}
+.map-key .k-peer{background:#A97BFF;border-color:#14121C}
+.map-key .k-mine{background:#6FE3C4;border-color:#0B2B22}
+.map-key .k-uncommon{background:#8FE39A;border-color:#2E7D4F}
+.map-key .k-rare{background:#7FD8FF;border-color:#18506E}
+.map-key .k-exotic{background:#C79BFF;border-color:#432A6B}
+.map-key .k-legendary{background:#FFC24C;border-color:#6B4708}
+/* the four animal colours go quiet while animals are hidden */
+.map-key.dim span:nth-child(n+4){opacity:.32}
+.map-foot .btn.on{border-color:var(--moon);color:var(--moon);
+  background:rgba(111,227,196,.16)}
+@media (max-height:520px){
+  .map-key{gap:4px 10px;padding-top:5px}
+  .map-key span{font-size:10px}
+  .map-key i{width:9px;height:9px;border-width:1.5px}
+}
 .map-foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
   padding:10px 14px 6px;position:relative;z-index:2}
 .map-foot .btn{min-width:96px}
@@ -1421,6 +1450,23 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   0 18px 60px rgba(0,0,0,.5)}
 #bag.for-p2 .whose,#worldmap.for-p2 .whose{background:rgba(160,120,255,.16);
   border-color:rgba(160,120,255,.5);color:var(--amethyst)}
+
+/* A control that belongs to somebody else: visible, readable, and plainly
+   not yours to press. */
+.mode-option.locked,button.locked{opacity:.5;cursor:not-allowed}
+.mode-option.locked:hover{border-color:var(--line)}
+
+/* A square being emptied by a long press. */
+.slot.dropping,.block-chip.dropping{outline:2px solid var(--ember);
+  outline-offset:2px;transform:scale(.94);transition:transform .12s ease}
+
+/* Somebody is waiting for an answer. */
+@keyframes summon-ring{
+  0%,100%{box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 0 0 rgba(111,227,196,.55)}
+  50%{box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 0 12px rgba(111,227,196,0)}
+}
+#summon-card.ringing{animation:summon-ring 1s ease-out 2;border-color:var(--moon)}
+@media (prefers-reduced-motion:reduce){#summon-card.ringing{animation:none}}
 </style>
 </head>
 <body>
@@ -1849,13 +1895,23 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     </div>
     <button class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
   </div>
-  <div class="map-body"><canvas id="bigmap" width="720" height="720"></canvas></div>
+  <div class="map-body"><canvas id="bigmap" width="1024" height="1024"></canvas></div>
+  <div class="map-key" id="map-key">
+    <span><i class="k-me"></i>You</span>
+    <span><i class="k-peer"></i>Players</span>
+    <span><i class="k-mine"></i>Yours</span>
+    <span><i class="k-uncommon"></i>Uncommon 2&cent;</span>
+    <span><i class="k-rare"></i>Rare 6&cent;</span>
+    <span><i class="k-exotic"></i>Exotic 12&cent;</span>
+    <span><i class="k-legendary"></i>Legendary 30&cent;</span>
+  </div>
   <p class="map-hint">Drag the map to look around. Tap it to drop a mark. Pinch or scroll to zoom.</p>
   <div class="map-foot">
     <button class="btn" id="map-out">Zoom out</button>
     <button class="btn" id="map-in">Zoom in</button>
     <button class="btn" id="map-centre">Centre on me</button>
     <button class="btn" id="map-mark">Mark this spot</button>
+    <button class="btn" id="map-wild">Show animals</button>
   </div>
   <div id="map-marks" class="map-marks"></div>
 </section>
@@ -4567,11 +4623,8 @@ const Game = {
     this.mount = null;
     this.chests = new Map();
     // each world keeps its own map, so nothing is lost by travelling
-    if (!this.exploredByRealm) this.exploredByRealm = {};
-    const realmKey = (offworld && this.offworld) ? ('planet:' + this.offworld.id) : 'ground';
-    if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
-    this.explored = this.exploredByRealm[realmKey];
-    this.mapRealm = realmKey;
+    this.mapRealm = this.mapKey();
+    this.useMap();
     this.peopled = new Set();
     this.stocked = new Set();
     /* How hard this world pulls. Landing on a small world set this light and
@@ -4728,12 +4781,24 @@ const Game = {
     return this.offworld ? ('planet:' + this.offworld.id) : 'ground';
   },
 
+  /* The map of wherever you are standing.
+
+     Each world keeps its own, and `explored` used to be pointed at the right
+     one only when a new chunk was walked into. Come home from another planet
+     and stand still, and the map you were shown was still the planet's — or,
+     worse, looked empty. This picks the right one whenever it is asked for,
+     which is every time the map is drawn or added to. */
+  useMap() {
+    if (!this.exploredByRealm) this.exploredByRealm = {};
+    const key = this.mapKey();
+    if (!this.exploredByRealm[key]) this.exploredByRealm[key] = new Map();
+    this.explored = this.exploredByRealm[key];
+    return this.explored;
+  },
+
   /* one entry per chunk you have been near: its main biome and its height */
   noteExplored(chunk) {
-    if (!this.exploredByRealm) this.exploredByRealm = {};
-    const realmKey = this.mapKey();
-    if (!this.exploredByRealm[realmKey]) this.exploredByRealm[realmKey] = new Map();
-    this.explored = this.exploredByRealm[realmKey];
+    this.useMap();
     const key = chunk.cx + ',' + chunk.cz;
     if (this.explored.has(key)) return;
     const tally = {};
@@ -4741,11 +4806,31 @@ const Game = {
     let bi = 0, best = -1;
     for (const k of Object.keys(tally)) if (tally[k] > best) { best = tally[k]; bi = +k; }
     const h = this.world.heightAt(chunk.cx * CX + 8, chunk.cz * CZ + 8);
-    this.explored.set(key, { bi, h });
+
+    /* A picture of the chunk, not just its colour.
+
+       The map used to keep one biome and one height for a whole sixteen by
+       sixteen chunk, so it could only ever draw flat squares — which is why
+       it looked like a chart rather than a place. Sixteen samples are taken
+       instead, four blocks apart, which is enough for a coastline to have a
+       shape and a hill to have a slope. Thirty two bytes a chunk: five
+       hundred chunks is a few tens of kilobytes, so it still saves happily
+       alongside everything else. */
+    const s = [], sh = [];
+    for (let sz = 0; sz < 4; sz++) {
+      for (let sx = 0; sx < 4; sx++) {
+        const bx = sx * 4 + 2, bz = sz * 4 + 2;
+        s.push(chunk.biome[bz * CX + bx] | 0);
+        const y = this.world.heightAt(chunk.cx * CX + bx, chunk.cz * CZ + bz);
+        sh.push(Math.max(0, Math.min(255, y | 0)));
+      }
+    }
+    this.explored.set(key, { bi, h, s, sh });
   },
 
   drawMap(canvas, blocksPerPixel, radiusCircle) {
     if (!canvas || !this.world) return;
+    this.useMap();          // the map of the world you are actually standing on
     const g = canvas.getContext('2d');
     if (!g) return;
     const W = canvas.width, H = canvas.height;
@@ -4763,22 +4848,89 @@ const Game = {
     const px = this.player.pos.x + pan.x, pz = this.player.pos.z + pan.z;
     const cell = CX / blocksPerPixel;                 // a chunk, in pixels
 
+    /* The land is drawn once and kept.
+
+       The sweep that marks where you are wants eight pictures a second, and
+       redrawing a thousand little squares of ground that often, on a phone,
+       for a picture that has not changed, is a waste of a battery. The ground
+       goes into a canvas of its own and is only redrawn when the view really
+       moves — panned, zoomed, or a new piece of the world explored. The
+       marks on top are cheap and are drawn every time. */
+    const viewKey = [W, H, Math.round(px * 4), Math.round(pz * 4), blocksPerPixel,
+                     (this.explored ? this.explored.size : 0), this.mapKey(),
+                     radiusCircle ? 1 : 0].join('|');
+    if (!this._land) this._land = {};
+    const store = this._land;
+    let land = store[radiusCircle ? 'small' : 'big'];
+    if (!land || land.c.width !== W || land.c.height !== H) {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      land = store[radiusCircle ? 'small' : 'big'] = { c, g: c.getContext('2d'), key: '' };
+    }
+    if (land.key === viewKey && land.g) {
+      g.drawImage(land.c, 0, 0);
+    } else if (land.g) {
+      land.key = viewKey;
+      this.paintLand(land.g, W, H, px, pz, blocksPerPixel, cell, radiusCircle);
+      g.drawImage(land.c, 0, 0);
+    }
+
+    // everything from here is drawn fresh each time: it moves
+    this.paintMarks(g, W, H, px, pz, blocksPerPixel, pan, radiusCircle);
+  },
+
+  /** The ground, and the round mask on the little map. */
+  paintLand(g, W, H, px, pz, blocksPerPixel, cell, radiusCircle) {
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = '#14121C';
+    g.fillRect(0, 0, W, H);
+    /* The land itself.
+
+       Each explored chunk is drawn from its sixteen samples rather than as
+       one flat square, and each sample is lit by how high it stands: high
+       ground pale, valleys darker, water deeper blue the deeper it gets. The
+       result reads as a place with coastlines and hills in it rather than a
+       chart of coloured boxes. Anything saved before this only has the one
+       colour, so it is drawn the old way and fills in with detail as you
+       walk through it again. */
+    const shade = (hex, k) => {
+      const n = parseInt(hex.slice(1), 16);
+      const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * k)));
+      const gg = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * k)));
+      const b2 = Math.max(0, Math.min(255, Math.round((n & 255) * k)));
+      return 'rgb(' + r + ',' + gg + ',' + b2 + ')';
+    };
+
     for (const [key, info] of (this.explored || [])) {
       const p = key.split(',');
       const wx = (+p[0]) * CX, wz = (+p[1]) * CZ;
       const sx = W / 2 + (wx - px) / blocksPerPixel;
       const sy = H / 2 + (wz - pz) / blocksPerPixel;
       if (sx < -cell || sy < -cell || sx > W || sy > H) continue;
-      const b = BIOMES[info.bi];
-      g.fillStyle = b.swatch[0];
-      g.globalAlpha = info.h < SEA ? 0.55 : 1;
-      g.fillRect(sx, sy, Math.ceil(cell), Math.ceil(cell));
-      if (info.h < SEA) {
-        g.globalAlpha = 0.5;
-        g.fillStyle = '#1E7FC8';
-        g.fillRect(sx, sy, Math.ceil(cell), Math.ceil(cell));
+
+      if (info.s && info.s.length === 16) {
+        const step = cell / 4;
+        const w = Math.ceil(step) + 1;                 // a hair of overlap, no seams
+        for (let i = 0; i < 16; i++) {
+          const bi = info.s[i];
+          const hh = info.sh ? info.sh[i] : info.h;
+          const biome = BIOMES[bi] || BIOMES[info.bi] || BIOMES[0];
+          if (hh < SEA) {
+            // water: the deeper it is, the darker and bluer
+            const deep = Math.max(0, Math.min(1, (SEA - hh) / 26));
+            g.fillStyle = shade('#2E8BD0', 1 - deep * 0.62);
+          } else {
+            // land: lit by height, a gentle range so colours stay themselves
+            const up = Math.max(0, Math.min(1, (hh - SEA) / 60));
+            g.fillStyle = shade(biome.swatch[0], 0.78 + up * 0.46);
+          }
+          g.fillRect(sx + (i % 4) * step, sy + ((i / 4) | 0) * step, w, w);
+        }
+      } else {
+        const b = BIOMES[info.bi];
+        g.fillStyle = info.h < SEA ? '#2E8BD0' : b.swatch[0];
+        g.fillRect(sx, sy, Math.ceil(cell) + 1, Math.ceil(cell) + 1);
       }
-      g.globalAlpha = 1;
     }
 
     if (radiusCircle) {
@@ -4789,27 +4941,100 @@ const Game = {
       g.fill();
       g.globalCompositeOperation = 'source-over';
     }
+  },
 
-    /* Your own tamed animals are always drawn, in the same green as
-       everything of yours. Wild rare ones used to be splashed all over the
-       map in gold, which buried everything else; they are off unless you ask
-       for them in Settings, and then they are a quiet open ring. */
-    const showWild = !!Settings.rareOnMap;
+  /** Everything that moves: animals, players, marks, and you. */
+  paintMarks(g, W, H, px, pz, blocksPerPixel, pan, radiusCircle) {
+    /* Everything below is drawn in the canvas's own pixels, and the big map
+       is 1024 across while the one in the corner is 132. Without this a dot
+       sized for one is invisible on the other. Sizes are written at the size
+       they should look on screen and multiplied by this. */
+    const scale = radiusCircle ? Math.max(1, W / 132) : Math.max(1, W / 512);
+
+    /* What is worth going to look at.
+
+       Your own animals are always drawn. A wild one is drawn only if it is
+       worth something and only in a world that can still earn — a creative
+       world pays nothing, so pointing at animals there would be a promise the
+       game cannot keep. Each one is a coloured coin, sized and coloured by
+       what it is worth, so a legendary reads differently from an uncommon
+       across the room. */
+    const RARE_LOOK = {
+      uncommon:  { fill: '#8FE3A0', ring: '#123522', r: 5.0 },
+      rare:      { fill: '#7FD8FF', ring: '#0C2536', r: 6.0 },
+      exotic:    { fill: '#C79BFF', ring: '#231038', r: 6.8 },
+      legendary: { fill: '#FFD36E', ring: '#3A2A08', r: 7.6 }
+    };
+    const payWorld = !!(typeof this.earnable === 'function' ? this.earnable()
+                                                            : this.mode !== 'creative');
+    const showWild = !!Settings.rareOnMap && payWorld && this.mode !== 'creative';
+    const big = !radiusCircle;                       // the full map, not the corner one
+    /* Names pile on top of one another the moment two animals are near each
+       other, and a heap of overlapping words is worse than no words at all.
+       One label is kept per patch of the map. */
+    const labelled = [];
+    const roomFor = (x, y) => {
+      for (const p of labelled) {
+        if (Math.abs(p[0] - x) < 70 * scale && Math.abs(p[1] - y) < 16 * scale) return false;
+      }
+      labelled.push([x, y]);
+      return true;
+    };
+
     for (const c of this.creatures) {
       const mine = c.tamed || c.companion;
-      const scarce = c.rarity === 'rare' || c.rarity === 'exotic' || c.rarity === 'legendary';
-      if (!mine && !(showWild && scarce)) continue;
+      const look = RARE_LOOK[c.rarity];
+      if (!mine && !(showWild && look)) continue;
       const sx = W / 2 + (c.pos.x - px) / blocksPerPixel;
       const sy = H / 2 + (c.pos.z - pz) / blocksPerPixel;
-      if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
+      if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
+
       if (mine) {
+        // yours: a solid green dot with a dark edge, and a ring if it follows you
         g.fillStyle = '#6FE3C4';
-        g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fill();
-      } else {
-        g.strokeStyle = 'rgba(237,233,245,.7)'; g.lineWidth = 1.4;
-        g.beginPath(); g.arc(sx, sy, 3.2, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = '#0B241D';
+        g.lineWidth = 2 * scale;
+        g.beginPath(); g.arc(sx, sy, (big ? 6 : 4.5) * scale, 0, Math.PI * 2); g.fill(); g.stroke();
+        if (c.companion) {
+          g.strokeStyle = 'rgba(111,227,196,.8)';
+          g.lineWidth = 1.6;
+          g.beginPath(); g.arc(sx, sy, (big ? 10 : 7.5) * scale, 0, Math.PI * 2); g.stroke();
+        }
+        continue;
+      }
+
+      const r = (big ? look.r : look.r * 0.7) * scale;
+      // a soft glow, so it is findable against green and against white snow
+      g.save();
+      g.globalAlpha = 0.5;
+      g.fillStyle = look.fill;
+      g.beginPath(); g.arc(sx, sy, r * 2.1, 0, Math.PI * 2); g.fill();
+      g.restore();
+
+      g.fillStyle = look.fill;
+      g.strokeStyle = look.ring;
+      g.lineWidth = 2.2 * scale;
+      g.beginPath(); g.arc(sx, sy, r, 0, Math.PI * 2); g.fill(); g.stroke();
+
+      // a coin's line through the middle, so it reads as money at a glance
+      g.strokeStyle = look.ring;
+      g.lineWidth = 1.8 * scale;
+      g.beginPath(); g.moveTo(sx, sy - r * 0.45); g.lineTo(sx, sy + r * 0.45); g.stroke();
+
+      // on the big map, say what it is and what it is worth
+      if (big && blocksPerPixel < 1.6 && roomFor(sx, sy - r)) {
+        const worth = { uncommon: '2c', rare: '6c', exotic: '12c', legendary: '30c' }[c.rarity] || '';
+        const words = (c.displayName || c.def.name) + (worth ? '  ' + worth : '');
+        g.font = '600 ' + Math.round(12 * scale) + 'px sans-serif';
+        g.textAlign = 'center';
+        g.lineWidth = 3.5 * scale;
+        g.strokeStyle = 'rgba(10,9,16,.85)';
+        g.strokeText(words, sx, sy - r - 6 * scale);
+        g.fillStyle = look.fill;
+        g.fillText(words, sx, sy - r - 6 * scale);
       }
     }
+
     for (const p of this.net.peers.values()) {
       // somebody on another world is not on this map
       if ((p.realm || 'ground') !== (this.realm || 'ground')) continue;
@@ -4817,23 +5042,51 @@ const Game = {
       const sx = W / 2 + (p.model.position.x - px) / blocksPerPixel;
       const sy = H / 2 + (p.model.position.z - pz) / blocksPerPixel;
       if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
+      // other players: big, purple, and named, with the name on a dark
+      // strip so it can be read over grass as easily as over water
+      const pr = 7 * scale;
       g.fillStyle = '#A97BFF';
-      g.beginPath(); g.arc(sx, sy, 4, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#14121C'; g.lineWidth = 1.5; g.stroke();
-      if (blocksPerPixel < 10) {
-        g.fillStyle = '#EDE9F5';
-        g.font = '11px sans-serif';
+      g.strokeStyle = '#14121C'; g.lineWidth = 2.5 * scale;
+      g.beginPath(); g.arc(sx, sy, pr, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#1B1430';
+      g.beginPath(); g.arc(sx, sy, pr * 0.34, 0, Math.PI * 2); g.fill();
+      if (big && blocksPerPixel < 14) {
+        const name = p.name || 'player';
+        g.font = 'bold ' + Math.round(13 * scale) + 'px sans-serif';
         g.textAlign = 'center';
-        g.fillText(p.name || 'player', sx, sy - 7);
+        g.textBaseline = 'alphabetic';
+        const wide = g.measureText(name).width + 10 * scale;
+        g.fillStyle = 'rgba(20,18,28,.78)';
+        g.fillRect(sx - wide / 2, sy - pr - 20 * scale, wide, 17 * scale);
+        g.fillStyle = '#EDE9F5';
+        g.fillText(name, sx, sy - pr - 7 * scale);
       }
     }
     for (const w of (this.waypoints || [])) {
       const sx = W / 2 + (w.x - px) / blocksPerPixel;
       const sy = H / 2 + (w.z - pz) / blocksPerPixel;
       if (sx < 0 || sy < 0 || sx > W || sy > H) continue;
-      g.strokeStyle = '#FF8A4C'; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(sx - 4, sy - 4); g.lineTo(sx + 4, sy + 4);
-      g.moveTo(sx + 4, sy - 4); g.lineTo(sx - 4, sy + 4); g.stroke();
+      // a mark you dropped: a flag rather than a small cross
+      const mr = 6 * scale;
+      g.fillStyle = '#FF8A4C';
+      g.strokeStyle = '#2A1408';
+      g.lineWidth = 2 * scale;
+      g.beginPath();
+      g.moveTo(sx, sy + mr); g.lineTo(sx, sy - mr * 1.7);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(sx, sy - mr * 1.7); g.lineTo(sx + mr * 1.5, sy - mr * 1.1);
+      g.lineTo(sx, sy - mr * 0.5); g.closePath();
+      g.fill(); g.stroke();
+      if (big && w.name && blocksPerPixel < 14) {
+        g.font = Math.round(12 * scale) + 'px sans-serif';
+        g.textAlign = 'center';
+        g.fillStyle = 'rgba(20,18,28,.78)';
+        const ww = g.measureText(w.name).width + 10 * scale;
+        g.fillRect(sx - ww / 2, sy + mr + 2 * scale, ww, 16 * scale);
+        g.fillStyle = '#FFCDAE';
+        g.fillText(w.name, sx, sy + mr + 14 * scale);
+      }
     }
 
     /* You.
@@ -4851,30 +5104,31 @@ const Game = {
     const phase = (Date.now() % beat) / beat;           // 0 to 1 through it
     if (phase < 0.62) {
       const grow = phase / 0.62;
-      const r = 6 + grow * (radiusCircle ? 16 : 26);
+      const r = (6 + grow * (radiusCircle ? 16 : 26)) * scale;
       g.save();
       g.globalAlpha = (1 - grow) * 0.85;
       g.strokeStyle = '#6FE3C4';
-      g.lineWidth = 2;
+      g.lineWidth = 2.5 * scale;
       g.beginPath(); g.arc(meX, meY, r, 0, Math.PI * 2); g.stroke();
       g.restore();
     }
 
     // a soft halo, so the arrow always has something to sit on
     g.save();
-    g.globalAlpha = 0.28;
+    g.globalAlpha = 0.3;
     g.fillStyle = '#6FE3C4';
-    g.beginPath(); g.arc(meX, meY, 8, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(meX, meY, 9 * scale, 0, Math.PI * 2); g.fill();
     g.restore();
 
     g.save();
     g.translate(meX, meY);
     g.rotate(-this.player.yaw);
+    g.scale(scale, scale);
     g.fillStyle = '#FFFFFF';
     g.strokeStyle = '#14121C';
     g.lineWidth = 2;
     g.beginPath();
-    g.moveTo(0, -7.5); g.lineTo(5.5, 6); g.lineTo(0, 3); g.lineTo(-5.5, 6);
+    g.moveTo(0, -8.5); g.lineTo(6, 6.5); g.lineTo(0, 3.2); g.lineTo(-6, 6.5);
     g.closePath(); g.fill(); g.stroke();
     g.restore();
   },
@@ -6965,6 +7219,7 @@ Object.assign(Game, {
         const k = document.createElement('i'); k.textContent = i + 1; slot.appendChild(k);
       }
       slot.addEventListener('click', () => { this.slot = i; this.refreshHotbar(); this.updateHeld(); });
+      if (id !== null) this.holdToDropAll(slot, id);
       bar.appendChild(slot);
     });
     const pouch = $('#pouch');
@@ -6974,6 +7229,45 @@ Object.assign(Game, {
     pouch.innerHTML = entries.length
       ? entries.map(([k, v]) => `<span>${thingName(+k)} <b>${v}</b></span>`).join('')
       : '<span class="muted">Break plants, leaves and coral to gather animal food</span>';
+  },
+
+  /* Hold a square to empty it.
+
+     Tapping a square picks it up, which is what a tap should do. Pressing and
+     holding drops the whole stack on the floor — the thing every child tries
+     first when they want rid of a hundred blocks of dirt, and which used to
+     do nothing at all. It works on the hotbar and on every square in the bag.
+     A short press is left alone, so nothing is dropped by accident. */
+  holdToDropAll(el, id) {
+    if (!el || el.__dropHold) return;
+    el.__dropHold = true;
+    let hold = null, fired = false;
+    const start = () => {
+      fired = false;
+      clearTimeout(hold);
+      hold = setTimeout(() => {
+        fired = true;
+        try { navigator.vibrate && navigator.vibrate(16); } catch (e) {}
+        el.classList.add('dropping');
+        setTimeout(() => el.classList.remove('dropping'), 260);
+        Game.dropHeld(true, id);
+        Game.refreshHotbar();
+        if (typeof UI !== 'undefined' && $('#bag').classList.contains('open')) UI.renderBag();
+      }, 450);
+    };
+    const stop = (e) => {
+      clearTimeout(hold);
+      // a press that became a drop must not also count as a tap
+      if (fired && e) { e.preventDefault(); e.stopPropagation(); }
+      fired = false;
+    };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', stop);
+    el.addEventListener('mouseleave', () => clearTimeout(hold));
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchend', stop, { passive: false });
+    el.addEventListener('touchcancel', () => clearTimeout(hold), { passive: true });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
   },
 
   give(id, n) {
@@ -7378,17 +7672,25 @@ Object.assign(Game, {
     this.refreshHotbar();
   },
 
-  dropHeld(all) {
-    const id = this.heldId();
+  /** Drop what is in your hand. Everything of it, if asked. */
+  dropHeld(all, whichId) {
+    const id = (whichId === undefined || whichId === null) ? this.heldId() : whichId;
     if (id === null || id === undefined) { this.toast('Nothing in hand to drop.'); return; }
     const have = this.count(id);
     const n = all ? have : Math.min(1, have);
     if (!n) return;
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
-    for (let i = 0; i < Math.min(n, 16); i++) {
-      if (!isItem(id)) {
-        this.spawnDropForced(id, this.player.pos.x + dir.x * 1.2, this.player.pos.y + 1.2, this.player.pos.z + dir.z * 1.2);
+    /* At most sixteen things are thrown on the floor, however big the stack
+       — a hundred blocks bouncing about is not a gift to anybody's frame
+       rate — but the whole stack does leave your bag, and the pile that
+       lands carries the lot. */
+    const visible = Math.min(n, 16);
+    for (let i = 0; i < n; i++) {
+      if (!isItem(id) && i < visible) {
+        this.spawnDropForced(id, this.player.pos.x + dir.x * 1.2 + (Math.random() - 0.5) * 0.4,
+                             this.player.pos.y + 1.2,
+                             this.player.pos.z + dir.z * 1.2 + (Math.random() - 0.5) * 0.4);
       }
       this.take(id, 1);
     }
@@ -7988,8 +8290,20 @@ const UI = {
     bindCheck('#set-autosave2', 'autosave');
 
     /* the pause menu's quick settings */
-    on('#mode-survival', 'click', () => Game.setMode('survival'));
+    on('#mode-survival', 'click', () => {
+      if (Game.net && Game.net.connected && !Game.net.isHost) {
+        Game.toast('The host decides whether this room is creative or survival.');
+        return;
+      }
+      Game.setMode('survival');
+    });
     on('#mode-creative', 'click', () => {
+      /* In a room this is the host's to decide, so a guest is told that
+         rather than being asked a question whose answer is ignored. */
+      if (Game.net && Game.net.connected && !Game.net.isHost) {
+        Game.toast('The host decides whether this room is creative or survival.');
+        return;
+      }
       if (Game.everCreative || confirm(
         'Creative mode is permanent for this world: it will never be able to earn again. Continue?')) {
         Game.setMode('creative');
@@ -8112,7 +8426,34 @@ const UI = {
       if (Input.typing() || !Game.running) return;
       if (e.code === 'KeyT' || e.code === 'Enter') { e.preventDefault(); openChat(); }
     });
-    on('#btn-drop', 'touchstart', (e) => { e.preventDefault(); Game.dropHeld(false); }, { passive: false });
+    /* A tap drops one; holding it down drops the whole stack. The same is
+       true of any square in the bag or the hotbar. */
+    (() => {
+      const b = $('#btn-drop');
+      if (!b) return;
+      let hold = null, went = false;
+      const start = (e) => {
+        e.preventDefault();
+        went = false;
+        clearTimeout(hold);
+        hold = setTimeout(() => {
+          went = true;
+          try { navigator.vibrate && navigator.vibrate(14); } catch (err) {}
+          Game.dropHeld(true);
+        }, 450);
+      };
+      const end = (e) => {
+        clearTimeout(hold);
+        if (!went) { if (e) e.preventDefault(); Game.dropHeld(false); }
+        went = false;
+      };
+      b.addEventListener('touchstart', start, { passive: false });
+      b.addEventListener('touchend', end, { passive: false });
+      b.addEventListener('touchcancel', () => { clearTimeout(hold); went = false; }, { passive: true });
+      b.addEventListener('mousedown', start);
+      b.addEventListener('mouseup', end);
+      b.addEventListener('mouseleave', () => { clearTimeout(hold); });
+    })();
     bindRange('#set-voice', 'voiceVolume', v => Math.round(v * 100) + '%');
     on('#set-voice', 'input', () => Game.voice.applyVolume());
     on('#mic-desktop', 'click', () => Game.voice.toggle());
@@ -8277,6 +8618,7 @@ const UI = {
     this.releaseControls();
     if (document.pointerLockElement) document.exitPointerLock();
     this.bindMapGestures();
+    this.paintWildButton();
     this.redrawMap();
     this.renderWaypoints();
     clearInterval(this._mapTimer);
@@ -8384,12 +8726,33 @@ const UI = {
       this.redrawMap();
       Game.toast('Back to you.');
     });
+    /* Animals worth money, on or off, right here rather than buried in
+       Settings — this is the screen you are looking at when you want them. */
+    on('#map-wild', 'click', () => {
+      Settings.rareOnMap = !Settings.rareOnMap;
+      saveSettings();
+      const box = $('#set-rare-map');
+      if (box) box.checked = Settings.rareOnMap;
+      this.paintWildButton();
+      this.redrawMap();
+    });
   },
 
   /* How far in and out the map goes. In far enough to pick out one tree,
      out far enough to see the whole of what you have walked. */
   MAP_IN: 0.08,
   MAP_OUT: 90,
+
+  /** The Show animals button says which way it is pointing. */
+  paintWildButton() {
+    const b = $('#map-wild');
+    if (!b) return;
+    const on = !!Settings.rareOnMap;
+    b.textContent = on ? 'Hide animals' : 'Show animals';
+    b.classList.toggle('on', on);
+    const key = $('#map-key');
+    if (key) key.classList.toggle('dim', !on);
+  },
 
   zoomMap(by) {
     this.mapZoom = Math.max(this.MAP_IN, Math.min(this.MAP_OUT, (this.mapZoom || 6) * by));
@@ -8401,7 +8764,8 @@ const UI = {
     const n = Game.explored ? Game.explored.size : 0;
     const pan = Game.mapPan && (Game.mapPan.x || Game.mapPan.z);
     $('#map-note').textContent = n
-      ? n + ' areas explored \u00b7 ' + Math.round((this.mapZoom || 6) * 720) + ' blocks across' +
+      ? n + ' areas explored \u00b7 ' +
+        Math.round((this.mapZoom || 6) * (($('#bigmap') || { width: 1024 }).width)) + ' blocks across' +
         (pan ? ' \u00b7 drag to look around, or press Centre' : ' \u00b7 drag to look around')
       : 'Nothing explored yet. Walk around and the map fills in.';
   },
@@ -8918,12 +9282,22 @@ const UI = {
     if (!s || !c) return;
     s.classList.toggle('on', Game.mode === 'survival');
     c.classList.toggle('on', Game.mode === 'creative');
+    /* In a room the mode is the host's, so a guest sees that it is not
+       theirs to press rather than pressing it and wondering why nothing
+       happened. */
+    const guest = !!(Game.net && Game.net.connected && !Game.net.isHost);
+    s.disabled = guest;
+    c.disabled = guest;
+    s.classList.toggle('locked', guest);
+    c.classList.toggle('locked', guest);
     if (note) {
-      note.textContent = Game.everCreative
-        ? 'This world has used creative, so it cannot earn.'
-        : (Game.mode === 'survival'
-            ? 'Survival: gather, craft, tame \u2014 and this world can earn.'
-            : 'Creative: everything unlocked.');
+      note.textContent = guest
+        ? 'The host decides whether this room is creative or survival.'
+        : (Game.everCreative
+            ? 'This world has used creative, so it cannot earn.'
+            : (Game.mode === 'survival'
+                ? 'Survival: gather, craft, tame \u2014 and this world can earn.'
+                : 'Creative: everything unlocked.'));
     }
   },
 
@@ -10661,6 +11035,14 @@ Object.assign(Game, {
     this.toast('Following ' + c.displayName + '.');
   },
 
+  /** Everybody in the room, by name, so a misspelling is easy to put right. */
+  listWho() {
+    const names = [];
+    for (const p of this.net.peers.values()) if (p.name) names.push(p.name);
+    if (!names.length) { this.reply('Nobody else is in this room yet.'); return; }
+    this.reply('Here with you: ' + names.join(', ') + '.');
+  },
+
   /** Find a player by name, however it was typed. */
   findPlayer(name) {
     const want = String(name || '').trim().toLowerCase();
@@ -10706,6 +11088,14 @@ Object.assign(Game, {
     const t = document.getElementById('summon-text');
     if (t) t.textContent = who + ' would like you to come over.';
     card.classList.add('show');
+    card.classList.add('ringing');
+    setTimeout(() => card.classList.remove('ringing'), 1800);
+    /* Somebody is waiting for an answer, so this is worth noticing: a sound,
+       a buzz on a phone, and a line in the chat as well as the card — a card
+       is easy to miss while you are looking at the ground. */
+    try { this.blip(760); setTimeout(() => this.blip(980), 130); } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate([25, 60, 25]); } catch (e) {}
+    this.toast(who + ' wants you to come over.');
     clearTimeout(this._summonTimer);
     this.reply(who + ' asked you over — press Yes, or type /yes.');
     this._summonTimer = setTimeout(() => this.answerSummon(false), 45000);
@@ -10935,13 +11325,18 @@ Object.assign(Game, {
     let m = rest.match(/^(.+?)\s+to\s+(me|myself|here|us)$/i);
     if (m) {
       const who = this.findPlayer(m[1]);
-      if (!who || who.self) { this.reply('I cannot find anybody called "' + m[1].trim() + '". Try /who.'); return; }
+      if (!who || who.self) {
+        this.reply('I cannot find anybody called "' + m[1].trim() + '".');
+        this.listWho();
+        return;
+      }
       if (!this.net.connected) { this.reply('Bringing somebody to you needs a room.'); return; }
       const p = this.player.pos;
       this.net.send({ t: 'summon', to: who.id, from: this.net.selfId,
                       name: this.skin.name || 'A player',
                       x: p.x, y: p.y, z: p.z, realm: this.realm });
-      this.reply('Asked ' + who.name + ' to come to you.');
+      this.reply('Asked ' + who.name + ' to come to you. Waiting for them to say yes\u2026');
+      this.toast('Asked ' + who.name + ' to come over.');
       return;
     }
 
@@ -10951,7 +11346,8 @@ Object.assign(Game, {
       const nameWanted = m[1].trim();
       const who = this.findPlayer(nameWanted);
       if (!who) {
-        this.reply('I cannot find anybody called "' + nameWanted + '". Try /who to see who is here.');
+        this.reply('I cannot find anybody called "' + nameWanted + '".');
+        this.listWho();
         return;
       }
       if (who.self) { this.reply('You are already exactly where you are.'); return; }
@@ -11948,6 +12344,11 @@ Object.assign(UI, {
       label.innerHTML = `<strong>${thingName(id)}</strong><small>${note || countText || ''}</small>`;
       el.appendChild(label);
       el.addEventListener('click', onClick);
+      /* Holding a square in the bag drops the whole stack, exactly as it
+         does on the hotbar, so it works wherever a child tries it. Only
+         things you actually carry can be thrown away: the crafting and
+         trading lists are not yours to empty. */
+      if (Game.inventory[id] > 0) Game.holdToDropAll(el, id);
       return el;
     };
 
@@ -13155,22 +13556,86 @@ Game.voice = {
     pc.onicecandidate = (e) => {
       if (e.candidate) Game.net.send({ t: 'signal', to: id, data: { ice: e.candidate } });
     };
+    /* Hearing everybody at once.
+
+       Each voice used to arrive in its own <audio> element. A browser will
+       happily create a dozen of those and then decline to play more than one
+       of them — phones especially — which is why it sounded as though only
+       one person could talk at a time. Every voice now goes through the
+       game's own audio graph instead, mixed together the way the music and
+       the footsteps already are, so ten people can talk over each other if
+       they like.
+
+       The muted element is still made and still fed the stream: Safari will
+       not keep a remote track alive for Web Audio unless something is
+       nominally playing it. It is muted, so it adds nothing of its own. */
     pc.ontrack = (e) => {
-      let entry = this.peers.get(id);
+      const entry = this.peers.get(id);
       if (!entry) return;
+      const stream = e.streams[0] || new MediaStream([e.track]);
+
       if (!entry.audio) {
         entry.audio = document.createElement('audio');
         entry.audio.autoplay = true;
         entry.audio.playsInline = true;
+        entry.audio.style.display = 'none';
         document.body.appendChild(entry.audio);
       }
-      entry.audio.srcObject = e.streams[0] || new MediaStream([e.track]);
-      entry.audio.volume = Settings.voiceVolume;
+      entry.audio.srcObject = stream;
+      entry.stream = stream;
+
+      const mixed = this.mixIn(entry, stream);
+      // if the mixer could not take it, the element plays it on its own
+      entry.audio.muted = mixed;
+      entry.audio.volume = mixed ? 0 : Settings.voiceVolume;
       try { const pl = entry.audio.play(); if (pl && pl.catch) pl.catch(() => {}); } catch (err) {}
     };
     const entry = { pc, audio: null };
     this.peers.set(id, entry);
     return entry;
+  },
+
+  /* One place all the voices are added together. */
+  mixer() {
+    if (this._mix !== undefined) return this._mix;
+    try {
+      const ac = Game.audio();
+      if (!ac) throw new Error('no audio');
+      const out = ac.createGain();
+      out.gain.value = Settings.voiceVolume === undefined ? 1 : Settings.voiceVolume;
+      out.connect(ac.destination);
+      this._mix = { ac, out };
+    } catch (e) {
+      this._mix = null;            // fall back to one element per voice
+    }
+    return this._mix;
+  },
+
+  /** Put one person's voice into the mix. True if it took. */
+  mixIn(entry, stream) {
+    const m = this.mixer();
+    if (!m) return false;
+    try {
+      if (entry.node) { try { entry.node.disconnect(); } catch (e) {} }
+      if (!entry.gain) { entry.gain = m.ac.createGain(); entry.gain.gain.value = 1; entry.gain.connect(m.out); }
+      entry.node = m.ac.createMediaStreamSource(stream);
+      entry.node.connect(entry.gain);
+      // a phone will not start an audio context on its own
+      if (m.ac.state === 'suspended') { try { m.ac.resume(); } catch (e) {} }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /** How loud everybody else is, from the one slider in Settings. */
+  applyVolume() {
+    const v = Settings.voiceVolume === undefined ? 1 : Settings.voiceVolume;
+    const m = this._mix;
+    if (m) { try { m.out.gain.value = v; } catch (e) {} }
+    for (const entry of this.peers.values()) {
+      if (entry.audio && !entry.audio.muted) entry.audio.volume = v;
+    }
   },
 
   async call(id) {
@@ -13221,12 +13686,11 @@ Game.voice = {
     if (!entry) return;
     try { entry.pc.close(); } catch (e) {}
     if (entry.audio && entry.audio.parentNode) entry.audio.parentNode.removeChild(entry.audio);
+    if (entry.node) { try { entry.node.disconnect(); } catch (e) {} }
+    if (entry.gain) { try { entry.gain.disconnect(); } catch (e) {} }
     this.peers.delete(id);
   },
 
-  applyVolume() {
-    for (const [, p] of this.peers) if (p.audio) p.audio.volume = Settings.voiceVolume;
-  }
 };
 
 /* ---------------------------------------------------------------
@@ -14436,13 +14900,21 @@ Object.assign(Game, {
     if (!fromRoom && this.net && this.net.connected && this.net.isHost) {
       this.net.send({ t: 'mode', mode: m });
     }
+    /* The warning belongs to the world, not to the switch.
+
+       Turning creative on is permanent for a world, so it is worth saying
+       once — and only once. Flipping back and forth after that is no longer
+       news, and being told the same thing on every press teaches people to
+       stop reading it. A brand new survival world is a different world, and
+       gets its warning in its turn. */
     if (m === 'creative') {
+      const firstTime = !this.everCreative;
       this.everCreative = true;
-      this.toast('Creative on. This world can no longer earn — that is permanent.');
+      this.toast(firstTime
+        ? 'Creative on. This world can no longer earn — that is permanent.'
+        : 'Creative on.');
     } else {
-      this.toast(this.everCreative
-        ? 'Survival on. This world has used creative, so it still cannot earn.'
-        : 'Survival on.');
+      this.toast('Survival on.');
     }
     this.player.breath = 1;
     this.player.stamina = 1;
