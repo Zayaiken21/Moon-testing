@@ -504,10 +504,29 @@ body.split-joining #split-divider{display:block;position:fixed;top:0;bottom:0;le
   background:var(--panel-2);border:1px solid var(--line);color:var(--text);
   font-family:var(--display);font-size:13px}
 #p2-join .p2-seg button.active{background:var(--moon);border-color:var(--moon);color:#0E1116}
-#p2-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
-.p2-card{min-height:44px;padding:8px;border-radius:10px;cursor:pointer;text-align:left;
-  background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:12.5px}
+/* the figure that is currently chosen, large enough to see */
+#p2-join .p2-split{display:flex;align-items:center;gap:14px;margin-bottom:12px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+#p2-preview{width:150px;height:150px;display:grid;place-items:center;flex:0 0 auto}
+#p2-preview canvas{image-rendering:pixelated;width:100%;height:100%}
+#p2-join .p2-pick-label{margin:0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted)}
+#p2-join #p2-pick-name{font-family:var(--display);font-size:22px}
+/* every character shown as itself, in a grid you can scan */
+#p2-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-bottom:12px}
+.p2-card{padding:6px 4px;border-radius:12px;cursor:pointer;text-align:center;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+.p2-card .p2-face{width:54px;height:54px;display:block}
+.p2-card canvas{image-rendering:pixelated;width:54px;height:54px}
+.p2-card em{font-style:normal;font-size:10px;color:var(--muted);line-height:1.1}
 .p2-card.picked{border-color:var(--moon);box-shadow:0 0 0 2px rgba(111,227,196,.3)}
+.p2-card.picked em{color:var(--text)}
+@media (max-height:700px){
+  #p2-preview{width:104px;height:104px}
+  #p2-join #p2-pick-name{font-size:18px}
+  .p2-card .p2-face,.p2-card canvas{width:44px;height:44px}
+}
 #p2-join label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;
   text-transform:uppercase;letter-spacing:.08em}
 #p2-name{width:100%;height:44px;padding:0 12px;border-radius:10px;background:var(--panel-2);
@@ -520,12 +539,29 @@ body.split-joining #split-divider{display:block;position:fixed;top:0;bottom:0;le
 #p2-spawn{background:var(--moon);border:1px solid var(--moon);color:#0E1116;font-weight:700}
 /* creative has no stamina or breath: this wins over every layout rule */
 body.creative-mode #meters{display:none !important}
-#chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:36%;display:none;
-  flex-direction:column;gap:3px;max-width:min(56vw,420px);opacity:0;transition:opacity .3s}
+/* A glimpse of the last few, low and out of the way. */
+#chat-log{position:absolute;left:calc(12px + env(safe-area-inset-left));
+  bottom:calc(150px + env(safe-area-inset-bottom));display:none;
+  flex-direction:column;gap:2px;max-width:min(40vw,330px);opacity:0;transition:opacity .25s;
+  pointer-events:none;align-items:flex-start}
 #chat-log.show{display:flex;opacity:1}
-#chat-log span{background:rgba(20,18,28,.72);border:1px solid var(--line);border-radius:8px;
-  padding:4px 9px;font-size:calc(11.5px * var(--ui));line-height:1.35}
+#chat-log span{background:rgba(20,18,28,.78);border:1px solid var(--line);border-radius:8px;
+  padding:3px 8px;font-size:calc(11px * var(--ui));line-height:1.3;
+  max-width:100%;overflow-wrap:anywhere}
 #chat-log b{color:var(--moon);font-family:var(--display);margin-right:5px}
+/* opened: everything that has been said, in a panel that scrolls and that
+   never takes more than a third of the screen */
+#chat-log.full{max-height:32vh;overflow-y:auto;pointer-events:auto;gap:3px;
+  max-width:min(46vw,400px);background:rgba(14,12,20,.86);border:1px solid var(--line);
+  border-radius:12px;padding:8px;overscroll-behavior:contain;
+  bottom:calc(112px + env(safe-area-inset-bottom))}
+#chat-log.full span{background:transparent;border:0;padding:2px 4px;width:100%}
+#chat-log.full::-webkit-scrollbar{width:8px}
+#chat-log.full::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+@media (max-width:620px){
+  #chat-log{max-width:min(66vw,300px)}
+  #chat-log.full{max-width:min(78vw,340px);max-height:30vh}
+}
 #chat-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:24%;display:none;gap:6px;
   pointer-events:auto;width:min(72vw,460px)}
 #chat-bar.show{display:flex}
@@ -845,8 +881,16 @@ body.split-on #p2-map-wrap{pointer-events:auto;position:absolute;
   background:rgba(20,18,28,.7);border:2px solid var(--line);
   box-shadow:0 6px 22px rgba(0,0,0,.45)}
 body.split-on #p2-map{width:100%;height:100%;display:block}
-body.split-on #p2-meters{position:absolute;left:14px;top:calc(46px + env(safe-area-inset-top));
-  width:120px}
+body.split-on #p2-meters{position:absolute;left:14px;right:auto;top:auto;
+  bottom:calc(76px + env(safe-area-inset-bottom));width:min(150px,17vw);
+  background:rgba(20,18,28,.55);border:1px solid var(--line);border-radius:12px;
+  padding:8px 10px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+body.split-on #p2-meters .meter-row{margin-bottom:5px}
+body.split-on #p2-meters .meter-row:last-child{margin-bottom:0}
+@media (max-height:520px){
+  body.split-on #p2-meters{bottom:calc(58px + env(safe-area-inset-bottom));padding:5px 8px}
+  body.split-on #p2-meters .meter-row{font-size:9px;margin-bottom:3px}
+}
 body.split-on #p2-bar{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));
   left:0;right:0;display:flex;gap:5px;justify-content:center}
 body.split-on #p2-bar .slot{width:42px;height:42px;border-radius:10px}
@@ -895,10 +939,30 @@ body.split-on #ability-badge{display:none}
    than fits, that part alone slides, and its scrollbar is hidden so the game
    never shows one.
    ================================================================= */
+/* A thumb button a player has moved, and one being moved right now. */
+#touch-layer .tbtn.moved{position:fixed !important;transform:translate(-50%,-50%) !important;
+  right:auto !important;bottom:auto !important;margin:0 !important}
+body.pads-loose #touch-layer .tbtn{outline:1px dashed rgba(111,227,196,.45);outline-offset:2px}
+#touch-layer .tbtn.dragging{z-index:80;opacity:.85;
+  box-shadow:0 0 0 4px rgba(111,227,196,.35),0 10px 26px rgba(0,0,0,.5);
+  transform:translate(-50%,-50%) scale(1.08) !important}
+body.pads-loose::after{content:"Drag the buttons on the right. The line down the middle is where the stick's half ends.";
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));
+  z-index:81;background:rgba(20,18,28,.9);border:1px solid var(--moon);border-radius:999px;
+  padding:6px 14px;font-size:11.5px;color:var(--text);pointer-events:none;max-width:88vw;text-align:center}
+body.pads-loose::before{content:"";position:fixed;left:50%;top:0;bottom:0;width:2px;z-index:79;
+  background:repeating-linear-gradient(180deg,rgba(111,227,196,.5) 0 8px,transparent 8px 16px);
+  pointer-events:none}
+
+/* Centred, and centred properly.
+
+   A panel shorter than the window sits in the middle of it; one taller than
+   the window starts at the top so its first line is never above the edge.
+   `safe center` does exactly that with no measuring. */
 .screen{overflow:hidden}
-.screen.open{display:grid;place-items:start center}
+.screen.open{display:grid;place-items:safe center;align-content:safe center}
 .sheet{width:min(640px,100%);max-height:100%;overflow-y:auto;overscroll-behavior:contain}
-#home{place-items:start center}
+#home{place-items:safe center}
 .home-wrap{max-height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 
 /* The settings, laid out as a list of plain rows with clear headings rather
@@ -1302,6 +1366,13 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <button type="button" data-p2sex="female">Female</button>
       <button type="button" data-p2sex="male" class="active">Male</button>
     </div>
+    <div class="p2-split">
+      <div id="p2-preview"></div>
+      <div>
+        <p class="p2-pick-label">Chosen</p>
+        <strong id="p2-pick-name">Explorer</strong>
+      </div>
+    </div>
     <div id="p2-grid"></div>
     <label for="p2-name">Your name</label>
     <input id="p2-name" maxlength="18" placeholder="Player 2" autocomplete="off" />
@@ -1372,12 +1443,16 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <input type="range" id="set-volume" min="0" max="1" step="0.05" /><output id="set-volume-out"></output></div>
     <div class="setting"><b>Music volume</b><small>Five pieces that change with where you are: home, grassland, harder country, another world, and the launch.</small>
       <input type="range" id="set-music" min="0" max="1" step="0.05" /><output id="set-music-out"></output></div>
-    <div class="setting"><b>Music files</b><small id="music-report">Not started yet.</small>
-      <button class="btn" id="music-recheck">Look again</button></div>
+    <div class="setting"><b>Silence the music</b><small>Stops it outright. On a shared screen it stops for both players.</small>
+      <input type="checkbox" id="set-mute" /></div>
     <div class="setting"><b>Voices</b><small>How loud other players sound.</small>
       <input type="range" id="set-voice" min="0" max="1" step="0.05" /><output id="set-voice-out"></output></div>
-    <div class="setting"><b>Microphone</b><small>Talk out loud to your friends in the same room. Your device will ask if it is allowed to listen the first time.</small>
-      <button class="btn" id="voice-toggle">Turn the microphone on</button></div>
+
+    <h3 class="set-head">Touch controls</h3>
+    <div class="setting"><b>Move the buttons</b><small>Hold a button on the right of the screen and drag it wherever your thumb falls. The stick on the left stays where it is.</small>
+      <input type="checkbox" id="set-padmove" /></div>
+    <div class="setting"><b>Put the buttons back</b><small>Returns every button to where it started.</small>
+      <button class="btn" id="pad-reset-places">Reset places</button></div>
 
     <h3 class="set-head">The world</h3>
     <div class="setting"><b>Dig out caves</b><small>Turn this off if you would rather have solid ground everywhere.</small>
@@ -4047,6 +4122,7 @@ const DEFAULT_SERVER = 'moon-testing-multiplayer.onrender.com';
 const Settings = {
   renderDistance: IS_TOUCH ? 3 : 5,
   sharpness: 1.0,           // how much of the screen's own sharpness to use
+  movablePads: false,       // whether the thumb buttons can be dragged about
   fov: 82,
   sensitivity: 1.0,
   invertY: false,
@@ -4264,6 +4340,11 @@ const Game = {
     this.mapRealm = realmKey;
     this.peopled = new Set();
     this.stocked = new Set();
+    /* How hard this world pulls. Landing on a small world set this light and
+       nothing ever set it back, so a new world started after a trip to a moon
+       kept the moon's gravity and home felt wrong ever after. Every world
+       states its own pull as it begins. */
+    this.gravityScale = (offworld && this.offworld) ? this.offworld.gravity : 1;
     this.waypoints = [];
     this.seen = {};
     this.activeWaypoint = null;
@@ -5285,6 +5366,7 @@ Object.assign(Game, {
       this.followHerd(dt);
     }
     this.updateDrops(dt);
+    this.tidyRemoteBreaks();
     this.repopulate(dt);
     this.updateLeashes(dt);
     this.updateRope(dt);
@@ -5934,6 +6016,118 @@ Object.assign(Game, {
       this.blip(180);
     }
     $('#break-bar').style.width = (this.breakProgress * 100) + '%';
+    /* Tell the room which block you are working on, so everyone sees it
+       cracking rather than simply vanishing. A few times a second is plenty. */
+    if (this.net && this.net.connected) {
+      this.bustAt = (this.bustAt || 0) + dt;
+      if (this.bustAt > 0.18) {
+        this.bustAt = 0;
+        this.net.send({ t: 'bust', x: hit.x, y: hit.y, z: hit.z,
+                        p: Math.round(this.breakProgress * 100) / 100 });
+      }
+    }
+  },
+
+  /* ---------------- thumb buttons a player can move ----------------
+     Held down for a moment, a button lifts and follows the finger; let go and
+     it stays there, on this device, for good. Only the right half: the left
+     belongs to the stick you steer with. */
+  bindPadDragging() {
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem('voxelia.padPlaces') || '{}'); } catch (e) { return {}; }
+    })();
+    const put = (b) => {
+      const at = saved[b.id];
+      if (!at) return;
+      b.style.left = at.x + '%';
+      b.style.top = at.y + '%';
+      b.classList.add('moved');
+    };
+    const keep = () => {
+      try { localStorage.setItem('voxelia.padPlaces', JSON.stringify(saved)); } catch (e) {}
+    };
+
+    document.querySelectorAll('#touch-layer .tbtn').forEach((b) => {
+      if (!b.id) return;
+      put(b);
+      let hold = null, dragging = false;
+      const start = (e) => {
+        if (!Settings.movablePads) return;
+        const t = e.touches ? e.touches[0] : e;
+        hold = setTimeout(() => {
+          dragging = true;
+          b.classList.add('dragging');
+          try { navigator.vibrate && navigator.vibrate(12); } catch (err) {}
+        }, 260);
+        b._from = { x: t.clientX, y: t.clientY };
+      };
+      const move = (e) => {
+        if (!dragging) {
+          const t = e.touches ? e.touches[0] : e;
+          if (b._from && Math.hypot(t.clientX - b._from.x, t.clientY - b._from.y) > 10) {
+            clearTimeout(hold);
+          }
+          return;
+        }
+        e.preventDefault();
+        const t = e.touches ? e.touches[0] : e;
+        // kept to the right half, and away from the very edges
+        const x = Math.max(51, Math.min(97, (t.clientX / innerWidth) * 100));
+        const y = Math.max(8, Math.min(92, (t.clientY / innerHeight) * 100));
+        b.style.left = x + '%';
+        b.style.top = y + '%';
+        b.classList.add('moved');
+        saved[b.id] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+      };
+      const end = () => {
+        clearTimeout(hold);
+        if (dragging) { dragging = false; b.classList.remove('dragging'); keep(); }
+      };
+      b.addEventListener('touchstart', start, { passive: true });
+      b.addEventListener('touchmove', move, { passive: false });
+      b.addEventListener('touchend', end, { passive: true });
+      b.addEventListener('touchcancel', end, { passive: true });
+      b.addEventListener('mousedown', start);
+      addEventListener('mousemove', move);
+      addEventListener('mouseup', end);
+    });
+  },
+
+  /* ---------------- somebody else breaking a block ----------------
+     A wire frame that tightens as they get through it, so you can see what
+     your friend is working on from across the valley. It clears itself if
+     they stop, and goes at once when the block actually breaks. */
+  showRemoteBreak(x, y, z, progress) {
+    if (!this.remoteBusts) this.remoteBusts = new Map();
+    const key = x + ',' + y + ',' + z;
+    let b = this.remoteBusts.get(key);
+    if (!b) {
+      const box = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02)),
+        new THREE.LineBasicMaterial({ color: 0xFF8A4C, transparent: true, opacity: 0.9 }));
+      box.position.set(x + 0.5, y + 0.5, z + 0.5);
+      this.entityGroup.add(box);
+      b = { box, at: 0 };
+      this.remoteBusts.set(key, b);
+    }
+    b.at = performance.now();
+    b.box.scale.setScalar(1 - Math.min(0.55, progress * 0.55));
+    b.box.material.opacity = 0.45 + progress * 0.5;
+  },
+
+  /** Clear the marks of anyone who has stopped, or finished. */
+  tidyRemoteBreaks() {
+    if (!this.remoteBusts || !this.remoteBusts.size) return;
+    const now = performance.now();
+    for (const [key, b] of this.remoteBusts) {
+      const p = key.split(',');
+      const gone = this.world.getBlock(+p[0], +p[1], +p[2]) === AIR;
+      if (gone || now - b.at > 700) {
+        this.entityGroup.remove(b.box);
+        if (b.box.geometry) b.box.geometry.dispose();
+        this.remoteBusts.delete(key);
+      }
+    }
   },
 
   maybeHarvest(hit) {
@@ -6876,11 +7070,17 @@ Object.assign(Game, {
     this.updateHeld(true);
   },
 
-  spawnDropForced(blockId, x, y, z) {
+  spawnDropForced(blockId, x, y, z, fromRoom) {
     const d = new Drop(blockId, new THREE.Vector3(x, y, z));
     d.life = -1.2;                     // a moment before it can be picked back up
     this.drops.push(d);
     this.entityGroup.add(d.mesh);
+    /* Something put on the ground is put there for everybody. Drops used to be
+       yours alone, so handing a friend a stack of planks by dropping them did
+       nothing at all on their screen. */
+    if (!fromRoom && this.net && this.net.connected) {
+      this.net.send({ t: 'drop', b: blockId, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2) });
+    }
   },
 
   nearestCreature(range) {
@@ -6934,6 +7134,54 @@ Object.assign(Game, {
     }
     el.innerHTML = `<kbd>${IS_TOUCH ? 'Feed' : 'E'}</kbd> ${line}`;
     el.classList.add('show');
+  },
+
+  /* A small picture of a character, drawn from its preset's own colours.
+
+     The rigged model would be better still, but it is a megabyte a piece and
+     these are used ten at a time in a list, so this draws the same figure the
+     block bodies are built from: the right hair, the right shirt, the right
+     trousers, at a glance. */
+  faceOf(presetId, size) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    if (!g) return c;
+    const p = (this.PRESET_COLOURS && this.PRESET_COLOURS[presetId]) || {};
+    const skin = '#E8BF96';
+    const hair = p.hair || '#3A261B';
+    const shirt = p.shirt || '#4F7FE0';
+    const accent = p.accent || shirt;
+    const pants = p.pants || '#3B4A63';
+    const slim = String(presetId).indexOf('female') === 0;
+    const u = size / 100;                       // everything in hundredths
+    const box = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x * u, y * u, w * u, h * u); };
+
+    g.clearRect(0, 0, size, size);
+    // legs
+    box(slim ? 36 : 34, 66, slim ? 12 : 13, 30, pants);
+    box(slim ? 52 : 53, 66, slim ? 12 : 13, 30, pants);
+    // body
+    box(slim ? 34 : 31, 38, slim ? 32 : 38, 30, shirt);
+    box(slim ? 46 : 46, 38, 8, 30, accent);     // the stripe down the middle
+    // arms
+    box(slim ? 26 : 22, 39, slim ? 8 : 9, 26, shirt);
+    box(slim ? 66 : 69, 39, slim ? 8 : 9, 26, shirt);
+    box(slim ? 26 : 22, 62, slim ? 8 : 9, 7, skin);
+    box(slim ? 66 : 69, 62, slim ? 8 : 9, 7, skin);
+    // head
+    box(36, 12, 28, 26, skin);
+    box(34, 8, 32, 11, hair);                   // the fringe
+    box(34, 8, 5, 20, hair);
+    box(61, 8, 5, 20, hair);
+    if (slim) box(32, 8, 36, 30, hair), box(36, 14, 28, 24, skin);   // longer hair
+    // eyes
+    box(41, 22, 5, 4, '#1f2937');
+    box(54, 22, 5, 4, '#1f2937');
+    // shoes
+    box(slim ? 35 : 33, 92, slim ? 14 : 15, 6, '#241F28');
+    box(slim ? 51 : 52, 92, slim ? 14 : 15, 6, '#241F28');
+    return c;
   },
 
   drawCharacter() {
@@ -7020,7 +7268,11 @@ Object.assign(Game, {
     while (this.heldMount.children.length) this.heldMount.remove(this.heldMount.children[0]);
     this.heldFish = null;
     const id = this.heldId();
-    if (id === null || id === undefined) return;
+    if (id === null || id === undefined) {
+      // an empty hand is empty: no ghost of the last thing you held
+      if (this.hand) this.hand.visible = !(this.selfView === 'third' || Split.on);
+      return;
+    }
 
     /* A block that has a model of its own is held as that model — you carry a
        door rather than a cube with a door painted on it. The cube is put in
@@ -7151,19 +7403,40 @@ const UI = {
     /* player two's own sign-in, on their own half of the screen */
     $$('#p2-join [data-p2sex]').forEach((btn) =>
       btn.addEventListener('click', () => Split.setJoinSex(btn.getAttribute('data-p2sex'))));
-    /* The music, said plainly: how many pieces were found, which is sounding,
-       and whether the browser is still waiting for a tap. */
-    const sayMusic = () => {
-      const el = $('#music-report');
-      if (el) { try { el.textContent = Music.report(); } catch (e) {} }
-    };
-    on('#music-recheck', 'click', () => {
-      Music.primed = null; Music.tracks = {}; Music.status = {};
-      try { Music.prime().then(() => { Music.unlock(); Music.follow(); sayMusic(); }); } catch (e) {}
-      Game.toast('Looking for the music files again\u2026');
-      sayMusic();
+    /* ---------------- moving the thumb controls ----------------
+       The buttons on the right can be dragged wherever a player's thumb
+       actually falls, and stay there. The left half is the joystick's and is
+       left alone. Nothing moves until this is turned on, so a button is never
+       dragged away by accident in the middle of playing. */
+    const padMove = $('#set-padmove');
+    if (padMove) {
+      padMove.checked = !!Settings.movablePads;
+      padMove.addEventListener('change', () => {
+        Settings.movablePads = padMove.checked;
+        document.body.classList.toggle('pads-loose', padMove.checked);
+        Game.toast(padMove.checked
+          ? 'Drag the buttons on the right wherever you like.'
+          : 'Buttons locked.');
+        try { Game.saveSettings && Game.saveSettings(); } catch (e) {}
+      });
+      document.body.classList.toggle('pads-loose', !!Settings.movablePads);
+    }
+    on('#pad-reset-places', 'click', () => {
+      try { localStorage.removeItem('voxelia.padPlaces'); } catch (e) {}
+      document.querySelectorAll('.tbtn').forEach((b) => { b.style.left = ''; b.style.top = ''; b.classList.remove('moved'); });
+      Game.toast('Buttons back where they started.');
     });
-    setInterval(() => { if ($('#settings').classList.contains('open')) sayMusic(); }, 1200);
+    Game.bindPadDragging();
+
+    /* Off means off, and on a shared screen it is one pair of speakers. */
+    const muteBox = $('#set-mute');
+    if (muteBox) {
+      muteBox.checked = !!Music.muted;
+      muteBox.addEventListener('change', () => {
+        try { Music.mute(muteBox.checked); } catch (e) {}
+        Game.toast(muteBox.checked ? 'Music off.' : 'Music on.');
+      });
+    }
 
     on('#summon-yes', 'click', () => Game.answerSummon(true));
     on('#summon-no', 'click', () => Game.answerSummon(false));
@@ -7419,12 +7692,17 @@ const UI = {
 
     /* chat */
     const chatBox = $('#chat-input');
-    const openChat = () => { chatBox.parentElement.classList.add('show'); chatBox.focus(); };
+    const openChat = () => {
+      chatBox.parentElement.classList.add('show');
+      chatBox.focus();
+      Game.showChatLog(true);            // opening it shows everything said so far
+    };
     const sendChat = () => {
       const msg = (chatBox.value || '').trim();
       chatBox.value = '';
       chatBox.parentElement.classList.remove('show');
       chatBox.blur();
+      Game.showChatLog(false);
       if (!msg) return;
       // anything starting with a slash is an instruction, not something to say
       if (msg.charAt(0) === '/') { Game.runCommand(msg.slice(1)); return; }
@@ -7435,7 +7713,11 @@ const UI = {
     on('#chat-send', 'click', sendChat);
     chatBox.addEventListener('keydown', (e) => {
       if (e.code === 'Enter') { e.preventDefault(); sendChat(); }
-      if (e.code === 'Escape') { chatBox.value = ''; chatBox.blur(); chatBox.parentElement.classList.remove('show'); }
+      if (e.code === 'Escape') {
+        chatBox.value = ''; chatBox.blur();
+        chatBox.parentElement.classList.remove('show');
+        Game.showChatLog(false);
+      }
     });
     addEventListener('keydown', (e) => {
       if (Input.typing() || !Game.running) return;
@@ -8945,13 +9227,38 @@ const Split = {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'p2-card' + (id === this.joinPick ? ' picked' : '');
-      b.textContent = this.prettyPreset(id);
-      b.addEventListener('click', () => { this.joinPick = id; this.renderJoinGrid(); });
+      /* A picture of the character, not its name. Player two was choosing
+         between ten lines of text with no idea what any of them looked like. */
+      const pic = document.createElement('span');
+      pic.className = 'p2-face';
+      pic.appendChild(Game.faceOf(id, 54));
+      const tag = document.createElement('em');
+      tag.textContent = this.styleName(id);
+      b.appendChild(pic);
+      b.appendChild(tag);
+      b.addEventListener('click', () => { this.joinPick = id; this.renderJoinGrid(); this.showJoinPick(); });
       grid.appendChild(b);
     }
     document.querySelectorAll('#p2-join [data-p2sex]').forEach((btn) => {
       btn.classList.toggle('active', btn.getAttribute('data-p2sex') === sex);
     });
+    this.showJoinPick();
+  },
+
+  /** The big picture of whoever is currently chosen. */
+  showJoinPick() {
+    const stage = document.getElementById('p2-preview');
+    if (!stage || !this.joinPick) return;
+    stage.innerHTML = '';
+    stage.appendChild(Game.faceOf(this.joinPick, 150));
+    const name = document.getElementById('p2-pick-name');
+    if (name) name.textContent = this.styleName(this.joinPick);
+  },
+
+  styleName(id) {
+    const bits = String(id).split('_');
+    const style = bits[2] || 'explorer';
+    return style.charAt(0).toUpperCase() + style.slice(1).replace(/([a-z])([A-Z])/g, '$1 $2');
   },
 
   setJoinSex(sex) {
@@ -9866,15 +10173,49 @@ Object.assign(Game, {
   }
 });
 
+/* Chat.
+
+   Twenty-five messages are kept. Normally only the last few are shown, low in
+   the corner and out of the way; opening the chat shows the lot, in a panel
+   that scrolls and that never takes more than a third of the screen. */
+Game.CHAT_KEEP = 25;
+Game.CHAT_GLIMPSE = 4;
+
 Game.pushChat = function (who, msg) {
   this.chatLog.push({ who, msg, at: performance.now() });
-  if (this.chatLog.length > 6) this.chatLog.shift();
+  while (this.chatLog.length > Game.CHAT_KEEP) this.chatLog.shift();
+  this.drawChat();
   const el = document.querySelector('#chat-log');
   if (!el) return;
-  el.innerHTML = this.chatLog.map(c => `<span><b>${c.who}</b> ${c.msg}</span>`).join('');
   el.classList.add('show');
   clearTimeout(this._chatT);
-  this._chatT = setTimeout(() => el.classList.remove('show'), 9000);
+  // while the chat is open it stays put; otherwise it fades back out
+  if (!el.classList.contains('full')) {
+    this._chatT = setTimeout(() => el.classList.remove('show'), 9000);
+  }
+};
+
+Game.drawChat = function () {
+  const el = document.querySelector('#chat-log');
+  if (!el) return;
+  const full = el.classList.contains('full');
+  const lines = full ? this.chatLog : this.chatLog.slice(-Game.CHAT_GLIMPSE);
+  const safe = (t) => String(t).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  el.innerHTML = lines.map((c) =>
+    '<span><b>' + safe(c.who) + '</b> ' + safe(c.msg) + '</span>').join('');
+  if (full) el.scrollTop = el.scrollHeight;        // newest at the bottom
+};
+
+/** Opening the chat shows everything that has been said; closing it tidies up. */
+Game.showChatLog = function (open) {
+  const el = document.querySelector('#chat-log');
+  if (!el) return;
+  el.classList.toggle('full', !!open);
+  el.classList.add('show');
+  clearTimeout(this._chatT);
+  this.drawChat();
+  if (!open) this._chatT = setTimeout(() => el.classList.remove('show'), 9000);
 };
 
 Game.net = {
@@ -10170,6 +10511,18 @@ Game.net = {
       }
       case 'summonReply': {
         Game.reply(m.ok ? (m.name + ' is on their way.') : (m.name + ' stayed where they were.'));
+        break;
+      }
+      case 'drop': {
+        // somebody put something on the ground
+        if (m.id === this.selfId) return;
+        try { Game.spawnDropForced(m.b | 0, +m.x, +m.y, +m.z, true); } catch (e) {}
+        break;
+      }
+      case 'bust': {
+        // somebody is breaking a block: show the cracks on it
+        if (m.id === this.selfId) return;
+        try { Game.showRemoteBreak(m.x | 0, m.y | 0, m.z | 0, +m.p || 0); } catch (e) {}
         break;
       }
       case 'look': {
@@ -14258,6 +14611,7 @@ const Music = {
   want: null,
   unlocked: false,
   status: {},          /* key -> what happened, for the settings screen */
+  muted: (() => { try { return localStorage.getItem('voxelia.muted') === '1'; } catch (e) { return false; } })(),
 
   /* Finding the files.
 
@@ -14322,14 +14676,38 @@ const Music = {
     return (m === undefined ? 0.5 : m);
   },
 
-  target(key) { return (MUSIC[key] && MUSIC[key].gain || 0.6) * this.level(); },
+  target(key) {
+    if (this.muted) return 0;                 // off means off
+    return (MUSIC[key] && MUSIC[key].gain || 0.6) * this.level();
+  },
+
+  /* Off, and properly off.
+
+     The slider used to fade a piece down but leave it running, so it came
+     back the moment anything else touched the volume. Muting stops the sound
+     outright, and in split screen it is one pair of speakers, so it stops for
+     both players at once. */
+  mute(on) {
+    this.muted = (on === undefined) ? !this.muted : !!on;
+    try { localStorage.setItem('voxelia.muted', this.muted ? '1' : '0'); } catch (e) {}
+    for (const key of Object.keys(this.tracks)) {
+      const t = this.tracks[key];
+      if (!t) continue;
+      clearInterval(t.timer);
+      t.el.muted = this.muted;
+      if (this.muted) { try { t.el.pause(); } catch (e) {} t.el.volume = 0; }
+    }
+    if (!this.muted && this.current) this.begin(this.current);
+    return this.muted;
+  },
 
   /** Start a piece sounding, rising gently from silence. */
   begin(key) {
     const t = this.tracks[key];
     if (!t) { this.find(key); return; }
     const want = this.target(key);
-    if (want <= 0.001) { try { t.el.pause(); } catch (e) {} return; }
+    if (this.muted || want <= 0.001) { try { t.el.pause(); } catch (e) {} t.el.volume = 0; return; }
+    t.el.muted = false;
     t.el.preload = 'auto';
     const go = t.el.play();
     if (go && go.catch) {
@@ -14414,24 +14792,46 @@ const Music = {
              (playing ? ' (playing)' : ' (waiting for a tap on the screen)') : '');
   },
 
-  follow() {
-    if (!Game.running) { this.play('home'); return; }
+  /* Which piece belongs to where you are.
 
-    // climbing out of the sky, or coming down through it: the blast off piece
-    if (Game.realm === 'landing') { this.play('launch'); return; }
-    const craft = Game.riding;
-    if (craft && craft.kind === 'rocket' && craft.pos && Game.world &&
-        craft.pos.y > Game.world.surfaceY(Math.floor(craft.pos.x), Math.floor(craft.pos.z)) + 8) {
-      this.play('launch');
-      return;
+     Each place has its own, and nowhere shares with anywhere else: home is
+     not the same as another planet, and the launch piece belongs to the climb
+     and the descent rather than to space itself. */
+  pick() {
+    if (!Game.running) return 'home';
+
+    // the climb out, and the fall back down through the sky
+    if (Game.realm === 'landing') return 'launch';
+    const craft = Game.riding || Game.passengerIn;
+    if (craft && craft.def && craft.def.space && craft.pos && Game.world) {
+      const ground = Game.world.surfaceY(Math.floor(craft.pos.x), Math.floor(craft.pos.z));
+      if (craft.pos.y > ground + 5) return 'launch';    // five blocks up and climbing
     }
-    // out among the planets, and on any world that is not this one
-    if (Game.realm === 'space' || Game.offworld) { this.play('alien'); return; }
+    // out among the planets, and standing on any world that is not this one
+    if (Game.realm === 'space') return 'alien';
+    if (Game.offworld) return 'alien';
 
     const b = (Game.world && Game.player)
       ? BIOMES[Game.world.biomeAt(Math.floor(Game.player.pos.x), Math.floor(Game.player.pos.z))]
       : null;
-    this.play(b && SOFT_BIOMES.indexOf(b.key) >= 0 ? 'grass' : 'land');
+    return (b && SOFT_BIOMES.indexOf(b.key) >= 0) ? 'grass' : 'land';
+  },
+
+  /* A piece waits a moment before it begins, so walking over a line in the
+     ground does not chop one off mid-note and start another. Long enough to
+     settle, short enough that arriving somewhere still feels marked. */
+  follow() {
+    const want = this.pick();
+    if (want === this.pending) return;
+    this.pending = want;
+    clearTimeout(this.soon);
+    if (want === this.current) return;
+    const wait = (want === 'launch') ? 150          // a launch should answer at once
+               : (this.current === null) ? 350
+               : 900;
+    this.soon = setTimeout(() => {
+      if (this.pending === want) this.play(want);
+    }, wait);
   }
 };
 
