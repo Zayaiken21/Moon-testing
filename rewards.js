@@ -37,7 +37,16 @@
   let pending = [];                 // claims held while offline
 
   /* ---------- who this player is ---------- */
+  /* Whose wallet this is.
+
+     Signed in, it is the account's own id, which follows the player from
+     their phone to a computer. Signed out, it is an id made up for this
+     browser, so a guest can still earn and keep what they earn until they
+     make an account. Everything that earns money goes through here, so a
+     player who signs in stops paying into the browser and starts paying
+     into themselves. */
   function accountId() {
+    if (account && account.id) return account.id;
     let id = null;
     try { id = localStorage.getItem(ACCOUNT_KEY); } catch (e) {}
     if (!id) {
@@ -71,7 +80,8 @@
     const base = serverBase();
     if (!base) return cache;
     try {
-      const res = await fetch(base + '/wallet?account=' + encodeURIComponent(accountId()));
+      const res = await fetch(base + '/wallet?account=' + encodeURIComponent(accountId()) +
+        (session() ? '&session=' + encodeURIComponent(session()) : ''));
       if (res.ok) cache = await res.json();
     } catch (e) { /* offline: the last known figures stay on screen */ }
     render();
@@ -228,11 +238,16 @@
 
   async function refreshAccount() {
     const t = session();
-    if (!t) { account = null; renderAccount(); return null; }
+    if (!t) { account = null; renderAccount(); refresh(); return null; }
     const me = await api('/account/me?session=' + encodeURIComponent(t));
     account = me && me.username ? me : null;
     if (!account) setSession('');
     renderAccount();
+    /* The wallet belongs to whoever is signed in, so it is read again the
+       moment that changes — and anything earned as a guest while offline is
+       sent up now, into the account rather than the browser. */
+    flushPending();
+    refresh();
     return account;
   }
 
@@ -343,12 +358,12 @@
           '</div>' +
         '</div>' +
         '<p class="acc-msg">Earned today: ' + money(account.today) + ' of ' + money(account.cap) + '.' +
-        (account.subscribed ? '' : ' A membership raises the daily limit to ' + money(25) + '.') + '</p>' +
+        (account.subscribed ? '' : ' A membership raises the daily limit.') + '</p>' +
         '<button class="primary" id="acc-close">Done</button>' +
         '<button class="acc-link" id="acc-out">Sign out</button>';
       document.getElementById('acc-close').addEventListener('click', closeAccount);
       document.getElementById('acc-out').addEventListener('click', async () => {
-        setSession(''); account = null; renderAccount();
+        setSession(''); account = null; renderAccount(); refresh();
       });
       return;
     }
@@ -467,6 +482,8 @@
       setSession(out.session);
       account = out.account;
       renderAccount();
+      flushPending();               // anything earned as a guest lands here now
+      refresh();
       toast('Welcome, ' + account.username + '.');
     } else if (out.ok) {
       // it said yes but sent nothing back: ask it who we are
@@ -486,6 +503,8 @@
       setSession(out.session);
       account = out.account;
       renderAccount();
+      flushPending();
+      refresh();
       toast('Signed in.');
     } else if (out.ok) {
       setSession(out.session || '');
@@ -603,9 +622,15 @@
         '<div class="rate-row"><span>' + k + '</span><b>' +
         (rates[k] > 0 ? money(rates[k]) : 'nothing') + '</b></div>').join('') +
       '<p class="wallet-note">Most animals are common, so most of what you tame is for the company.</p>';
+    /* Whose wallet this is, said in words rather than in an id nobody can
+       read. Signed out, it says so plainly, because that is the thing worth
+       knowing: what you earn is staying on this one browser. */
     document.getElementById('w-account').textContent =
-      'Account ' + accountId() + (serverBase() ? '' : ' · offline, claims are held until you reconnect') +
-      (pending.length ? ' · ' + pending.length + ' waiting to send' : '');
+      (account && account.username
+        ? 'Signed in as ' + account.username + ' \u00b7 this money is in your account'
+        : 'Playing as a guest \u00b7 what you earn stays on this device until you make an account') +
+      (serverBase() ? '' : ' \u00b7 offline, claims are held until you reconnect') +
+      (pending.length ? ' \u00b7 ' + pending.length + ' waiting to send' : '');
   }
 
   function withdraw() {

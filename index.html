@@ -1651,6 +1651,12 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <div class="setting"><b>Voices</b><small>How loud other players sound.</small>
       <input type="range" id="set-voice" min="0" max="1" step="0.05" /><output id="set-voice-out"></output></div>
 
+    <h3 class="set-head">Your account</h3>
+    <div class="setting"><b>My wallet</b><small id="set-wallet-note">What you have earned, and what each kind of animal is worth.</small>
+      <button class="btn" id="set-wallet">Open my wallet</button></div>
+    <div class="setting"><b>Signing in</b><small>An account keeps what you earn on every device you play on.</small>
+      <button class="btn" id="set-account">My account</button></div>
+
     <h3 class="set-head">The map</h3>
     <div class="setting"><b>Rare animals on the map</b><small>Shows a ring where a rare animal is. Off by default, so the map stays about the land.</small>
       <input type="checkbox" id="set-rare-map" /></div>
@@ -1972,7 +1978,8 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
         <button class="btn" id="pause-settings">All settings</button>
         <button class="btn" id="pause-howto">How to play</button>
       </div>
-      <button class="btn" id="pause-companions">Companions and wallet</button>
+      <button class="btn" id="pause-wallet">My wallet</button>
+      <button class="btn" id="pause-companions">My companions</button>
       <p class="lede" style="margin:10px 0 0;font-size:12.5px">
         Two players on this computer? Split screen is in <b>Settings</b>.</p>
     </div>
@@ -4829,17 +4836,45 @@ const Game = {
       g.moveTo(sx + 4, sy - 4); g.lineTo(sx - 4, sy + 4); g.stroke();
     }
 
-    // you, pointing where you look, wherever that is on a map you have moved
+    /* You.
+
+       An arrow five pixels across, white on a busy map, was easy to lose —
+       especially once the map had been dragged somewhere else and you were
+       no longer in the middle of it. A ring now goes out from you every
+       couple of seconds, the way a sonar sweep does, so your eye is drawn
+       back to where you are without anything being on screen permanently
+       enough to get in the way. */
     const meX = W / 2 - pan.x / blocksPerPixel;
     const meY = H / 2 - pan.z / blocksPerPixel;
+
+    const beat = 2200;                                  // one sweep every 2.2s
+    const phase = (Date.now() % beat) / beat;           // 0 to 1 through it
+    if (phase < 0.62) {
+      const grow = phase / 0.62;
+      const r = 6 + grow * (radiusCircle ? 16 : 26);
+      g.save();
+      g.globalAlpha = (1 - grow) * 0.85;
+      g.strokeStyle = '#6FE3C4';
+      g.lineWidth = 2;
+      g.beginPath(); g.arc(meX, meY, r, 0, Math.PI * 2); g.stroke();
+      g.restore();
+    }
+
+    // a soft halo, so the arrow always has something to sit on
+    g.save();
+    g.globalAlpha = 0.28;
+    g.fillStyle = '#6FE3C4';
+    g.beginPath(); g.arc(meX, meY, 8, 0, Math.PI * 2); g.fill();
+    g.restore();
+
     g.save();
     g.translate(meX, meY);
     g.rotate(-this.player.yaw);
     g.fillStyle = '#FFFFFF';
     g.strokeStyle = '#14121C';
-    g.lineWidth = 1.5;
+    g.lineWidth = 2;
     g.beginPath();
-    g.moveTo(0, -6); g.lineTo(4.5, 5); g.lineTo(0, 2.5); g.lineTo(-4.5, 5);
+    g.moveTo(0, -7.5); g.lineTo(5.5, 6); g.lineTo(0, 3); g.lineTo(-5.5, 6);
     g.closePath(); g.fill(); g.stroke();
     g.restore();
   },
@@ -7742,6 +7777,16 @@ const UI = {
     });
     Game.bindPadDragging();
 
+    /* The wallet and the account, from Settings, where a player looks. */
+    on('#set-wallet', 'click', () => {
+      try { window.VoxeliaWallet && VoxeliaWallet.open && VoxeliaWallet.open(); }
+      catch (e) { Game.toast('The wallet is not available here.'); }
+    });
+    on('#set-account', 'click', () => {
+      try { window.VoxeliaWallet && VoxeliaWallet.openAccount && VoxeliaWallet.openAccount(); }
+      catch (e) { Game.toast('Accounts are not available here.'); }
+    });
+
     /* Wild rare animals on the big map: off unless asked for. */
     const rareBox = $('#set-rare-map');
     if (rareBox) {
@@ -7956,6 +8001,16 @@ const UI = {
     on('#offer-yes', 'click', () => Game.acceptOffer());
     on('#offer-no', 'click', () => Game.declineOffer());
     on('#bar-pause', 'click', () => this.pause());
+    /* The wallet, on its own, where a player looks for it. It used to be
+       reachable only by way of the companions screen, which is not where
+       anybody goes to see what they have earned. */
+    on('#pause-wallet', 'click', () => {
+      this.closeAll();
+      try {
+        if (window.VoxeliaWallet && VoxeliaWallet.open) VoxeliaWallet.open();
+        else Game.toast('The wallet is not available here.');
+      } catch (e) { Game.toast('The wallet is not available here.'); }
+    });
     on('#pause-companions', 'click', () => {
       this.closeAll(); this.openCompanions();
     });
@@ -8225,10 +8280,12 @@ const UI = {
     this.redrawMap();
     this.renderWaypoints();
     clearInterval(this._mapTimer);
+    /* Often enough for the sweep to look like a sweep rather than a jump,
+       and still cheap: the map is a few hundred rectangles. */
     this._mapTimer = setInterval(() => {
       if ($('#worldmap').classList.contains('open')) Split.as(this.mapOwner, () => this.redrawMap());
       else clearInterval(this._mapTimer);
-    }, 700);
+    }, 120);
   },
 
   bindMapGestures() {
@@ -10250,6 +10307,13 @@ const Visits = {
     try { return localStorage.getItem('voxelia.account') || ''; } catch (e) { return ''; }
   },
 
+  /* If they are signed in, say so: the visit is then attached to the person
+     rather than only to the browser, which is what makes "how many people
+     play" a real number instead of a count of devices. */
+  session() {
+    try { return localStorage.getItem('voxelia.session') || ''; } catch (e) { return ''; }
+  },
+
   seenToday() {
     try { return localStorage.getItem('voxelia.counted') === new Date().toISOString().slice(0, 10); }
     catch (e) { return false; }
@@ -10263,9 +10327,20 @@ const Visits = {
     const base = this.base();
     if (!base) return;
     if (what === 'open' && this.seenToday()) return;
+    /* A machine that is asleep never hears the first hello, which is how a
+       whole day of visits used to go uncounted. Wake it, then say hello. */
+    if (what !== 'alive' && typeof Live !== 'undefined' && !Live.awake) {
+      Live.waitUntilUp().then((up) => { if (up) this.send(base, what); });
+      return;
+    }
+    this.send(base, what);
+  },
+
+  send(base, what) {
 
     const q = '?ref=' + encodeURIComponent(document.referrer || 'direct') +
               '&account=' + encodeURIComponent(this.account()) +
+              '&session=' + encodeURIComponent(this.session()) +
               '&mode=' + encodeURIComponent(what || 'open') +
               '&play=' + encodeURIComponent((typeof Game !== 'undefined' && Game.mode) || '') +
               '&standalone=' + (function () {
@@ -10989,15 +11064,37 @@ Game.net = {
     };
   },
 
+  /* Going back to the room.
+
+     A socket that is refused because the machine has gone to sleep is
+     refused instantly, so trying again straight away simply fails again,
+     over and over, and the banner counts up while nothing useful happens.
+     Asking for /health first is what actually wakes the machine; only once
+     it has answered is there any point opening a socket. That is the
+     difference between a reconnect that recovers and one that never does. */
   scheduleRetry() {
     if (!this.wantOn || this.retryAt) return;
     const wait = Math.min(8000, 400 * Math.pow(1.7, Math.min(6, this.tries++)));
     this.retryAt = setTimeout(() => {
       this.retryAt = null;
       if (!this.wantOn || this.connected) return;
-      this.rejoining = true;
-      // go back into the same room, as the same player
-      this.openSocket(this.url, this.onReady, this.onFail, this.rejoinHello());
+      const go = () => {
+        if (!this.wantOn || this.connected) return;
+        this.rejoining = true;
+        // go back into the same room, as the same player
+        this.openSocket(this.url, this.onReady, this.onFail, this.rejoinHello());
+      };
+      // after a couple of quick tries, wake the machine before trying again
+      if (this.tries > 2 && typeof Live !== 'undefined') {
+        this.showLink('waking');
+        Live.waitUntilUp().then((up) => {
+          if (!up) { this.showLink('waiting'); this.scheduleRetry(); return; }
+          this.showLink('waiting');
+          go();
+        });
+      } else {
+        go();
+      }
     }, wait);
   },
 
@@ -11368,16 +11465,35 @@ Game.net = {
       // as walking instead of a series of jumps
       // if they are aboard something we can see, put them in its seat rather
       // than wherever their own body last reported
+      /* Riding.
+
+         Everybody aboard gets a seat of their own, chosen from where they sit
+         in the craft's own list of riders, so two passengers are not drawn
+         standing in each other. They ride the craft exactly rather than
+         chasing it — a body smoothed towards a moving vehicle trails behind
+         it and looks like it is being dragged along on a rope. */
+      p.riding = false;
       if (p.aboard) {
         const craft = Game.vehicles.find(v => v.id === p.aboard);
         if (craft) {
-          const seat = ((craft.parts && craft.parts.seatOffsets) ? craft.parts.seatOffsets[1] : null) || { x: 0.6, y: craft.def.seat, z: -0.7 };
+          const seats = (craft.parts && craft.parts.seatOffsets) || [];
+          let which = 1;
+          if (Array.isArray(craft.riders)) {
+            const at = craft.riders.indexOf(p.id);
+            if (at >= 0) which = at;
+          }
+          const seat = seats[which] || seats[1] || seats[0] ||
+                       { x: 0.6, y: craft.def.seat, z: -0.7 };
           const sc = craft.def.scale || 1.3;
           const cs = Math.cos(craft.yaw), sn = Math.sin(craft.yaw);
           p.target.set(craft.pos.x + seat.x * sc * cs - seat.z * sc * sn,
                        craft.pos.y + craft.def.seat,
                        craft.pos.z + seat.x * sc * sn + seat.z * sc * cs);
           p.yaw = craft.yaw;
+          p.riding = true;
+          // sit exactly where the seat is, this frame
+          if (!p.body) p.body = { x: p.target.x, y: p.target.y, z: p.target.z };
+          p.body.x = p.target.x; p.body.y = p.target.y; p.body.z = p.target.z;
         }
       }
       /* Where the body really is, kept apart from the walk bob. The bob used
@@ -11424,14 +11540,27 @@ Game.net = {
          but only if that craft is actually here. Hiding them for a seat in a
          vehicle this world has never heard of is how people ended up invisible
          on another planet while still showing on the map. */
-      const inSomethingHere = p.aboard && Game.vehicles.some((v) => v.id === p.aboard);
-      p.model.visible = onThisWorld && !inSomethingHere;
+      /* Somebody in a craft used to be hidden outright, which is why a
+         friend vanished the moment they climbed into anything. They are
+         shown, sitting in it: seeing who is driving and who is along for the
+         ride is most of the fun of having vehicles at all. */
+      p.model.visible = onThisWorld;
       if (p.avatar) {
         const a = p.anim || 0;
         p.avatar.update(dt, {
-          speed: p.speedAvg || 0, grounded: !!(a & 1) || !(a & 2),
-          flying: !!(a & 2), mining: !!(a & 4), swimming: !!(a & 8), inVehicle: !!(a & 16)
+          speed: p.riding ? 0 : (p.speedAvg || 0),
+          grounded: p.riding ? true : (!!(a & 1) || !(a & 2)),
+          flying: !p.riding && !!(a & 2),
+          mining: !p.riding && !!(a & 4),
+          swimming: !p.riding && !!(a & 8),
+          inVehicle: p.riding || !!(a & 16)
         });
+      } else if (p.riding) {
+        // the block body sits down too: legs forward, and a little lower
+        for (const kid of p.model.children) {
+          if (!kid.userData || !kid.userData.limb) continue;
+          kid.rotation.x = kid.userData.limb === 'leg' ? -1.2 : -0.2;
+        }
       }
       /* Which way somebody is facing.
 
@@ -15592,10 +15721,30 @@ const Music = {
     return this.muted;
   },
 
+  /* One piece at a time, and no argument about it.
+
+     Pieces used to be left to fade each other out, which is right when one
+     follows another but wrong every other time: turning the music back on,
+     a piece being found late, a check that a track had not stopped — any of
+     them could start a second one while the first was still sounding, and
+     two songs played over each other. Before anything starts, everything
+     else stops outright. */
+  soloOnly(key) {
+    for (const k of Object.keys(this.tracks)) {
+      if (k === key) continue;
+      const t = this.tracks[k];
+      if (!t) continue;
+      clearInterval(t.timer);
+      t.el.volume = 0;
+      try { if (!t.el.paused) { t.el.pause(); t.el.currentTime = 0; } } catch (e) {}
+    }
+  },
+
   /** Start a piece sounding, rising gently from silence. */
   begin(key) {
     const t = this.tracks[key];
     if (!t) { this.find(key); return; }
+    this.soloOnly(key);
     const want = this.target(key);
     if (this.muted || want <= 0.001) { try { t.el.pause(); } catch (e) {} t.el.volume = 0; return; }
     t.el.muted = false;
@@ -15635,7 +15784,13 @@ const Music = {
     if (this.current === key) return;
     const before = this.current;
     this.current = key;
-    if (before && this.tracks[before]) this.fade(before, 0);
+    // the one it is following on from fades out; anything else stops at once
+    if (before && before !== key && this.tracks[before]) this.fade(before, 0);
+    for (const k of Object.keys(this.tracks)) {
+      if (k === key || k === before) continue;
+      const t = this.tracks[k];
+      if (t && !t.el.paused) { clearInterval(t.timer); t.el.volume = 0; try { t.el.pause(); } catch (e) {} }
+    }
     if (this.unlocked) this.begin(key);
   },
 
@@ -15655,6 +15810,7 @@ const Music = {
     if (!this.unlocked || !this.current) return;
     const t = this.tracks[this.current];
     if (!t) { this.find(this.current); return; }
+    this.soloOnly(this.current);         // nothing else may be sounding
     if (this.target(this.current) <= 0.001) return;
     if (t.el.paused) {
       const go = t.el.play();
