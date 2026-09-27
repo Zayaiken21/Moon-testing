@@ -109,8 +109,23 @@ body{display:block;
   padding:clamp(9px,1.5vh,18px);border-radius:clamp(14px,2vh,24px)}
 .preview-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto auto;
   gap:clamp(6px,1.1vh,14px);overflow:hidden}
-.controls-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;
-  gap:clamp(8px,1.2vh,16px);overflow:hidden;align-content:stretch}
+.controls-panel{display:grid;grid-template-rows:auto auto auto;
+  gap:clamp(8px,1.2vh,16px);align-content:start;
+  /* One column that scrolls, rather than three rows fighting over the room.
+
+     It was three tracks — the heading, the list and the colour drawer —
+     with the list on `1fr` and the panel set not to scroll, on the
+     reasoning that the list and the drawer each scroll inside themselves.
+     That holds right up until the screen is short enough that the two
+     minimums will not both fit, and then a grid item taller than its track
+     does not make the panel scroll, it simply paints over whatever is
+     below: the colour pickers came out printed across the characters, and
+     on a shorter screen still they were cut off the bottom with no way to
+     reach them at all.
+
+     Letting every row be its own height and scrolling the panel cannot lose
+     anything and cannot overlap anything. */
+  overflow-y:auto;overscroll-behavior:contain}
 
 /* the figure takes whatever room is going, and no more */
 .avatar-stage{min-height:0;height:100%;border-radius:clamp(12px,2vh,22px)}
@@ -127,18 +142,33 @@ body{display:block;
 .primary-btn,.secondary-btn,.ghost-btn,.icon-btn{min-height:clamp(36px,5vh,48px);
   font-size:clamp(12px,1.6vh,15px)}
 
-/* only this list scrolls, and it does so without a visible bar */
-.preset-section{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px}
-.preset-grid{overflow-y:auto;overscroll-behavior:contain;align-content:start;padding-right:6px}
+/* The list is as tall as it needs to be, and the panel around it scrolls.
+
+   `min-height:0` was here so the list could be squeezed when room was short.
+   A box allowed to shrink below its contents does not hide them — it lets
+   them spill out and paint over whatever is beneath, which is how the colour
+   pickers ended up printed across the characters. */
+.preset-section{display:grid;grid-template-rows:auto auto;gap:8px}
+.preset-grid{align-content:start;padding-right:2px}
 .preset-card strong{font-size:clamp(9px,1.3vh,12px)}
 .section-head h3{font-size:clamp(14px,2.2vh,20px)}
 .section-head{gap:10px}
 
-/* the colour pickers live in a drawer that never pushes anything off screen */
-.customizer{min-height:0}
+/* The colour pickers live in a drawer. It keeps its own height for the same
+   reason the list does: a box allowed to shrink below its contents gets
+   squeezed to nothing by whatever is above it — this one came out two pixels
+   tall, which looks exactly like the colours having been removed. */
+.customizer{min-height:max-content}
 .customizer summary{padding:clamp(7px,1.2vh,13px) 12px}
-.customizer-inner{max-height:min(34vh,300px);overflow-y:auto;overscroll-behavior:contain;
-  padding-right:6px}
+.customizer-inner{padding-right:2px}
+/* The list keeps enough height to be a list.
+
+   With the colour drawer open on a short screen, the two were fighting over
+   the same room and the list lost — it came out as a single strip showing
+   the tops of five heads. It now keeps enough for a row and a half, the
+   drawer takes what it needs, and the panel itself scrolls if the two of
+   them together do not fit. */
+
 
 /* A scrollbar you can see and take hold of, in this page's own colours. */
 *{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
@@ -177,7 +207,6 @@ body{display:block;
   .preset-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
   .preset-card{padding:4px;border-radius:10px}
   .preset-card small{display:none}
-  .customizer-inner{max-height:26vh}
   .color-grid{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:5px}
 }
 /* very little height indeed */
@@ -186,7 +215,12 @@ body{display:block;
   .selected-copy h2{font-size:14px}
   .name-control input{height:32px}
   .primary-btn,.secondary-btn,.ghost-btn,.icon-btn{min-height:32px;font-size:11px}
-  .customizer{display:none}          /* the colour pickers need room to be usable */
+  /* The colour pickers used to be taken away entirely on a screen this
+     short, which is one way to describe "we cannot get to the colours".
+     The panel scrolls now, so they stay and are simply further down. */
+  .customizer summary{padding:8px 10px}
+  .color-control{padding:5px;grid-template-columns:30px 1fr}
+  .color-control input[type=color]{width:30px;height:30px}
 }
 
 /* The rigged model, drawn over the flat figure. It only appears once the

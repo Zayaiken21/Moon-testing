@@ -147,15 +147,32 @@ const Thumbs = {
   failed: false,
   SIZE: 132,
 
+  /* One drawing surface, borrowed.
+
+     This used to make a WebGLRenderer of its own, and that is the whole
+     reason the tiles stayed flat on a phone. A browser will only give a page
+     so many drawing surfaces — on iOS not many at all — and this page has
+     already spent one on the big preview, with the game holding others in
+     the page around it. Asking for a second was refused, `failed` was set,
+     and every tile fell back to the CSS template for the rest of the visit:
+     a real model in the preview and ten identical cut-outs beside it, which
+     is exactly what it looked like.
+
+     So the preview's renderer is borrowed instead. It is resized to the size
+     of a tile, our own little scene is drawn into it, the pixels are copied
+     out, and it is put straight back the way it was — the preview redraws
+     every frame anyway, so it never notices. No second surface, nothing to
+     refuse. */
   kit() {
     if (this.painter !== undefined) return this.painter;
     try {
       if (!window.THREE || !window.VoxeliaAvatars) throw new Error('no model pack');
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = this.SIZE * 2;
-      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-      renderer.setPixelRatio(1);
-      renderer.setSize(this.SIZE * 2, this.SIZE * 2, false);
+      /* If the preview itself could not start there will never be a
+         renderer to borrow, and asking every quarter second for ever is
+         worse than nothing. */
+      if (Preview3D && Preview3D.failed) throw new Error('no preview to borrow');
+      const borrowed = Preview3D && Preview3D.renderer;
+      if (!borrowed) return undefined;          // not up yet: ask again shortly
       const scene = new THREE.Scene();
       // far enough back that the whole figure fits, head to shoes
       const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
@@ -168,13 +185,43 @@ const Thumbs = {
       const rim = new THREE.DirectionalLight(0x8fd8ff, 0.45);
       rim.position.set(-2.6, 1.8, -2.2);
       scene.add(rim);
-      this.painter = { renderer, scene, camera, canvas };
+      this.painter = { renderer: borrowed, scene, camera };
     } catch (e) {
       this.painter = null;
       this.failed = true;
       console.info('character pictures unavailable:', e.message);
     }
     return this.painter;
+  },
+
+  /** Draw one figure into a small canvas, putting the renderer back after. */
+  paint(object) {
+    const p = this.painter;
+    const r = p.renderer;
+    const was = new THREE.Vector2();
+    r.getSize(was);
+    const px = r.getPixelRatio();
+    const out = document.createElement('canvas');
+    out.width = out.height = this.SIZE;
+    try {
+      r.setPixelRatio(1);
+      r.setSize(this.SIZE * 2, this.SIZE * 2, false);
+      p.scene.add(object);
+      r.render(p.scene, p.camera);
+      p.scene.remove(object);
+      const g = out.getContext('2d');
+      g.imageSmoothingEnabled = true;
+      g.drawImage(r.domElement, 0, 0, this.SIZE, this.SIZE);
+    } finally {
+      /* Always put it back, even if the drawing threw — leaving the preview
+         at thumbnail size would shrink the character on screen to a stamp. */
+      try {
+        r.setPixelRatio(px);
+        r.setSize(was.x, was.y, false);
+        if (Preview3D && Preview3D.resize) Preview3D.resize();
+      } catch (e) {}
+    }
+    return out;
   },
 
   /** A picture of this character, drawn when it gets to the front. */
@@ -191,6 +238,16 @@ const Thumbs = {
   pump() {
     if (this.busy || this.failed || !this.queue.length) return;
     const p = this.kit();
+    /* `undefined` means the preview has not finished starting up, which is
+       not a failure — the models are still loading. Ask again in a moment
+       rather than giving up on pictures for the whole visit. */
+    if (p === undefined) {
+      if (!this.waiting) {
+        this.waiting = true;
+        setTimeout(() => { this.waiting = false; this.pump(); }, 260);
+      }
+      return;
+    }
     if (!p) return;
     this.busy = true;
     const job = this.queue.shift();
@@ -198,19 +255,14 @@ const Thumbs = {
                             name: 'Tile', colors: toPacket(job.colors) })
       .then((av) => {
         av.object.position.y = -0.04;
-        p.scene.add(av.object);
-        p.renderer.render(p.scene, p.camera);
-        p.scene.remove(av.object);
-        const out = document.createElement('canvas');
-        out.width = out.height = this.SIZE;
-        const g = out.getContext('2d');
-        g.imageSmoothingEnabled = true;
-        g.drawImage(p.canvas, 0, 0, this.SIZE, this.SIZE);
+        const out = this.paint(av.object);
         av.dispose();
         this.shots.set(job.stamp, out);
         job.onDone(out);
       })
-      .catch((e) => { this.failed = true; console.info('character pictures unavailable:', e.message); })
+      /* One character that will not load is one blank tile, not ten. This
+         used to set `failed`, which stopped every picture after it. */
+      .catch((e) => { console.info('no picture for ' + job.presetId + ':', e.message); })
       .then(() => { this.busy = false; this.pump(); });
   }
 };
