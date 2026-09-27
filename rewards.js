@@ -21,6 +21,13 @@
 (function () {
   'use strict';
 
+  /* Printed once, so it is possible to tell at a glance which copy of this
+     file a device is actually running. A phone with the game installed can
+     hold on to an old one, and "I don't see the new thing" is then a
+     caching question rather than a code question. */
+  const BUILD = '2026-09-27';
+  try { console.log('Voxelia wallet ' + BUILD); } catch (e) {}
+
   const ACCOUNT_KEY = 'voxelia.account';
   const NAME_KEY = 'voxelia.account.name';
   /* What each kind is worth, in cents. The server is the one that decides;

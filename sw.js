@@ -1,5 +1,5 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v20';
+const CACHE = 'voxelia-v22';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
@@ -34,17 +34,48 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+
+  /* Never come between the game and its server. */
   if (req.url.includes('/rooms') || req.url.includes('/room?') ||
       req.url.includes('/visit') || req.url.includes('/claim') ||
+      req.url.includes('/health') || req.url.includes('/account') ||
       req.url.includes('/wallet') || req.url.startsWith('ws')) return;
+
+  /* The game's own code: the newest wins.
+
+     Everything used to be answered from the cache first, with a fresh copy
+     fetched quietly for next time. That is right for a model or a piece of
+     music, which never changes, and quite wrong for the game itself: every
+     update landed one visit late, so a fix looked like it had not been made.
+     A phone that had the game installed could sit two or three versions
+     behind and there was no way for anybody to tell.
+
+     Now the page and the scripts are asked for over the network first, with
+     the cache kept up to date behind them and used the moment the network is
+     not there — so an update shows up at once and the game still works with
+     no connection at all. */
+  const own = new URL(req.url).origin === self.location.origin;
+  const code = own && /\.(html|js|css|json)$/i.test(new URL(req.url).pathname);
+  const page = req.mode === 'navigate';
+
+  if (code || page) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  /* Everything else — models, music, pictures — never changes, so the
+     cached copy is the right answer and the fastest one. */
   e.respondWith(
     caches.match(req).then((hit) => {
-      if (hit) {
-        fetch(req).then((res) => {
-          if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
-        }).catch(() => {});
-        return hit;
-      }
+      if (hit) return hit;
       return fetch(req).then((res) => {
         if (res && res.ok && res.type === 'basic') {
           const copy = res.clone();

@@ -9022,13 +9022,20 @@ const UI = {
         return;
       }
       Game.net.showLink('ok');
-      this.openRoom(url, payload, save);
+      this.openRoom(url, payload, save, seed);
     });
   },
 
-  openRoom(url, payload, save) {
+  /* Opening the room itself.
+
+     `seed` is passed in rather than reached for: it belongs to hostGame, and
+     when this was split out of it the reference was left behind. It threw
+     inside the callback that answers the server, which stopped the very next
+     line — the one that puts the host into the world. The room opened, the
+     code appeared, and nobody ever arrived. */
+  openRoom(url, payload, save, seed) {
     Game.net.connect(url, (welcome) => {
-      this.rememberRoomCode(seed, welcome.room);
+      try { this.rememberRoomCode(seed, welcome.room); } catch (e) {}
       this.enterWorld(welcome);
       if (save) {
         Game.applySave(save);
