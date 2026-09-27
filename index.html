@@ -206,44 +206,70 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #minimap{width:100%;height:100%;display:block}
 /* The map screen.
 
-   The map is the screen, and everything else floats over it. It used to be a
-   column — a title, then the map, then a legend, a hint, five buttons and a
-   list of marks — and the map got whatever height was left over, which on a
-   wide window was a small strip in the middle of a great deal of nothing.
-   Now the canvas fills the window corner to corner and the panels sit on top
-   of it, out of the way and dismissible. */
+   Two goes at this were wrong in opposite directions. It began as a column —
+   a title, the map, a legend, a hint, five buttons and a list of marks — and
+   the map got whatever height was left over, which was a small square in a
+   screenful of controls. Making the map the whole window and floating the
+   panels on top of it fixed the size and broke the reading: a legend in pale
+   grey over bright green ground is not a legend, and the map ran on behind
+   the title so labels were cut in half at the top edge.
+
+   So: a column again, but a tight one. The panels are solid, they never sit
+   over the picture, and they are as short as they can be — one line of
+   legend, one row of buttons, marks folded away until wanted. The map gets
+   everything else, which is most of the screen. And when even that is not
+   enough, Hide panels gives the whole window over to it. */
 #worldmap{padding:0;display:none}
-#worldmap.open{display:block;z-index:60;overflow:hidden}
-.map-head{position:absolute;left:0;right:0;top:0;z-index:4;
-  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-  padding:max(12px,env(safe-area-inset-top)) 14px 22px;pointer-events:none;
-  background:linear-gradient(180deg,rgba(20,18,28,.92) 25%,rgba(20,18,28,0))}
-.map-head > div{pointer-events:none}
-.map-head-btns{display:flex;gap:8px;align-items:center;pointer-events:auto;flex:0 0 auto}
+/* `place-items: safe center` is set for every screen further down, because a
+   sheet in the middle of the window is what most of them want. The map is
+   not a sheet: it is the window. Without stretching that back out, each row
+   shrinks to the width of its own text and the map comes out as a square in
+   the middle of a wide screen. */
+#worldmap.open{display:flex;flex-direction:column;z-index:60;overflow:hidden;
+  align-items:stretch;justify-items:stretch;align-content:stretch}
+
+.map-head{flex:0 0 auto;z-index:4;position:relative;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:max(8px,env(safe-area-inset-top)) 14px 8px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.map-head h2{font-size:17px;line-height:1.15;margin:0}
+.map-head .lede{font-size:11.5px;line-height:1.3;margin:2px 0 0}
+.map-head-btns{display:flex;gap:8px;align-items:center;flex:0 0 auto}
+.map-head-btns .btn{padding:7px 12px;font-size:12px;min-width:0}
 .map-exit{border-color:var(--moon);color:var(--moon);white-space:nowrap}
 #map-bare{white-space:nowrap}
-/* the map itself: the whole screen, behind everything */
-.map-body{position:absolute;inset:0;padding:0;display:block;overflow:hidden;z-index:1}
+
+/* the map: everything the panels do not need */
+.map-body{flex:1 1 auto;min-height:0;position:relative;padding:0;display:block;
+  overflow:hidden;background:var(--ink)}
 #bigmap{display:block;width:100%;height:100%;max-width:none;max-height:none;
   border:none;border-radius:0;background:var(--ink);touch-action:none;box-shadow:none}
 
-/* the panels, along the bottom, over the map */
-.map-chrome{position:absolute;left:0;right:0;bottom:0;z-index:4;
+/* the panels: solid, under the map, never over it */
+.map-chrome{flex:0 0 auto;z-index:4;position:relative;
   display:flex;flex-direction:column;
-  max-height:52vh;overflow:hidden;
   padding-bottom:env(safe-area-inset-bottom);
-  background:linear-gradient(180deg,rgba(20,18,28,0),rgba(20,18,28,.86) 22%,rgba(20,18,28,.96))}
+  background:var(--panel);border-top:1px solid var(--line)}
+
 /* "Hide panels": the map and nothing else, for actually looking at it */
 #worldmap.bare .map-chrome{display:none}
-#worldmap.bare .map-head{background:none;padding-bottom:10px}
+#worldmap.bare .map-head{position:absolute;left:0;right:0;top:0;
+  background:linear-gradient(180deg,rgba(20,18,28,.85),rgba(20,18,28,0));
+  border-bottom:none;padding-bottom:20px;pointer-events:none}
+#worldmap.bare .map-head-btns{pointer-events:auto}
+#worldmap.bare .map-body{position:absolute;inset:0}
 /* only the title block goes; the buttons have to stay or there is no way
    back from a screen with nothing on it but map */
 #worldmap.bare .map-head > div:not(.map-head-btns){display:none}
 
 /* What the marks mean. Small, quiet, and always there, so nobody has to
    guess what a blue dot is worth. */
-.map-key{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;
-  padding:8px 14px 0;position:relative;z-index:3}
+/* One line, and it scrolls sideways rather than wrapping onto three rows
+   and pushing the map up. */
+.map-key{display:flex;flex-wrap:nowrap;gap:4px 12px;justify-content:safe center;
+  padding:7px 14px 5px;position:relative;z-index:3;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.map-key::-webkit-scrollbar{height:0}
 .map-key span{display:inline-flex;align-items:center;gap:6px;
   font-size:11.5px;color:var(--muted);white-space:nowrap}
 .map-key i{width:11px;height:11px;border-radius:50%;display:inline-block;
@@ -264,11 +290,15 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
   .map-key span{font-size:10px}
   .map-key i{width:9px;height:9px;border-width:1.5px}
 }
-.map-foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
-  padding:10px 14px 6px;position:relative;z-index:2}
-.map-foot .btn{min-width:96px}
-.map-hint{position:relative;z-index:3;text-align:center;color:var(--muted);font-size:12px;
-  padding:6px 14px 4px;background:none}
+.map-foot{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;
+  padding:0 14px 8px;position:relative;z-index:2}
+.map-foot .btn{min-width:0;flex:1 1 auto;max-width:170px;
+  padding:9px 10px;font-size:12.5px}
+/* Said once, while it is still news. It goes as soon as you have dragged
+   the map, because by then you know. */
+.map-hint{position:relative;z-index:3;text-align:center;color:var(--muted);
+  font-size:11px;padding:0 14px 5px;background:none}
+#worldmap.used .map-hint{display:none}
 .map-marks{position:relative;z-index:3;background:none}
 .mark-row{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);
   border-radius:9px;padding:8px 11px}
@@ -371,7 +401,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 /* the head is pinned to the top of the map and the rest ride in .map-chrome,
    so only these two still need a stacking order of their own */
 .map-hint,.map-foot,.map-marks{position:relative;z-index:3}
-.map-marks{max-height:20vh;overflow-y:auto;padding:0 14px 12px;display:flex;flex-direction:column;gap:6px}
+/* Kept short: two marks are visible and the rest scroll, so a long list
+   never eats the map. With nothing in it, it takes up no room at all. */
+.map-marks{max-height:15vh;overflow-y:auto;padding:0 14px 10px;
+  display:flex;flex-direction:column;gap:6px}
+.map-marks:empty{display:none}
+.map-marks .none{color:var(--muted);font-size:11px;text-align:center;margin:0 0 2px}
 .map-marks .bind-row{cursor:pointer}
 #fps{position:absolute;left:50%;transform:translateX(-50%);top:6px;font-family:var(--display);font-size:11px;
   color:var(--muted);display:none}
@@ -541,7 +576,9 @@ body.split-on #hotbar{left:25% !important}
 body.split-on #minimap-wrap{right:calc(50% + 14px) !important}
 /* Player two signs in on their own half: their character and their name,
    chosen on the side of the screen they will be playing on. */
+/* a full panel, so it catches taps rather than letting them reach the world */
 #p2-join{position:fixed;top:0;bottom:0;left:50%;right:0;z-index:96;display:none;
+  pointer-events:auto;
   background:linear-gradient(180deg,rgba(20,18,28,.97),rgba(14,12,20,.99));
   border-left:3px solid var(--amethyst);padding:18px;overflow:auto}
 #p2-join.open{display:block}
@@ -1210,10 +1247,10 @@ body.split-on #meters{width:min(150px,17vw) !important;
 /* the world itself never shows one: it is not a page */
 #hud ::-webkit-scrollbar,#p2-panel ::-webkit-scrollbar{width:0;height:0}
 #hud *,#p2-panel *{scrollbar-width:none}
-/* The map fills the window. These used to squeeze the canvas into whatever
-   the panels left over; the panels now float over it instead. */
-.map-body{position:absolute;inset:0;min-height:0;display:block;overflow:hidden}
-.map-body canvas{width:100%;height:100%;max-width:none;max-height:none}
+/* The canvas is exactly the size of the room the map is given, rather than a
+   fixed square scaled to fit it. The layout rules for .map-body are all in
+   one place further up; this one only says what the picture does inside it. */
+.map-body canvas{width:100%;height:100%;max-width:none;max-height:none;display:block}
 /* short windows: smaller type and tighter padding, so more fits before
    anything has to slide at all */
 @media (max-height:760px){
@@ -1278,9 +1315,26 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 .pic{position:relative;display:grid;place-items:center;line-height:0}
 .pic canvas{grid-area:1/1}
 
+/* Anything in the HUD that is meant to be pressed, can be.
+
+   The HUD is pointer-events:none on purpose: it covers the whole screen, and
+   without that you could not dig a block in the middle of it without a
+   readout catching your finger. The cost was that every panel had to
+   remember to turn them back on for itself, and a panel that forgot looked
+   completely normal and was completely dead. The summon card forgot — it
+   appeared, rang, buzzed, and passed every tap straight through to the world
+   behind it, so "Go to them" could not be pressed at all. Player two's join
+   screen forgot too, all seven buttons of it.
+
+   Asking each panel to remember was the mistake. The controls themselves say
+   they are controls, so the rule belongs here, once. */
+#hud button, #hud input, #hud select, #hud textarea,
+#hud a[href], #hud [role="button"], #hud label{pointer-events:auto}
+
 /* Being asked over by a friend. Always a question, never a shove. */
 #summon-card{position:fixed;left:50%;transform:translateX(-50%);
   top:calc(96px + env(safe-area-inset-top));z-index:96;display:none;
+  pointer-events:auto;
   background:rgba(20,18,28,.96);border:1px solid var(--line);border-radius:14px;
   padding:14px 16px;max-width:min(92vw,380px);box-shadow:0 12px 34px rgba(0,0,0,.55)}
 #summon-card.show{display:block}
@@ -1728,10 +1782,6 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <button class="btn" id="set-wallet">Open my wallet</button></div>
     <div class="setting"><b>Signing in</b><small>An account keeps what you earn on every device you play on.</small>
       <button class="btn" id="set-account">My account</button></div>
-
-    <h3 class="set-head">The map</h3>
-    <div class="setting"><b>Rare animals on the map</b><small>Shows a ring where a rare animal is. Off by default, so the map stays about the land.</small>
-      <input type="checkbox" id="set-rare-map" /></div>
 
     <h3 class="set-head">Touch controls</h3>
     <div class="setting"><b>Move the buttons</b><small>Hold anything on the right of the screen — a button, the map, the height lever — and drag it wherever your thumb falls. The stick on the left stays where it is.</small>
@@ -4471,6 +4521,42 @@ const Settings = {
   uiScale: 1.0
 };
 
+/* Remembering what somebody chose.
+
+   Three places in the game called `saveSettings()` after changing something,
+   and it was never written anywhere. So every one of them threw a
+   ReferenceError: the new value was set on the way past, the rest of the
+   handler was abandoned, and nothing was ever written down — which is why a
+   setting could look like it had taken and then be back to its old self on
+   the next visit. Volume, render distance, the touch controls, all of it.
+
+   It is kept on this browser rather than on the server, because these are
+   about this screen and this pair of hands: a phone wants smaller text and a
+   bigger stick than a laptop does. */
+const SETTINGS_KEY = 'voxelia.settings';
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(Settings));
+  } catch (e) { /* a browser that will keep nothing: no harm done */ }
+}
+
+function loadSettings() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null'); } catch (e) {}
+  if (!saved || typeof saved !== 'object') return;
+  /* Only keys the game still has, and only of the type it expects. A setting
+     dropped in a later version, or one that comes back the wrong shape, must
+     not be able to break the game for the person who saved it. */
+  for (const k of Object.keys(Settings)) {
+    if (saved[k] === undefined) continue;
+    if (typeof saved[k] !== typeof Settings[k]) continue;
+    Settings[k] = saved[k];
+  }
+}
+
+loadSettings();
+
 const CREATIVE_PALETTE = [B.GRASS, B.DIRT, B.STONE, B.SAND, B.PLANK, B.OAK, B.LEAF, B.GLOWSTONE, B.BRICK];
 const EMPTY_HOTBAR = () => [null, null, null, null, null, null, null, null, null];
 
@@ -4747,6 +4833,9 @@ const Game = {
     this.refreshHotbar();
     this.refreshMeters();
     this.updateAbilityBadge();
+    /* Whatever the last world did to the HUD, this one decides it again —
+       so arriving anywhere always arrives with the readouts you expect. */
+    try { UI.refreshSpaceBar(); } catch (e) {}
   },
 
   disposeWorld() {
@@ -5059,7 +5148,9 @@ const Game = {
     const roomFor = (x, y, half) => {
       const w = half || 35 * scale;
       for (const p of labelled) {
-        if (Math.abs(p[0] - x) < (w + p[2]) && Math.abs(p[1] - y) < 16 * scale) return false;
+        // a line of text is taller than the letters in it: leave room for
+        // its outline and a clear gap, or two labels touch and read as one
+        if (Math.abs(p[0] - x) < (w + p[2]) && Math.abs(p[1] - y) < 23 * scale) return false;
       }
       labelled.push([x, y, w]);
       return true;
@@ -8128,7 +8219,7 @@ const UI = {
       mouseTo.addEventListener('change', () => {
         Settings.mouseTo = parseInt(mouseTo.value, 10) === 2 ? 2 : 1;
         Game.toast('The mouse now steers Player ' + Settings.mouseTo + '.');
-        try { Game.saveSettings && Game.saveSettings(); } catch (e) {}
+        try { saveSettings(); } catch (e) {}
       });
     }
     const lookSpeed = $('#split-look');
@@ -8162,7 +8253,7 @@ const UI = {
         Game.toast(padMove.checked
           ? 'Drag the buttons on the right wherever you like.'
           : 'Buttons locked.');
-        try { Game.saveSettings && Game.saveSettings(); } catch (e) {}
+        try { saveSettings(); } catch (e) {}
       });
       document.body.classList.toggle('pads-loose', !!Settings.movablePads);
     }
@@ -8183,17 +8274,10 @@ const UI = {
       catch (e) { Game.toast('Accounts are not available here.'); }
     });
 
-    /* Wild rare animals on the big map: off unless asked for. */
-    const rareBox = $('#set-rare-map');
-    if (rareBox) {
-      rareBox.checked = !!Settings.rareOnMap;
-      rareBox.addEventListener('change', () => {
-        Settings.rareOnMap = rareBox.checked;
-        saveSettings();
-        if ($('#worldmap').classList.contains('open')) this.redrawMap();
-        Game.toast(rareBox.checked ? 'Rare animals will show on the map.' : 'The map is about the land again.');
-      });
-    }
+    /* Animals worth money used to be switched on here as well as on the
+       map itself, which meant two controls for one thing and a trip through
+       Settings to change something you wanted while looking at the map. The
+       map's own Show animals button is now the only one. */
 
     /* Off means off, and on a shared screen it is one pair of speakers. */
     const muteBox = $('#set-mute');
@@ -8755,6 +8839,7 @@ const UI = {
       const dx = (x - drag.x) * scale, dy = (y - drag.y) * scale;
       drag.x = x; drag.y = y;
       drag.moved += Math.abs(dx) + Math.abs(dy);
+      if (drag.moved > 6) this.mapUsed();
       if (!Game.mapPan) Game.mapPan = { x: 0, z: 0 };
       const bpp = this.mapZoom || 6;
       Game.mapPan.x -= dx * bpp;
@@ -8825,8 +8910,6 @@ const UI = {
     on('#map-wild', 'click', () => {
       Settings.rareOnMap = !Settings.rareOnMap;
       saveSettings();
-      const box = $('#set-rare-map');
-      if (box) box.checked = Settings.rareOnMap;
       this.paintWildButton();
       this.redrawMap();
     });
@@ -8881,7 +8964,15 @@ const UI = {
     if (key) key.classList.toggle('dim', !on);
   },
 
+  /* Once somebody has dragged or zoomed, they know how; the line telling
+     them so is just taking room away from the map after that. */
+  mapUsed() {
+    const s = $('#worldmap');
+    if (s) s.classList.add('used');
+  },
+
   zoomMap(by) {
+    this.mapUsed();
     this.mapZoom = Math.max(this.MAP_IN, Math.min(this.MAP_OUT, (this.mapZoom || 6) * by));
     this.redrawMap();
   },
@@ -9046,7 +9137,7 @@ const UI = {
     const el = $('#map-marks');
     if (!el) return;
     const list = Game.waypoints || [];
-    if (!list.length) { el.innerHTML = '<p class="lede">No marks yet. Press "Mark this spot" while you are somewhere worth returning to.</p>'; return; }
+    if (!list.length) { el.innerHTML = '<p class="none">No marks yet · tap the map to leave one</p>'; return; }
     el.innerHTML = '';
     list.forEach((w, i) => {
       const row = document.createElement('div');
@@ -10830,6 +10921,8 @@ try {
   window.UI = UI;
   window.Settings = Settings;
   window.DEFAULT_SERVER = DEFAULT_SERVER;
+  window.saveSettings = saveSettings;
+  window.loadSettings = loadSettings;
 } catch (e) {}
 
 const Visits = {
@@ -10886,27 +10979,47 @@ const Visits = {
               })() +
               '&t=' + Date.now();
 
-    // 1. a beacon: plain text, so no preflight, and it survives a closing tab
+    /* One hello, not three.
+
+       This used to send a beacon, then an image, and then, if the beacon had
+       failed, a fetch as well. Every one of them reached the server and was
+       counted against that address's allowance, so one player saying hello
+       once a minute spent it three times faster than anybody intended, and a
+       household with two children playing could trip the rate limit between
+       them and start being refused.
+
+       Each way is tried in turn and the first that works is the only one
+       sent: a beacon survives a tab being closed, fetch can tell us it
+       arrived, and an image gets through where fetch is blocked outright. */
     let sent = false;
     try {
       if (navigator.sendBeacon) {
         sent = navigator.sendBeacon(base + '/visit' + q, new Blob([''], { type: 'text/plain' }));
+        // a beacon cannot answer, so an "open" sent this way is taken as done
+        if (sent && what === 'open') this.remember();
       }
     } catch (e) {}
 
-    // 2. an image: works even where fetch is blocked outright
-    try {
-      const img = new Image();
-      img.onload = () => { if (what === 'open') this.remember(); };
-      img.src = base + '/visit' + q;
-    } catch (e) {}
-
-    // 3. fetch, as a last resort and to confirm
     if (!sent) {
       try {
         fetch(base + '/visit' + q, { method: 'GET', mode: 'cors', keepalive: true })
           .then((res) => { if (res && res.ok && what === 'open') this.remember(); })
-          .catch(() => {});
+          .catch(() => {
+            try {
+              const img = new Image();
+              img.onload = () => { if (what === 'open') this.remember(); };
+              img.src = base + '/visit' + q;
+            } catch (e2) {}
+          });
+        sent = true;
+      } catch (e) {}
+    }
+
+    if (!sent) {
+      try {
+        const img = new Image();
+        img.onload = () => { if (what === 'open') this.remember(); };
+        img.src = base + '/visit' + q;
       } catch (e) {}
     }
   }
@@ -12189,10 +12302,17 @@ Game.net = {
     this.outTimer = 0;
 
     const p = (Game.realm === 'space' && Game.spacePos) ? Game.spacePos : Game.player.pos;
-    // bits: 1 on the ground, 2 flying, 4 mining, 8 swimming, 16 in a vehicle
+    /* bits: 1 on the ground, 2 flying, 4 mining, 8 swimming, 16 in a vehicle,
+       32 aboard a ship out in space.
+
+       That last one is what lets everybody else draw you correctly in orbit:
+       flying your ship, or floating on the end of your tether. Without it a
+       friend out on a spacewalk looked exactly like a friend at the controls.
+       An older copy of the game simply ignores a bit it does not know. */
     const pl = Game.player;
     const anim = (pl.onGround ? 1 : 0) | (pl.flying ? 2 : 0) | (Input.buttons.mine || Input.mouseMine ? 4 : 0) |
-                 (pl.inWater ? 8 : 0) | ((Game.riding || Game.passengerIn) ? 16 : 0);
+                 (pl.inWater ? 8 : 0) | ((Game.riding || Game.passengerIn) ? 16 : 0) |
+                 ((Game.realm === 'space' && !Game.tethered) ? 32 : 0);
     const seat = Game.riding ? Game.riding.id : (Game.passengerIn ? Game.passengerIn.id : null);
 
     // the character itself is sent once on joining and whenever it changes
@@ -15108,6 +15228,83 @@ Object.assign(Game, {
   },
 
   /* ---------- the scene you fly through between worlds ---------- */
+  /* A small ship to see in orbit.
+
+     The vehicles on the ground are built to be stood next to and climbed
+     into; out here a ship is mostly seen from a distance and against black,
+     so this is a simpler, brighter shape that reads at once: a white body, a
+     nose cone, three fins and a window. Given a colour it is somebody
+     else's, so a crowded orbit is still legible.
+
+     `flame` is the exhaust, kept as a child so it can be turned on only
+     while that ship is actually under power. */
+  makeSpaceShip(tint) {
+    const g = new THREE.Group();
+    const paint = (c) => new THREE.MeshLambertMaterial({ color: c });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.78, 3.4, 10),
+                                paint(tint || '#EDE7DA'));
+    g.add(body);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.25, 10), paint('#D9534F'));
+    nose.position.y = 2.32;
+    g.add(nose);
+    for (let i = 0; i < 3; i++) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.1, 0.92), paint('#D9534F'));
+      const a = (i / 3) * Math.PI * 2;
+      fin.position.set(Math.cos(a) * 0.68, -1.5, Math.sin(a) * 0.68);
+      fin.rotation.y = -a;
+      g.add(fin);
+    }
+    const win = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), paint('#7FD8FF'));
+    win.position.set(0, 1.0, 0.56);
+    g.add(win);
+    const flame = new THREE.Group();
+    const hot = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.7, 8),
+                               new THREE.MeshBasicMaterial({ color: 0xFFF0C4 }));
+    hot.rotation.x = Math.PI;
+    hot.position.y = -2.6;
+    flame.add(hot);
+    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.78, 2.6, 8),
+                                 new THREE.MeshBasicMaterial({ color: 0xFF7A3D, transparent: true, opacity: 0.6 }));
+    outer.rotation.x = Math.PI;
+    outer.position.y = -3.0;
+    flame.add(outer);
+    flame.visible = false;
+    g.add(flame);
+    g.userData.flame = flame;
+    return g;
+  },
+
+  /* Turn something to face a heading.
+
+     Written as one call on `rotation` rather than as a string of rotateY /
+     rotateX / rotateZ calls: those are three matrix multiplications where
+     one assignment will do, and they are methods rather than data, so
+     anything holding a stand-in for a three.js object falls over on them.
+     The order matters — yaw about the world's up, then pitch and roll about
+     the body — which is what YXZ means. */
+  face(model, pitch, yaw, roll) {
+    if (!model || !model.rotation) return;
+    try { model.rotation.order = 'YXZ'; } catch (e) {}
+    model.rotation.x = pitch || 0;
+    model.rotation.y = yaw || 0;
+    model.rotation.z = roll || 0;
+  },
+
+  /** Point a ship where it is going, and lie it over into its turns. */
+  aimShip(model, vel, yaw, dt) {
+    const speed = Math.hypot(vel.x, vel.y, vel.z);
+    // a rocket stands on its tail when drifting and tips over as it flies
+    const lean = Math.min(1, speed / 28);
+    this.face(model, lean * 1.35, yaw + Math.PI, 0);
+    const flame = model.userData.flame;
+    if (flame) {
+      flame.visible = speed > 1.2;
+      const flick = 1 + Math.sin(performance.now() * 0.03) * 0.3;
+      const k = Math.min(1.6, 0.35 + speed / 40);
+      flame.scale.set(flick * k, k, flick * k);
+    }
+  },
+
   buildSpaceScene() {
     if (this.spaceScene) return;
     const sys = this.ensureSystem();
@@ -15243,7 +15440,13 @@ Object.assign(Game, {
     if (!this.asCrew) { this.spacePilotId = null; this.wasCarried = false; }  // you are flying
     // who came up with you, so they come down with you as well
     this.crewWith = (crew || []).filter((cid) => cid !== (this.net && this.net.selfId));
-    if (this.riding) { this.spaceShip = this.riding; }
+    /* Which ship you are flying, so a starliner really is faster than a
+       rocket out here. This used to read `this.riding`, which is set to null
+       a few lines above when the craft leaves the ground with you — so it
+       was always null, `spaceShip` was never set, and every ship in the game
+       flew at the same fallback speed. */
+    this.spaceShip = (this.shipItem && VEHICLES[this.shipItem])
+      ? { def: VEHICLES[this.shipItem], itemId: this.shipItem } : null;
     $('#hud').classList.add('in-space');
     if (this.courseTo) {
       const entry = this.planetMeshes.find(e => e.planet.id === this.courseTo.id);
@@ -15386,19 +15589,93 @@ Object.assign(Game, {
       }
     }
 
-    // draw everyone who is also in orbit
+    /* Your own ship, where you can see it.
+
+       There was no ship out here at all: you flew as a disembodied camera,
+       which is why orbit felt like a menu rather than a place. Now the ship
+       is drawn ahead of and below the eye, the way it looks from a cockpit,
+       with its motor lit when you are under power. Step out on the tether
+       and it stays behind at the anchor, so you can see the thing you have
+       to get back to. */
+    if (!this.spaceShipModel) {
+      this.spaceShipModel = this.makeSpaceShip('#EDE7DA');
+      this.spaceScene.add(this.spaceShipModel);
+    }
+    {
+      const ship = this.spaceShipModel;
+      const aboard = !this.tethered && !carried;
+      if (this.tethered && this.shipAnchor) {
+        // left behind: it hangs where you got out
+        ship.position.copy(this.shipAnchor);
+        this.aimShip(ship, { x: 0, y: 0, z: 0 }, p.yaw, dt);
+        ship.visible = true;
+      } else if (carried) {
+        ship.visible = false;                 // you are in somebody else's
+      } else if (aboard) {
+        /* just in front and a little below, so the nose and fins are in
+           view without the body filling the screen */
+        const dir = new THREE.Vector3();
+        this.camera.getWorldDirection(dir);
+        ship.position.set(
+          this.spacePos.x + dir.x * 5.4,
+          this.spacePos.y + dir.y * 5.4 - 2.1,
+          this.spacePos.z + dir.z * 5.4);
+        this.aimShip(ship, this.spaceVel, p.yaw, dt);
+        ship.visible = true;
+      }
+    }
+
+    /* And everyone else who is up here.
+
+       Somebody at the controls is drawn as their ship; somebody out on a
+       tether is drawn as themselves, floating. Which one is decided by the
+       bit they send with their position, so it is always the truth rather
+       than a guess from how fast they happen to be going. */
     for (const peer of this.net.peers.values()) {
-      if (peer.realm !== 'space') { if (peer.spaceModel) peer.spaceModel.visible = false; continue; }
+      const here = peer.realm === 'space';
+      if (!here) {
+        if (peer.spaceModel) peer.spaceModel.visible = false;
+        if (peer.spaceShip) peer.spaceShip.visible = false;
+        continue;
+      }
       if (!peer.spaceModel) {
-        const m = peer.model.clone ? peer.model.clone() : null;
+        const m = peer.model && peer.model.clone ? peer.model.clone() : null;
         peer.spaceModel = m || new THREE.Mesh(
           new THREE.BoxGeometry(1.2, 2.2, 1.2),
           new THREE.MeshLambertMaterial({ color: 0xA97BFF }));
         this.spacePeers.add(peer.spaceModel);
       }
-      peer.spaceModel.visible = true;
+      if (!peer.spaceShip) {
+        peer.spaceShip = this.makeSpaceShip('#BFC6D8');
+        this.spacePeers.add(peer.spaceShip);
+      }
+      const aboard = !!(peer.anim & 32);
       peer.spaceModel.position.lerp(peer.target, Math.min(1, dt * 8));
-      peer.spaceModel.rotation.y = peer.yaw + Math.PI;
+      /* Floating is not standing. Somebody on a tether hangs slightly
+         tipped, turning gently, rather than standing to attention on
+         nothing at all. */
+      if (aboard) {
+        this.face(peer.spaceModel, 0, peer.yaw + Math.PI, 0);
+      } else {
+        peer.spaceFloat = (peer.spaceFloat || 0) + dt;
+        this.face(peer.spaceModel,
+          0.5 + Math.sin(peer.spaceFloat * 0.6) * 0.25,
+          peer.yaw + Math.PI,
+          Math.sin(peer.spaceFloat * 0.43) * 0.3);
+      }
+      peer.spaceModel.visible = !aboard;
+
+      peer.spaceShip.position.copy(peer.spaceModel.position);
+      const moved = peer.spaceLast
+        ? { x: peer.target.x - peer.spaceLast.x, y: peer.target.y - peer.spaceLast.y,
+            z: peer.target.z - peer.spaceLast.z }
+        : { x: 0, y: 0, z: 0 };
+      peer.spaceLast = { x: peer.target.x, y: peer.target.y, z: peer.target.z };
+      // the step is per frame, so scale it up to something like a speed
+      this.aimShip(peer.spaceShip,
+        { x: moved.x / Math.max(dt, 0.001), y: moved.y / Math.max(dt, 0.001),
+          z: moved.z / Math.max(dt, 0.001) }, peer.yaw, dt);
+      peer.spaceShip.visible = aboard;
     }
 
     this.camera.position.copy(this.spacePos);
@@ -15596,6 +15873,24 @@ Object.assign(Game, {
     UI.refreshSpaceBar();
   },
 
+  /* A patch of flat ground a few paces to one side, to set a ship down on.
+     Used both when a ship is built and when the one you already have is
+     brought over, so a ship always lands the same way. */
+  padBeside() {
+    const p = this.player.pos;
+    let sx = Math.round(p.x) + 4, sz = Math.round(p.z);
+    for (let tries = 0; tries < 12; tries++) {
+      const h = this.world.surfaceY(sx, sz);
+      const flatEnough = Math.abs(this.world.surfaceY(sx + 2, sz) - h) <= 1 &&
+                         Math.abs(this.world.surfaceY(sx, sz + 2) - h) <= 1;
+      if (h > 1 && flatEnough) break;
+      const a = tries * 1.1;
+      sx = Math.round(p.x + Math.cos(a) * (4 + tries));
+      sz = Math.round(p.z + Math.sin(a) * (4 + tries));
+    }
+    return { x: sx + 0.5, y: this.world.surfaceY(sx, sz) + 1, z: sz + 0.5 };
+  },
+
   /* set the ship down beside you, upright on the ground, ready to fly again */
   parkShip() {
     if (!this.shipItem || !VEHICLES[this.shipItem]) return;
@@ -15608,25 +15903,42 @@ Object.assign(Game, {
     if (this.spacePilotId || this.asCrew || this.wasCarried) { this.shipItem = null; return; }
     // and never twice: one landing, one ship
     if (this.parkedShip && this.vehicles.indexOf(this.parkedShip) >= 0) return;
+
+    /* One ship per person per world.
+
+       `parkedShip` only remembers the last one, and it is cleared whenever a
+       world is rebuilt — so flying home to a world that already had your
+       rocket standing in it, or making the same trip twice, left a second
+       one on the pad, then a third. They are all yours and all identical,
+       which is confusing rather than generous.
+
+       So before building one, look for the one you already have here. If it
+       is found it is walked over to the pad rather than duplicated. */
+    const mine = this.net.selfId || 'local';
+    const already = this.vehicles.find((v) =>
+      v && v.itemId === this.shipItem && (v.owner || 'local') === mine &&
+      v !== this.riding);
+    if (already) {
+      const spot = this.padBeside();
+      already.pos.set(spot.x, spot.y, spot.z);
+      if (already.model) already.model.position.copy(already.pos);
+      already.yaw = this.player.yaw;
+      this.parkedShip = already;
+      this.riding = null;
+      this.passengerIn = null;
+      this.mount = null;
+      this.clearVehicleHud();
+      this.net.sendVehicle(already, false);
+      this.toast('Your ' + already.def.name.toLowerCase() + ' is on the pad beside you.');
+      return;
+    }
     // you are stood on the ground now, not strapped into anything
     this.riding = null;
     this.passengerIn = null;
     this.mount = null;
     this.clearVehicleHud();
-    const p = this.player.pos;
-    // a few paces to one side, on whatever the ground is there
-    let sx = Math.round(p.x) + 4, sz = Math.round(p.z);
-    for (let tries = 0; tries < 12; tries++) {
-      const h = this.world.surfaceY(sx, sz);
-      const flatEnough = Math.abs(this.world.surfaceY(sx + 2, sz) - h) <= 1 &&
-                         Math.abs(this.world.surfaceY(sx, sz + 2) - h) <= 1;
-      if (h > 1 && flatEnough) break;
-      const a = tries * 1.1;
-      sx = Math.round(p.x + Math.cos(a) * (4 + tries));
-      sz = Math.round(p.z + Math.sin(a) * (4 + tries));
-    }
-    const gy = this.world.surfaceY(sx, sz) + 1;
-    const ship = new Vehicle(this.shipItem, new THREE.Vector3(sx + 0.5, gy, sz + 0.5), this.player.yaw);
+    const spot = this.padBeside();
+    const ship = new Vehicle(this.shipItem, new THREE.Vector3(spot.x, spot.y, spot.z), this.player.yaw);
     ship.owner = this.net.selfId || 'local';
     this.vehicles.push(ship);
     this.entityGroup.add(ship.model);
@@ -15764,6 +16076,23 @@ Object.assign(UI, {
   refreshSpaceBar() {
     const bar = $('#space-bar');
     if (!bar) return;
+
+    /* The HUD's space state belongs to where you are, not to whoever last
+       remembered to set it.
+
+       In space the hotbar, the meters, the pouch, the biome card, the break
+       bar, the minimap and the top bar are all hidden — there is no ground
+       to dig and no biome to be in. That was switched on when you launched
+       and switched off again by each of the ways down, except one: coming
+       home from orbit never switched it off. So flying home left you stood
+       in your own world with no hotbar, no meters and no map, and the only
+       way to get them back was to reload the game.
+
+       Every one of those paths already calls this, so deciding it here from
+       the realm means no path can forget again. */
+    const hud = $('#hud');
+    if (hud) hud.classList.toggle('in-space', Game.realm === 'space');
+
     if (Game.realm !== 'space') { bar.classList.remove('show'); return; }
     bar.classList.add('show');
     const t = Game.landTarget;
