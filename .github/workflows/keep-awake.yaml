@@ -1,0 +1,85 @@
+# Keeping the Voxelia server awake, around the clock.
+#
+# A free Render service goes to sleep after fifteen quiet minutes and takes
+# the better part of a minute to wake. The game itself says hello once a
+# minute while anybody is playing, which covers the daytime; this covers the
+# night, when nobody is.
+#
+# About the schedule, honestly: GitHub will not run a workflow more often
+# than every five minutes, and under load it often runs late — ten or fifteen
+# minutes is common. Asking for one every second is not possible and would
+# not help if it were: fifteen quiet minutes is what puts the service to
+# sleep, so a hello every five is already three times more often than needed.
+#
+# To survive a run being skipped entirely, each run stays alive for four
+# minutes and says hello every twenty seconds. Consecutive runs therefore
+# overlap, and the longest possible gap — a run skipped completely — is still
+# well inside the fifteen minutes that matter.
+#
+# It is free: scheduled workflows on a public repository cost nothing.
+#
+# ----------------------------------------------------------------------
+# To use it: put this file at .github/workflows/keep-awake.yml in your
+# GitHub Pages repository (Moon-testing), commit, and it starts on its own.
+# Watch it under the repository's Actions tab.
+#
+# If your server address ever changes, change it in the env block below.
+# ----------------------------------------------------------------------
+
+name: Keep the server awake
+
+on:
+  schedule:
+    # every five minutes, which is as often as GitHub allows
+    - cron: '*/5 * * * *'
+  # and a button on the Actions tab, for when you want to wake it now
+  workflow_dispatch:
+
+# never let two runs pile up on top of each other
+concurrency:
+  group: keep-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Say hello until the next run takes over
+        env:
+          SERVER: https://moon-testing-multiplayer.onrender.com
+        run: |
+          set -u
+          ok=0
+          fail=0
+          # four minutes, every twenty seconds: twelve hellos per run
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' \
+                     --max-time 45 "$SERVER/health?from=github&n=$i" || echo 000)
+            if [ "$code" = "200" ]; then
+              ok=$((ok + 1))
+              if [ "$i" = "1" ]; then
+                echo "awake: $(cat /tmp/health.json)"
+              fi
+            else
+              fail=$((fail + 1))
+              echo "hello $i got $code"
+            fi
+            [ "$i" -lt 12 ] && sleep 20
+          done
+
+          echo "----"
+          echo "$ok answered, $fail did not."
+
+          # A run where nothing at all answered is worth knowing about: it
+          # means the service is down rather than merely asleep, because a
+          # sleeping one still answers within forty-five seconds.
+          if [ "$ok" = "0" ]; then
+            echo "::error::The server did not answer once in four minutes. Check Render."
+            exit 1
+          fi
+
+          # A slow first hello is normal — that is the service waking up.
+          if [ "$fail" -gt 0 ]; then
+            echo "::warning::$fail of 12 hellos went unanswered."
+          fi
