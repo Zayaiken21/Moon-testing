@@ -560,13 +560,11 @@
 
   /* ---------- the panel ---------- */
   const CSS = `
-  #wallet-screen,#store-screen{position:fixed;inset:0;z-index:82;display:none;overflow:auto;
+  #wallet-screen{position:fixed;inset:0;z-index:82;display:none;overflow:auto;
     background:linear-gradient(180deg, rgba(8,20,40,.72), rgba(8,14,26,.94));
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
     padding:max(18px, env(safe-area-inset-top)) 16px 28px}
-  /* the store sits above the wallet, because it is opened from it */
-  #store-screen{z-index:83}
-  #wallet-screen.open,#store-screen.open{display:block}
+  #wallet-screen.open{display:block}
   .wallet-sheet{max-width:600px;margin:0 auto;background:#12182B;border:1px solid #27324E;
     border-radius:20px;padding:24px;color:#EDE9F5;
     font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -626,14 +624,6 @@
         '<p class="wallet-note" id="w-limits"></p>' +
       '</div>';
     document.body.appendChild(screen);
-
-    /* The store lives on a screen of its own rather than inside the wallet,
-       so buying a membership never hides what you have earned. */
-    const store = document.createElement('section');
-    store.id = 'store-screen';
-    store.innerHTML = '<div class="wallet-sheet"><h2>Membership</h2>' +
-      '<div id="store-body"></div></div>';
-    document.body.appendChild(store);
 
     document.getElementById('w-close').addEventListener('click', close);
     document.getElementById('w-refresh').addEventListener('click', () => { flushPending(); refresh(); });
@@ -733,92 +723,20 @@
 
   /* ---------- the membership ----------
 
-     What it does — the higher daily limit and the lower withdrawal minimum —
-     is whatever the server currently says, so the store describes the real
-     thing rather than a copy of it written into this page.
-
-     On paying for it, plainly: nothing here is connected to a card
-     processor, and this does not put up a checkout that only looks like one.
-     A membership is turned on with a code. */
-  async function openStore() {
-    /* The panels are built the first time they are needed, and the store can
-       be the first thing anybody opens — from a toast about the daily limit,
-       say — so it must not assume the wallet has been opened before it. */
-    if (!document.getElementById('store-screen')) build();
-    const base = serverBase();
-    const box = document.getElementById('store-body');
-    if (!box) return;
-    document.getElementById('store-screen').classList.add('open');
-    if (!base) { box.innerHTML = '<p class="wallet-note">The store needs a connection.</p>'; return; }
-    box.innerHTML = '<p class="wallet-note">Looking…</p>';
-    let p = null;
-    try { p = await (await fetch(base + '/store/plans')).json(); } catch (e) {}
-    if (!p || !p.ok) { box.innerHTML = '<p class="wallet-note">The store could not be reached.</p>'; return; }
-
-    const member = account && (account.member || account.subscribed);
-    box.innerHTML =
-      '<div class="wallet-balance"><small>' + String(p.membership.name || 'Membership') +
-        '</small><b>' + money(p.membership.priceCents) + '</b>' +
-        '<small>for ' + p.membership.days + ' days</small></div>' +
-      (p.membership.blurb ? '<p class="lede">' + p.membership.blurb + '</p>' : '') +
-      '<div class="wallet-grid">' +
-        '<div class="wallet-card"><small>Daily limit now</small><b>' +
-          money(p.free.cap) + '</b></div>' +
-        '<div class="wallet-card"><small>With a membership</small><b>' +
-          money(p.member.cap) + '</b></div>' +
-        '<div class="wallet-card"><small>Withdraw from</small><b>' +
-          money(p.member.withdraw.min) + '</b></div>' +
-      '</div>' +
-      (member
-        ? '<p class="wallet-note">You are a member already' +
-          (account.subscription_until
-            ? ', until ' + String(account.subscription_until).slice(0, 10) : '') +
-          '. A second code adds its days on the end rather than replacing them.</p>'
-        : '') +
-      '<h3 style="font-family:Chakra Petch,sans-serif;font-size:15px;margin:20px 0 6px">' +
-        'Turn one on</h3>' +
-      '<p class="wallet-note">Memberships are turned on with a code. There is no ' +
-        'card checkout here — rather than show one that does not work, the code ' +
-        'is the honest version of the same thing.</p>' +
-      '<input id="store-code" placeholder="ABCD-1234-EFGH" autocomplete="off" ' +
-        'spellcheck="false" style="width:100%;margin:10px 0;background:#1A2440;' +
-        'border:1px solid #27324E;border-radius:10px;padding:12px;color:#EDE9F5;' +
-        'font-size:16px;letter-spacing:.14em;text-transform:uppercase" />' +
-      '<button id="store-redeem">Turn it on</button> ' +
-      '<button class="ghost" id="store-close">Close</button>' +
-      '<p class="wallet-note" id="store-said"></p>';
-
-    document.getElementById('store-close').addEventListener('click', closeStore);
-    document.getElementById('store-redeem').addEventListener('click', redeem);
-    document.getElementById('store-code').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') redeem();
-    });
+     The store is store.js, and it is the only store. This used to build a
+     second panel of its own, also called `store-screen` — two elements with
+     one id, so `getElementById` found whichever happened to be built first
+     and the Membership button could open the wrong one. The wallet keeps the
+     wallet; the store keeps the store. */
+  function openStore() {
+    if (window.VoxeliaStore && VoxeliaStore.open) { VoxeliaStore.open(); return; }
+    toast('The store is not loaded on this page.');
   }
-
   function closeStore() {
-    const s = document.getElementById('store-screen');
-    if (s) s.classList.remove('open');
+    if (window.VoxeliaStore && VoxeliaStore.close) VoxeliaStore.close();
   }
-
-  async function redeem() {
-    const base = serverBase();
-    const said = document.getElementById('store-said');
-    const code = (document.getElementById('store-code').value || '').trim();
-    if (!code) { said.textContent = 'Type the code in first.'; return; }
-    if (!session()) { said.textContent = 'Sign in first, so the membership has somewhere to go.'; return; }
-    said.textContent = 'Checking…';
-    try {
-      const res = await fetch(base + '/store/redeem', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session: session(), code })
-      });
-      const out = await res.json();
-      if (!out.ok) { said.textContent = out.why || 'That code did not work.'; return; }
-      said.textContent = 'Done. Your daily limit is now ' + money(out.cap) + '.';
-      toast('Membership on. You can earn ' + money(out.cap) + ' a day now.');
-      if (out.account) account = Object.assign(account || {}, out.account);
-      await refresh();
-    } catch (e) { said.textContent = 'Could not reach the server.'; }
+  function redeem() {
+    if (window.VoxeliaStore && VoxeliaStore.redeem) return VoxeliaStore.redeem();
   }
 
   function open() { document.getElementById('wallet-screen').classList.add('open'); flushPending(); refresh(); }
