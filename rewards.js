@@ -83,6 +83,12 @@
       const res = await fetch(base + '/wallet?account=' + encodeURIComponent(accountId()) +
         (session() ? '&session=' + encodeURIComponent(session()) : ''));
       if (res.ok) cache = await res.json();
+      /* Hand the real rates to the game, so the map legend and the little
+         labels next to each animal say what the server will actually pay
+         rather than what it paid when the page was written. */
+      if (cache.rates && window.Game && window.Game.setPayRates) {
+        window.Game.setPayRates(cache.rates);
+      }
     } catch (e) { /* offline: the last known figures stay on screen */ }
     render();
     return cache;
@@ -105,12 +111,28 @@
       if (out && out.ok) {
         cache.balance = out.balance;
         cache.caught = out.caught;
-        toast('Caught! ' + money(out.cents) + ' added. Wallet: ' + money(out.balance));
+        if (out.today !== undefined) cache.today = out.today;
+        if (out.cap !== undefined) cache.dailyCap = out.cap;
+        /* Paid less than the animal was worth, because it did not fit inside
+           what was left of today. Saying so is the difference between a
+           player thinking they were short-changed and a player understanding
+           they have hit their limit for the day. */
+        toast(out.short
+          ? 'Caught! Only ' + money(out.cents) + ' of its ' + money(out.worth) +
+            ' fitted in today’s limit. Wallet: ' + money(out.balance)
+          : 'Caught! ' + money(out.cents) + ' added. Wallet: ' + money(out.balance));
         render();
       } else if (out && out.why) {
-        // a common animal earns nothing; that is not a problem, so it is
-        // said once and quietly rather than as a warning
+        /* Not paid. This used to be the quiet case, because the server said
+           ok even when nothing had been paid — the player was congratulated
+           and their balance never moved. Now a refusal arrives as a refusal,
+           and the only one said quietly is a common animal, which is not a
+           problem but the ordinary way of things. */
+        if (out.balance !== undefined) cache.balance = out.balance;
+        if (out.today !== undefined) cache.today = out.today;
+        if (out.cap !== undefined) cache.dailyCap = out.cap;
         toast(out.why);
+        render();
       }
       return out;
     } catch (e) {
@@ -538,11 +560,13 @@
 
   /* ---------- the panel ---------- */
   const CSS = `
-  #wallet-screen{position:fixed;inset:0;z-index:82;display:none;overflow:auto;
+  #wallet-screen,#store-screen{position:fixed;inset:0;z-index:82;display:none;overflow:auto;
     background:linear-gradient(180deg, rgba(8,20,40,.72), rgba(8,14,26,.94));
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
     padding:max(18px, env(safe-area-inset-top)) 16px 28px}
-  #wallet-screen.open{display:block}
+  /* the store sits above the wallet, because it is opened from it */
+  #store-screen{z-index:83}
+  #wallet-screen.open,#store-screen.open{display:block}
   .wallet-sheet{max-width:600px;margin:0 auto;background:#12182B;border:1px solid #27324E;
     border-radius:20px;padding:24px;color:#EDE9F5;
     font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -572,6 +596,8 @@
   `;
 
   function build() {
+    // building twice would leave two of everything, and two of an id is none
+    if (document.getElementById('wallet-screen')) return;
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
@@ -593,15 +619,26 @@
         '<h3 style="font-family:Chakra Petch,sans-serif;font-size:15px;margin:20px 0 6px">What they pay</h3>' +
         '<div id="w-rates"></div>' +
         '<button id="w-withdraw">Request a withdrawal</button> ' +
+        '<button class="ghost" id="w-store">Membership</button> ' +
         '<button class="ghost" id="w-refresh">Refresh</button> ' +
         '<button class="ghost" id="w-close">Close</button>' +
         '<p class="wallet-note" id="w-account"></p>' +
+        '<p class="wallet-note" id="w-limits"></p>' +
       '</div>';
     document.body.appendChild(screen);
+
+    /* The store lives on a screen of its own rather than inside the wallet,
+       so buying a membership never hides what you have earned. */
+    const store = document.createElement('section');
+    store.id = 'store-screen';
+    store.innerHTML = '<div class="wallet-sheet"><h2>Membership</h2>' +
+      '<div id="store-body"></div></div>';
+    document.body.appendChild(store);
 
     document.getElementById('w-close').addEventListener('click', close);
     document.getElementById('w-refresh').addEventListener('click', () => { flushPending(); refresh(); });
     document.getElementById('w-withdraw').addEventListener('click', withdraw);
+    document.getElementById('w-store').addEventListener('click', openStore);
     render();
   }
 
@@ -625,20 +662,163 @@
     /* Whose wallet this is, said in words rather than in an id nobody can
        read. Signed out, it says so plainly, because that is the thing worth
        knowing: what you earn is staying on this one browser. */
+    const member = !!(cache.member || (account && (account.member || account.subscribed)));
     document.getElementById('w-account').textContent =
       (account && account.username
-        ? 'Signed in as ' + account.username + ' \u00b7 this money is in your account'
+        ? 'Signed in as ' + account.username +
+          (member ? ' \u00b7 member' : '') + ' \u00b7 this money is in your account'
         : 'Playing as a guest \u00b7 what you earn stays on this device until you make an account') +
       (serverBase() ? '' : ' \u00b7 offline, claims are held until you reconnect') +
       (pending.length ? ' \u00b7 ' + pending.length + ' waiting to send' : '');
+
+    /* What it takes to get money out, in words, rather than being found out
+       by pressing the button and being turned away. */
+    const lim = document.getElementById('w-limits');
+    if (lim) {
+      const w = cache.withdraw;
+      lim.textContent = !w ? ''
+        : w.ok
+          ? 'You can take out between ' + money(w.min) + ' and ' + money(w.most) + ' right now.'
+          : (w.why || '') + (member ? '' : ' A membership lowers that.');
+    }
   }
 
-  function withdraw() {
-    if (cache.balance < 500) {
-      toast('Withdrawals open at ' + money(500) + '. You have ' + money(cache.balance) + '.');
+  /* ---------- taking money out ----------
+
+     Every limit here belongs to the server: the smallest withdrawal, the
+     most in one go, the most in a day and in a month, and whether a
+     membership changes any of them. The page asks what is allowed rather
+     than deciding, so changing a limit on the admin page changes what this
+     screen offers without the game being updated at all. */
+  async function withdraw() {
+    const base = serverBase();
+    if (!base) { toast('Withdrawing needs a connection.'); return; }
+    if (!session()) { toast('Sign in first, so the money has somewhere to go.'); return; }
+
+    let quote = null;
+    try {
+      const res = await fetch(base + '/payout/quote?session=' + encodeURIComponent(session()));
+      quote = await res.json();
+    } catch (e) { toast('Could not reach the server.'); return; }
+
+    if (!quote || !quote.ok) { toast((quote && quote.why) || 'Withdrawing is not open yet.'); return; }
+
+    const asked = prompt(
+      'How much would you like to take out?\n\n' +
+      'Between ' + money(quote.min) + ' and ' + money(quote.most) + '.\n' +
+      'You have ' + money(quote.balance) + '.',
+      (quote.most / 100).toFixed(2));
+    if (asked === null) return;
+    const cents = Math.round(parseFloat(String(asked).replace(/[^0-9.]/g, '')) * 100);
+    if (!cents || cents < quote.min || cents > quote.most) {
+      toast('That has to be between ' + money(quote.min) + ' and ' + money(quote.most) + '.');
       return;
     }
-    toast('Withdrawals are not connected to a payment provider yet.');
+
+    const where = prompt('Where should it be sent? A PayPal email, usually.');
+    if (!where) return;
+
+    try {
+      const res = await fetch(base + '/payout/request', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session: session(), cents, method: 'paypal', destination: where })
+      });
+      const out = await res.json();
+      if (!out.ok) { toast(out.why || 'That could not be taken.'); return; }
+      cache.balance = out.balance;
+      render();
+      toast('Asked for ' + money(out.took) + '. It is set aside and will be sent by hand.');
+    } catch (e) { toast('Could not reach the server.'); }
+  }
+
+  /* ---------- the membership ----------
+
+     What it does — the higher daily limit and the lower withdrawal minimum —
+     is whatever the server currently says, so the store describes the real
+     thing rather than a copy of it written into this page.
+
+     On paying for it, plainly: nothing here is connected to a card
+     processor, and this does not put up a checkout that only looks like one.
+     A membership is turned on with a code. */
+  async function openStore() {
+    /* The panels are built the first time they are needed, and the store can
+       be the first thing anybody opens — from a toast about the daily limit,
+       say — so it must not assume the wallet has been opened before it. */
+    if (!document.getElementById('store-screen')) build();
+    const base = serverBase();
+    const box = document.getElementById('store-body');
+    if (!box) return;
+    document.getElementById('store-screen').classList.add('open');
+    if (!base) { box.innerHTML = '<p class="wallet-note">The store needs a connection.</p>'; return; }
+    box.innerHTML = '<p class="wallet-note">Looking…</p>';
+    let p = null;
+    try { p = await (await fetch(base + '/store/plans')).json(); } catch (e) {}
+    if (!p || !p.ok) { box.innerHTML = '<p class="wallet-note">The store could not be reached.</p>'; return; }
+
+    const member = account && (account.member || account.subscribed);
+    box.innerHTML =
+      '<div class="wallet-balance"><small>' + String(p.membership.name || 'Membership') +
+        '</small><b>' + money(p.membership.priceCents) + '</b>' +
+        '<small>for ' + p.membership.days + ' days</small></div>' +
+      (p.membership.blurb ? '<p class="lede">' + p.membership.blurb + '</p>' : '') +
+      '<div class="wallet-grid">' +
+        '<div class="wallet-card"><small>Daily limit now</small><b>' +
+          money(p.free.cap) + '</b></div>' +
+        '<div class="wallet-card"><small>With a membership</small><b>' +
+          money(p.member.cap) + '</b></div>' +
+        '<div class="wallet-card"><small>Withdraw from</small><b>' +
+          money(p.member.withdraw.min) + '</b></div>' +
+      '</div>' +
+      (member
+        ? '<p class="wallet-note">You are a member already' +
+          (account.subscription_until
+            ? ', until ' + String(account.subscription_until).slice(0, 10) : '') +
+          '. A second code adds its days on the end rather than replacing them.</p>'
+        : '') +
+      '<h3 style="font-family:Chakra Petch,sans-serif;font-size:15px;margin:20px 0 6px">' +
+        'Turn one on</h3>' +
+      '<p class="wallet-note">Memberships are turned on with a code. There is no ' +
+        'card checkout here — rather than show one that does not work, the code ' +
+        'is the honest version of the same thing.</p>' +
+      '<input id="store-code" placeholder="ABCD-1234-EFGH" autocomplete="off" ' +
+        'spellcheck="false" style="width:100%;margin:10px 0;background:#1A2440;' +
+        'border:1px solid #27324E;border-radius:10px;padding:12px;color:#EDE9F5;' +
+        'font-size:16px;letter-spacing:.14em;text-transform:uppercase" />' +
+      '<button id="store-redeem">Turn it on</button> ' +
+      '<button class="ghost" id="store-close">Close</button>' +
+      '<p class="wallet-note" id="store-said"></p>';
+
+    document.getElementById('store-close').addEventListener('click', closeStore);
+    document.getElementById('store-redeem').addEventListener('click', redeem);
+    document.getElementById('store-code').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') redeem();
+    });
+  }
+
+  function closeStore() {
+    const s = document.getElementById('store-screen');
+    if (s) s.classList.remove('open');
+  }
+
+  async function redeem() {
+    const base = serverBase();
+    const said = document.getElementById('store-said');
+    const code = (document.getElementById('store-code').value || '').trim();
+    if (!code) { said.textContent = 'Type the code in first.'; return; }
+    if (!session()) { said.textContent = 'Sign in first, so the membership has somewhere to go.'; return; }
+    said.textContent = 'Checking…';
+    try {
+      const res = await fetch(base + '/store/redeem', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session: session(), code })
+      });
+      const out = await res.json();
+      if (!out.ok) { said.textContent = out.why || 'That code did not work.'; return; }
+      said.textContent = 'Done. Your daily limit is now ' + money(out.cap) + '.';
+      toast('Membership on. You can earn ' + money(out.cap) + ' a day now.');
+      if (out.account) account = Object.assign(account || {}, out.account);
+      await refresh();
+    } catch (e) { said.textContent = 'Could not reach the server.'; }
   }
 
   function open() { document.getElementById('wallet-screen').classList.add('open'); flushPending(); refresh(); }
@@ -723,6 +903,7 @@
 
   window.VoxeliaWallet = {
     open, close, refresh, claim, transfer,
+    openStore, closeStore, redeem, withdraw,
     openAccount, closeAccount, signedIn: () => account, session,
     account: accountId,
     balance: () => cache.balance,

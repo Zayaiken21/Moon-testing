@@ -204,18 +204,41 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #minimap-wrap::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:inset 0 0 18px rgba(0,0,0,.55)}
 #minimap{width:100%;height:100%;display:block}
+/* The map screen.
+
+   The map is the screen, and everything else floats over it. It used to be a
+   column — a title, then the map, then a legend, a hint, five buttons and a
+   list of marks — and the map got whatever height was left over, which on a
+   wide window was a small strip in the middle of a great deal of nothing.
+   Now the canvas fills the window corner to corner and the panels sit on top
+   of it, out of the way and dismissible. */
 #worldmap{padding:0;display:none}
-#worldmap.open{display:flex;flex-direction:column;z-index:60}
-.map-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-  padding:max(12px,env(safe-area-inset-top)) 14px 10px}
+#worldmap.open{display:block;z-index:60;overflow:hidden}
+.map-head{position:absolute;left:0;right:0;top:0;z-index:4;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:max(12px,env(safe-area-inset-top)) 14px 22px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,18,28,.92) 25%,rgba(20,18,28,0))}
+.map-head > div{pointer-events:none}
+.map-head-btns{display:flex;gap:8px;align-items:center;pointer-events:auto;flex:0 0 auto}
 .map-exit{border-color:var(--moon);color:var(--moon);white-space:nowrap}
-.map-body{flex:1;display:grid;place-items:center;min-height:0;padding:0 10px;position:relative}
-/* As big as the screen will give it. It used to be capped at 58% of the
-   window's height, which on a phone held sideways left a small square in the
-   middle of a lot of nothing. */
-#bigmap{width:min(96vw, 74vh);height:min(96vw, 74vh);border-radius:14px;
-  border:1px solid var(--line);background:var(--ink);touch-action:none;
-  box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#map-bare{white-space:nowrap}
+/* the map itself: the whole screen, behind everything */
+.map-body{position:absolute;inset:0;padding:0;display:block;overflow:hidden;z-index:1}
+#bigmap{display:block;width:100%;height:100%;max-width:none;max-height:none;
+  border:none;border-radius:0;background:var(--ink);touch-action:none;box-shadow:none}
+
+/* the panels, along the bottom, over the map */
+.map-chrome{position:absolute;left:0;right:0;bottom:0;z-index:4;
+  display:flex;flex-direction:column;
+  max-height:52vh;overflow:hidden;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:linear-gradient(180deg,rgba(20,18,28,0),rgba(20,18,28,.86) 22%,rgba(20,18,28,.96))}
+/* "Hide panels": the map and nothing else, for actually looking at it */
+#worldmap.bare .map-chrome{display:none}
+#worldmap.bare .map-head{background:none;padding-bottom:10px}
+/* only the title block goes; the buttons have to stay or there is no way
+   back from a screen with nothing on it but map */
+#worldmap.bare .map-head > div:not(.map-head-btns){display:none}
 
 /* What the marks mean. Small, quiet, and always there, so nobody has to
    guess what a blue dot is worth. */
@@ -244,9 +267,9 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .map-foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
   padding:10px 14px 6px;position:relative;z-index:2}
 .map-foot .btn{min-width:96px}
-.map-hint{position:relative;z-index:3;text-align:center;color:var(--text);font-size:12px;
-  padding:8px 14px 6px;background:linear-gradient(180deg, rgba(20,18,28,0), rgba(20,18,28,.9) 40%)}
-.map-marks{position:relative;z-index:3;background:rgba(20,18,28,.92)}
+.map-hint{position:relative;z-index:3;text-align:center;color:var(--muted);font-size:12px;
+  padding:6px 14px 4px;background:none}
+.map-marks{position:relative;z-index:3;background:none}
 .mark-row{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);
   border-radius:9px;padding:8px 11px}
 .mark-row .grow{flex:1;text-align:left;background:none;border:none;color:inherit;cursor:pointer;font:inherit}
@@ -345,7 +368,9 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #bigmap{touch-action:none}
 #waypoint-guide b{font-size:calc(19px * var(--ui));color:var(--ember)}
 #waypoint-guide span{font-size:calc(11px * var(--ui));color:var(--muted);line-height:1.3}
-.map-head,.map-hint,.map-foot,.map-marks{position:relative;z-index:3}
+/* the head is pinned to the top of the map and the rest ride in .map-chrome,
+   so only these two still need a stacking order of their own */
+.map-hint,.map-foot,.map-marks{position:relative;z-index:3}
 .map-marks{max-height:20vh;overflow-y:auto;padding:0 14px 12px;display:flex;flex-direction:column;gap:6px}
 .map-marks .bind-row{cursor:pointer}
 #fps{position:absolute;left:50%;transform:translateX(-50%);top:6px;font-family:var(--display);font-size:11px;
@@ -1185,9 +1210,10 @@ body.split-on #meters{width:min(150px,17vw) !important;
 /* the world itself never shows one: it is not a page */
 #hud ::-webkit-scrollbar,#p2-panel ::-webkit-scrollbar{width:0;height:0}
 #hud *,#p2-panel *{scrollbar-width:none}
-/* the map fills whatever room there is rather than being a fixed square */
-.map-body{min-height:0;flex:1 1 auto;display:grid;place-items:center;overflow:hidden}
-.map-body canvas{max-width:100%;max-height:100%;width:auto;height:auto}
+/* The map fills the window. These used to squeeze the canvas into whatever
+   the panels left over; the panels now float over it instead. */
+.map-body{position:absolute;inset:0;min-height:0;display:block;overflow:hidden}
+.map-body canvas{width:100%;height:100%;max-width:none;max-height:none}
 /* short windows: smaller type and tighter padding, so more fits before
    anything has to slide at all */
 @media (max-height:760px){
@@ -1893,27 +1919,35 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <h2 style="font-size:19px">Explored map</h2>
       <p class="lede" id="map-note" style="margin:2px 0 0">Only the ground you have walked near is drawn.</p>
     </div>
-    <button class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
+    <div class="map-head-btns">
+      <button class="btn" id="map-bare" title="Put the panels away and just look">Hide panels</button>
+      <button class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
+    </div>
   </div>
   <div class="map-body"><canvas id="bigmap" width="1024" height="1024"></canvas></div>
-  <div class="map-key" id="map-key">
-    <span><i class="k-me"></i>You</span>
-    <span><i class="k-peer"></i>Players</span>
-    <span><i class="k-mine"></i>Yours</span>
-    <span><i class="k-uncommon"></i>Uncommon 2&cent;</span>
-    <span><i class="k-rare"></i>Rare 6&cent;</span>
-    <span><i class="k-exotic"></i>Exotic 12&cent;</span>
-    <span><i class="k-legendary"></i>Legendary 30&cent;</span>
+  <!-- Everything that is not the map itself. It floats over the map rather
+       than taking space away from it, which is what used to leave a small
+       square of map in the middle of a screenful of controls. -->
+  <div class="map-chrome" id="map-chrome">
+    <div class="map-key" id="map-key">
+      <span><i class="k-me"></i>You</span>
+      <span><i class="k-peer"></i>Players</span>
+      <span><i class="k-mine"></i>Yours</span>
+      <span><i class="k-uncommon"></i>Uncommon 2&cent;</span>
+      <span><i class="k-rare"></i>Rare 6&cent;</span>
+      <span><i class="k-exotic"></i>Exotic 12&cent;</span>
+      <span><i class="k-legendary"></i>Legendary 30&cent;</span>
+    </div>
+    <p class="map-hint">Drag the map to look around. Tap it to drop a mark. Pinch or scroll to zoom.</p>
+    <div class="map-foot">
+      <button class="btn" id="map-out">Zoom out</button>
+      <button class="btn" id="map-in">Zoom in</button>
+      <button class="btn" id="map-centre">Centre on me</button>
+      <button class="btn" id="map-mark">Mark this spot</button>
+      <button class="btn" id="map-wild">Show animals</button>
+    </div>
+    <div id="map-marks" class="map-marks"></div>
   </div>
-  <p class="map-hint">Drag the map to look around. Tap it to drop a mark. Pinch or scroll to zoom.</p>
-  <div class="map-foot">
-    <button class="btn" id="map-out">Zoom out</button>
-    <button class="btn" id="map-in">Zoom in</button>
-    <button class="btn" id="map-centre">Centre on me</button>
-    <button class="btn" id="map-mark">Mark this spot</button>
-    <button class="btn" id="map-wild">Show animals</button>
-  </div>
-  <div id="map-marks" class="map-marks"></div>
 </section>
 
 <!-- ============ BAG ============ -->
@@ -4828,6 +4862,39 @@ const Game = {
     this.explored.set(key, { bi, h, s, sh });
   },
 
+  /* What an animal of each kind pays, in cents.
+
+     These are only what the game shows before the server has been asked.
+     The server decides, and it can be changed from the admin page without
+     the game being updated, so whatever it last told us replaces this.
+     `VoxeliaWallet` fills it in whenever it reads the wallet. */
+  payRates: { common: 0, uncommon: 2, rare: 6, exotic: 12, legendary: 30 },
+
+  payRate(rarity) {
+    const c = this.payRates[String(rarity || 'common')];
+    return Number.isFinite(c) ? c : 0;
+  },
+
+  /** Let the wallet hand over what the server actually pays. */
+  setPayRates(rates) {
+    if (!rates || typeof rates !== 'object') return;
+    let changed = false;
+    for (const k of Object.keys(rates)) {
+      if (Number.isFinite(rates[k]) && this.payRates[k] !== rates[k]) {
+        this.payRates[k] = rates[k];
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    // the land cache holds a picture drawn with the old figures on it
+    this._land = null;
+    try {
+      if (typeof UI !== 'undefined' && UI.paintLegend) UI.paintLegend();
+      if (typeof UI !== 'undefined' && document.getElementById('worldmap') &&
+          document.getElementById('worldmap').classList.contains('open')) UI.redrawMap();
+    } catch (e) {}
+  },
+
   drawMap(canvas, blocksPerPixel, radiusCircle) {
     if (!canvas || !this.world) return;
     this.useMap();          // the map of the world you are actually standing on
@@ -4945,11 +5012,24 @@ const Game = {
 
   /** Everything that moves: animals, players, marks, and you. */
   paintMarks(g, W, H, px, pz, blocksPerPixel, pan, radiusCircle) {
-    /* Everything below is drawn in the canvas's own pixels, and the big map
-       is 1024 across while the one in the corner is 132. Without this a dot
-       sized for one is invisible on the other. Sizes are written at the size
-       they should look on screen and multiplied by this. */
-    const scale = radiusCircle ? Math.max(1, W / 132) : Math.max(1, W / 512);
+    /* Everything below is drawn in the canvas's own pixels, and sizes are
+       written at the size they should look on screen, then multiplied by
+       this.
+
+       It used to be worked out from how wide the canvas was — fine while the
+       big map was always 1024 pixels shown at about seven hundred, and wrong
+       the moment the map became as wide as the window: the picture stopped
+       being shrunk to fit, so every dot was suddenly drawn half as big again
+       as it should be and the labels swamped the land underneath.
+
+       What actually matters is how many canvas pixels there are per pixel on
+       the screen. That is what keeps a dot the same size to the eye on a
+       phone, a laptop and a very sharp screen alike. */
+    const shownW = (g.canvas && g.canvas.clientWidth) || 0;
+    const perPixel = shownW > 0 ? (W / shownW) : 1;
+    const scale = radiusCircle
+      ? Math.max(1, W / 132)                    // the little map is its own size
+      : Math.max(1, perPixel * 1.25);
 
     /* What is worth going to look at.
 
@@ -4973,11 +5053,15 @@ const Game = {
        other, and a heap of overlapping words is worse than no words at all.
        One label is kept per patch of the map. */
     const labelled = [];
-    const roomFor = (x, y) => {
+    /* Is there room to print a label here without landing on one already
+       printed? Each label reserves the space its own text really needs
+       rather than a fixed box, so a long name keeps a short one away. */
+    const roomFor = (x, y, half) => {
+      const w = half || 35 * scale;
       for (const p of labelled) {
-        if (Math.abs(p[0] - x) < 70 * scale && Math.abs(p[1] - y) < 16 * scale) return false;
+        if (Math.abs(p[0] - x) < (w + p[2]) && Math.abs(p[1] - y) < 16 * scale) return false;
       }
-      labelled.push([x, y]);
+      labelled.push([x, y, w]);
       return true;
     };
 
@@ -5021,17 +5105,27 @@ const Game = {
       g.lineWidth = 1.8 * scale;
       g.beginPath(); g.moveTo(sx, sy - r * 0.45); g.lineTo(sx, sy + r * 0.45); g.stroke();
 
-      // on the big map, say what it is and what it is worth
-      if (big && blocksPerPixel < 1.6 && roomFor(sx, sy - r)) {
-        const worth = { uncommon: '2c', rare: '6c', exotic: '12c', legendary: '30c' }[c.rarity] || '';
-        const words = (c.displayName || c.def.name) + (worth ? '  ' + worth : '');
+      /* On the big map, say what it is and what it is worth.
+
+         The name is measured before any room is claimed for it, because a
+         guessed width is how two long names end up printed on top of each
+         other: "Gale-shell Bounder" is more than twice the width of "Clam",
+         and reserving the same box for both means the second one is allowed
+         into space the first is already using. */
+      if (big && blocksPerPixel < 1.6) {
+        const cents = this.payRate(c.rarity);
+        const worth = cents > 0 ? '  ' + cents + 'c' : '';
+        const words = (c.displayName || c.def.name) + worth;
         g.font = '600 ' + Math.round(12 * scale) + 'px sans-serif';
-        g.textAlign = 'center';
-        g.lineWidth = 3.5 * scale;
-        g.strokeStyle = 'rgba(10,9,16,.85)';
-        g.strokeText(words, sx, sy - r - 6 * scale);
-        g.fillStyle = look.fill;
-        g.fillText(words, sx, sy - r - 6 * scale);
+        const half = (g.measureText(words).width / 2) + 6 * scale;
+        if (roomFor(sx, sy - r, half)) {
+          g.textAlign = 'center';
+          g.lineWidth = 3.5 * scale;
+          g.strokeStyle = 'rgba(10,9,16,.85)';
+          g.strokeText(words, sx, sy - r - 6 * scale);
+          g.fillStyle = look.fill;
+          g.fillText(words, sx, sy - r - 6 * scale);
+        }
       }
     }
 
@@ -8736,12 +8830,45 @@ const UI = {
       this.paintWildButton();
       this.redrawMap();
     });
+
+    /* Put the panels away and have the whole window be map. Everything is
+       still reachable: the button turns back into Show panels. */
+    on('#map-bare', 'click', () => {
+      const screen = $('#worldmap');
+      const bare = screen.classList.toggle('bare');
+      const b = $('#map-bare');
+      if (b) b.textContent = bare ? 'Show panels' : 'Hide panels';
+      // the map just got taller, so it needs to be drawn at the new size
+      requestAnimationFrame(() => this.redrawMap());
+    });
+
+    /* Turning a phone sideways changes the shape of the map, so the picture
+       has to be made again at the new size rather than stretched. */
+    addEventListener('resize', () => {
+      if (!$('#worldmap').classList.contains('open')) return;
+      clearTimeout(this._mapFitTimer);
+      this._mapFitTimer = setTimeout(() => this.redrawMap(), 120);
+    });
   },
 
   /* How far in and out the map goes. In far enough to pick out one tree,
      out far enough to see the whole of what you have walked. */
   MAP_IN: 0.08,
   MAP_OUT: 90,
+
+  /** The legend says what the server really pays, not what it paid once. */
+  paintLegend() {
+    const key = $('#map-key');
+    if (!key) return;
+    const names = { uncommon: 'Uncommon', rare: 'Rare', exotic: 'Exotic', legendary: 'Legendary' };
+    for (const kind of Object.keys(names)) {
+      const dot = key.querySelector('.k-' + kind);
+      if (!dot || !dot.parentNode) continue;
+      const cents = Game.payRate(kind);
+      dot.parentNode.lastChild.textContent = names[kind] +
+        (cents > 0 ? ' ' + cents + '¢' : ' —');
+    }
+  },
 
   /** The Show animals button says which way it is pointing. */
   paintWildButton() {
@@ -8759,13 +8886,49 @@ const UI = {
     this.redrawMap();
   },
 
+  /**
+   * Make the picture the same size and shape as the space it is shown in.
+   *
+   * The canvas was a fixed 1024 by 1024 square stretched to fit whatever
+   * room was left, so a wide window showed a squashed square and every pixel
+   * of it was guessed at rather than drawn. Sizing the picture to the
+   * element makes the map genuinely wider on a wide screen \u2014 more world
+   * visible at the same zoom \u2014 and sharp instead of soft.
+   *
+   * It is capped: two device pixels to one is as sharp as anybody can see,
+   * and the total is held under about four megapixels so that an old phone
+   * is not asked to fill a picture it cannot afford.
+   */
+  fitMap() {
+    const c = $('#bigmap');
+    if (!c) return false;
+    const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) return false;            // not on screen yet
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    const most = 4.2e6;
+    if (w * h > most) {
+      const k = Math.sqrt(most / (w * h));
+      // floor, not round: rounding both up puts the total back over the cap
+      w = Math.floor(w * k); h = Math.floor(h * k);
+    }
+    if (c.width === w && c.height === h) return false;
+    c.width = w; c.height = h;
+    return true;
+  },
+
   redrawMap() {
+    this.fitMap();
+    this.paintLegend();
     Game.drawMap($('#bigmap'), this.mapZoom || 6, false);
     const n = Game.explored ? Game.explored.size : 0;
     const pan = Game.mapPan && (Game.mapPan.x || Game.mapPan.z);
+    /* How much world is on screen, measured across the widest side, which is
+       the number that means something when the map is no longer a square. */
+    const c = $('#bigmap') || { width: 1024, height: 1024 };
+    const across = Math.round((this.mapZoom || 6) * Math.max(c.width, c.height));
     $('#map-note').textContent = n
-      ? n + ' areas explored \u00b7 ' +
-        Math.round((this.mapZoom || 6) * (($('#bigmap') || { width: 1024 }).width)) + ' blocks across' +
+      ? n + ' areas explored \u00b7 ' + across + ' blocks across' +
         (pan ? ' \u00b7 drag to look around, or press Centre' : ' \u00b7 drag to look around')
       : 'Nothing explored yet. Walk around and the map fills in.';
   },

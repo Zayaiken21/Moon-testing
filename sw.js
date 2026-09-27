@@ -1,5 +1,5 @@
 /* Voxelia service worker — offline play, background sync, push. */
-const CACHE = 'voxelia-v24';
+const CACHE = 'voxelia-v25';
 const SHELL = [
   './', './index.html', './voxelia.html', './manifest.json',
   './store.js', './rewards.js',
@@ -35,11 +35,30 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  /* Never come between the game and its server. */
-  if (req.url.includes('/rooms') || req.url.includes('/room?') ||
-      req.url.includes('/visit') || req.url.includes('/claim') ||
-      req.url.includes('/health') || req.url.includes('/account') ||
-      req.url.includes('/wallet') || req.url.startsWith('ws')) return;
+  /* Never come between the game and its server.
+
+     This used to be a list of the paths the server had at the time —
+     /claim, /wallet, /account and so on — and anything not on that list was
+     treated as a picture: answered from the cache, kept for ever, and, when
+     it was not in the cache and the network was slow, answered with the
+     game's own index.html instead. So every route added to the server after
+     this list was written came back as a page of HTML. The store, the
+     withdrawal screen and the live rates all broke that way, and worse, an
+     answer that did arrive was cached forever, so a rate changed on the
+     admin page would never have reached a player who had already looked.
+
+     A list of paths cannot be kept in step with a server that grows. The
+     rule is the other way round: anything that is not this site's own file
+     belongs to the server, and the service worker keeps out of it. */
+  let here = false;
+  try { here = new URL(req.url).origin === self.location.origin; } catch (e) {}
+  if (!here || req.url.startsWith('ws')) return;
+
+  /* Same-origin requests that are still the server talking, not a file —
+     which is what happens when the game and the server share an address. */
+  const path = new URL(req.url).pathname;
+  if (/^\/(rooms?|visit|claim|health|account|wallet|settings|rates|store|payout|transfer|admin)\b/
+      .test(path)) return;
 
   /* The game's own code: the newest wins.
 
@@ -54,8 +73,7 @@ self.addEventListener('fetch', (e) => {
      the cache kept up to date behind them and used the moment the network is
      not there — so an update shows up at once and the game still works with
      no connection at all. */
-  const own = new URL(req.url).origin === self.location.origin;
-  const code = own && /\.(html|js|css|json)$/i.test(new URL(req.url).pathname);
+  const code = /\.(html|js|css|json)$/i.test(path);
   const page = req.mode === 'navigate';
 
   if (code || page) {
