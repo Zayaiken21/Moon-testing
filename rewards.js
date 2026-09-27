@@ -240,6 +240,15 @@
     border-radius:50%;background:#262236;border:1px solid #332E47;color:#EDE9F5;
     font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
   #account-screen .acc-x:hover{border-color:#7FFFD9;color:#7FFFD9}
+  #account-screen .acc-pass-row{display:flex;gap:8px;align-items:stretch}
+  #account-screen .acc-pass-row input{flex:1;min-width:0}
+  #account-screen .acc-eye{flex:0 0 auto;padding:0 14px;border-radius:10px;
+    background:#262236;border:1px solid #332E47;color:#9AA7C4;cursor:pointer;
+    font-family:inherit;font-size:13px}
+  #account-screen .acc-eye:hover{border-color:#7FFFD9;color:#7FFFD9}
+  #account-screen .acc-eye[aria-pressed="true"]{border-color:#7FFFD9;color:#7FFFD9}
+  /* the two links under Sign in used to run together on one line */
+  #account-screen .acc-link{display:block;width:100%;text-align:left;margin-top:6px}
 
   #account-screen h2{padding-right:46px}
   .acc-sheet{max-width:440px;margin:0 auto;background:#12182B;border:1px solid #27324E;
@@ -356,12 +365,13 @@
     if (accMode === 'reset') {
       body.innerHTML =
         '<div class="acc-field"><label>Reset code</label><input id="acc-token" /></div>' +
-        '<div class="acc-field"><label>New password</label><input id="acc-pass" type="password" autocomplete="new-password" /></div>' +
+        passwordField('New password', 'new-password') +
         '<button class="primary" id="acc-go">Set the new password</button>' +
         '<button class="acc-link" id="acc-back">Back to signing in</button>' +
         '<div class="acc-msg" id="acc-msg"></div>';
       document.getElementById('acc-back').addEventListener('click', () => { accMode = 'in'; renderAccount(); });
       document.getElementById('acc-go').addEventListener('click', doReset);
+      wirePasswordEye();
       return;
     }
 
@@ -369,8 +379,7 @@
       '<div class="acc-field"><label>Email</label><input id="acc-email" type="email" autocomplete="email" /></div>' +
       (accMode === 'up'
         ? '<div class="acc-field"><label>Username</label><input id="acc-user" autocomplete="username" /></div>' : '') +
-      '<div class="acc-field"><label>Password</label><input id="acc-pass" type="password" ' +
-        'autocomplete="' + (accMode === 'up' ? 'new-password' : 'current-password') + '" /></div>' +
+      passwordField('Password', accMode === 'up' ? 'new-password' : 'current-password') +
       '<button class="primary" id="acc-go">' + (accMode === 'up' ? 'Create my account' : 'Sign in') + '</button>' +
       (accMode === 'in' ? '<button class="acc-link" id="acc-forgot">I have forgotten my password</button>' +
                           '<button class="acc-link" id="acc-have">I have a reset code</button>' : '') +
@@ -383,6 +392,53 @@
     if (f) f.addEventListener('click', () => { accMode = 'forgot'; renderAccount(); });
     const hv = document.getElementById('acc-have');
     if (hv) hv.addEventListener('click', () => { accMode = 'reset'; renderAccount(); });
+    wirePasswordEye();
+    // Enter signs you in, which is what everybody expects of a password box
+    const box = document.getElementById('acc-pass');
+    if (box) box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('acc-go').click(); }
+    });
+  }
+
+  /* A password box you can look at.
+
+     Typing a long password blind, on a phone, is how people end up with an
+     account they cannot get back into — and a child typing one for the first
+     time needs to see what they have written. The eye shows it while it is
+     held or ticked, and the field goes back to dots the moment focus leaves
+     it, so a password is never left on screen. */
+  function passwordField(label, complete) {
+    return '<div class="acc-field">' +
+      '<label for="acc-pass">' + label + '</label>' +
+      '<div class="acc-pass-row">' +
+        '<input id="acc-pass" type="password" autocomplete="' + complete + '" />' +
+        '<button type="button" class="acc-eye" id="acc-eye" aria-label="Show the password" ' +
+          'title="Show the password" aria-pressed="false">Show</button>' +
+      '</div></div>';
+  }
+
+  function wirePasswordEye() {
+    const box = document.getElementById('acc-pass');
+    const eye = document.getElementById('acc-eye');
+    if (!box || !eye) return;
+    const set = (on) => {
+      box.type = on ? 'text' : 'password';
+      eye.textContent = on ? 'Hide' : 'Show';
+      eye.setAttribute('aria-pressed', on ? 'true' : 'false');
+      eye.setAttribute('aria-label', on ? 'Hide the password' : 'Show the password');
+    };
+    eye.addEventListener('click', (e) => {
+      e.preventDefault();
+      set(box.type === 'password');
+      box.focus();
+    });
+    /* Never leave it readable once they have moved on — but pressing the
+       eye itself moves focus off the box, and hiding it there would fight
+       the press and leave the password showing. */
+    box.addEventListener('blur', (e) => {
+      if (e && e.relatedTarget === eye) return;
+      if (box.type === 'text') set(false);
+    });
   }
 
   function say(text, kind) {
