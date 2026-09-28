@@ -182,6 +182,17 @@ body{display:block;
    and only thing that scrolls. A panel that scrolls cannot lose anything. */
 .customizer-inner{padding-right:2px;max-height:none;overflow:visible}
 
+/* A colour's name is allowed to take two lines rather than be cut short.
+
+   Every name was one line, clipped with an ellipsis, so the longer ones came
+   back as "Outer…", "Top Ac…" and "Botto…" — and "Bottom" and "Bottom Trim"
+   both arrived as "Botto…", which is worse than unreadable: it is two
+   different controls wearing the same name. The names are shorter now and
+   they wrap instead of being cut. */
+.color-control{align-items:center}
+.color-control label{white-space:normal;overflow:visible;text-overflow:clip;
+  line-height:1.15;overflow-wrap:normal;word-break:normal;hyphens:none}
+
 /* and the last row clears the bottom edge rather than sitting flush on it,
    so it reads as the end of a list rather than as a list still going */
 .controls-panel{padding-bottom:clamp(14px,2.5vh,26px);scroll-padding-bottom:14px}
@@ -202,7 +213,7 @@ body{display:block;
   border-radius:8px;border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,var(--mint),var(--cyan));
   background-clip:padding-box}
-.color-grid{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:7px}
+.color-grid{grid-template-columns:repeat(auto-fit,minmax(122px,1fr));gap:7px}
 .color-control{padding:6px;grid-template-columns:28px 1fr}
 .color-control input[type=color]{width:28px;height:28px}
 .color-control input[type=text]{height:26px;font-size:11px}
@@ -237,7 +248,7 @@ body{display:block;
      fitted. The hex is for typing an exact colour in, which is a thing people
      do at a desk and not on a phone held sideways; the colour button itself
      still opens the picker. Dropping that line fits half as much again. */
-  .color-grid{grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:5px}
+  .color-grid{grid-template-columns:repeat(auto-fit,minmax(98px,1fr));gap:5px}
   .color-control{grid-template-areas:"sw label";grid-template-columns:24px 1fr;
     align-items:center;padding:4px 6px;row-gap:0}
   .color-control input[type=color]{width:24px;height:24px;border-radius:7px}

@@ -23,7 +23,11 @@ const CHARACTER_PRESETS = [
 
 const DEFAULT_SKIN = '#E8BF96';
 const COLOR_FIELDS = [
-  ['skin','Skin'],['hair','Hair'],['eyes','Eyes'],['shirt','Top'],['accent','Top Accent'],['jacket','Outerwear'],['sleeves','Sleeves'],['pants','Bottom'],['pants2','Bottom Accent'],['shoes','Shoes'],['sole','Soles'],['acc1','Accessory 1'],['acc2','Accessory 2']
+  /* Short enough to read whole. "Top Accent", "Outerwear", "Bottom Accent"
+     and "Accessory 1" all came out as "Top Ac…", "Outer…", "Botto…" and
+     "Acces…" — and two of them cut down to the same "Botto…", so there was no
+     telling which was which. */
+  ['skin','Skin'],['hair','Hair'],['eyes','Eyes'],['shirt','Top'],['accent','Top Trim'],['jacket','Jacket'],['sleeves','Sleeves'],['pants','Bottom'],['pants2','Bottom Trim'],['shoes','Shoes'],['sole','Soles'],['acc1','Extra 1'],['acc2','Extra 2']
 ];
 
 let state = {sex:'male',presetId:'male_01_explorer',name:'Player',colors:{}};
@@ -121,6 +125,10 @@ const Preview3D = {
           av.object.position.y = -0.02;
           this.rig.add(av.object);
           document.querySelector('.avatar-stage').classList.add('has-3d');
+          /* now that the real model is here, show the colour pickers it
+             actually has rather than the full list of things a character
+             might in principle have */
+          try{ renderColors(); }catch(e){}
         });
     }).catch(() => {});
   },
@@ -396,9 +404,29 @@ function renderLarge(){
   $('#activeSexChip').textContent=p.sex[0].toUpperCase()+p.sex.slice(1); $('#activePresetChip').textContent=p.name;
   Preview3D.show(p.id, state.colors);
 }
+/* Which pickers this character actually has.
+
+   Until the model has loaded this is the whole list, because we do not yet
+   know. Once it is here, we ask it: a picker for a part the model does not
+   carry separately either does nothing or, worse, looks like it painted some
+   other part of the body. None of the twenty models has a separately coloured
+   iris — what reads as an eye is the same dark colour the hair is baked with —
+   so the Eyes picker has been quietly doing nothing on every character. */
+function livePickers(){
+  try{
+    const av = Preview3D && Preview3D.avatar;
+    if(av && typeof av.regionsUsed === 'function'){
+      const used = av.regionsUsed();
+      if(used && used.size) return used;
+    }
+  }catch(e){}
+  return null;
+}
+
 function renderColors(){
   colorGrid.innerHTML='';
-  COLOR_FIELDS.forEach(([key,label])=>{
+  const live = livePickers();
+  COLOR_FIELDS.filter(([key])=>!live || live.has(key)).forEach(([key,label])=>{
     const wrap=document.createElement('div');wrap.className='color-control';
     const color=document.createElement('input');color.type='color';color.value=state.colors[key];color.id=`color_${key}`;color.setAttribute('aria-label',`${label} color`);
     const text=document.createElement('input');text.type='text';text.value=state.colors[key];text.maxLength=7;text.setAttribute('aria-label',`${label} hex value`);

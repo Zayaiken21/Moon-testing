@@ -221,6 +221,37 @@
      few faces has to earn them. */
   const SMALL = { eyes: 0.40, sole: 0.14, accent: 0.07, acc1: 0.06, acc2: 0.06, shoes: 0.03 };
 
+  /* Where on a body each region is allowed to be, as a fraction of the
+     figure's height with the soles at 0 and the top of the head at 1.
+
+     Colour alone cannot do this job, and on some characters it is not close.
+     The pilot is baked with trousers #34312f, trouser trim #262422, boots
+     #3b2c27 and soles #191715 — four near-black neutrals pointing in almost
+     exactly the same direction, differing only in how dark they are. Shading
+     moves brightness by up to a factor of three either way, so a trouser leg
+     in shadow lands exactly where a boot in the light does. That is why
+     painting the boots green turned the trousers green: not a mix-up in the
+     list of colours, but two things the model cannot tell apart by colour.
+
+     Height can tell them apart, and it does not care about shading. Feet are
+     at the bottom and hair is at the top, and no amount of shadow moves
+     either of them. */
+  const BAND = {
+    skin:    [0.00, 1.00],
+    eyes:    [0.78, 1.00],
+    hair:    [0.72, 1.00],
+    shirt:   [0.40, 0.86],
+    accent:  [0.34, 0.90],
+    jacket:  [0.38, 0.88],
+    sleeves: [0.40, 0.84],
+    pants:   [0.07, 0.58],
+    pants2:  [0.03, 0.58],
+    shoes:   [0.00, 0.15],
+    sole:    [0.00, 0.07],
+    acc1:    [0.00, 1.00],
+    acc2:    [0.00, 1.00]
+  };
+
   /* The colours this model was baked from, in the order they are looked for. */
   function bakedPalette(presetId) {
     const b = BAKED[presetId] || {};
@@ -240,23 +271,58 @@
     if (presetId.indexOf('starfarer') >= 0) {
       out.push({ key: 'acc1', hex: '#dce5ee' }, { key: 'acc2', hex: '#3fe6ff' });
     }
-    return out.filter((r) => HEX.test(r.hex || ''))
-              .map((r) => {
-                const rgb = hexToLinear(r.hex);
-                return { key: r.key, rgb, bias: SMALL[r.key] || 0,
-                         len: Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) };
-              });
+    /* Two regions baked with the very same colour are one region.
+
+       The pilot's jacket and shirt are both #722a31. Left as two entries the
+       first one always won, so the Outerwear picker moved nothing at all and
+       the Top picker quietly repainted the jacket as well — a control that
+       looks alive and is not. They are folded into one entry here, and the
+       keys that were folded in are remembered so the screen can stop offering
+       a picker for something this character has no separate copy of. */
+    const seen = Object.create(null);
+    const kept = [];
+    const folded = Object.create(null);
+    for (const r of out) {
+      if (!HEX.test(r.hex || '')) { folded[r.key] = null; continue; }
+      const h = r.hex.toLowerCase();
+      if (seen[h] !== undefined) { folded[r.key] = kept[seen[h]].key; continue; }
+      seen[h] = kept.length;
+      kept.push(r);
+    }
+    const pal = kept.map((r) => {
+      const rgb = hexToLinear(r.hex);
+      return { key: r.key, rgb, bias: SMALL[r.key] || 0,
+               band: BAND[r.key] || [0, 1],
+               len: Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) };
+    });
+    pal.folded = folded;
+    return pal;
+  }
+
+  /** Which colour pickers actually do something on this character. */
+  function paintableKeys(presetId) {
+    const pal = bakedPalette(String(presetId || ''));
+    return pal.map((p) => p.key);
+  }
+
+  /** For a picker that does nothing, the picker that covers it instead. */
+  function foldedInto(presetId) {
+    return bakedPalette(String(presetId || '')).folded || {};
   }
 
   /* Which palette colour each vertex came from, and how shaded it was.
      Worked out once per model and kept on the geometry, because it depends
      only on how the model was baked. */
-  function classify(geometry, presetId) {
+  function classify(geometry, presetId, lo, hi) {
     if (geometry.userData.vxClass) return geometry.userData.vxClass;
     const attr = geometry.attributes.color;
     if (!attr) return null;
     const pal = bakedPalette(presetId);
     if (!pal.length) return null;
+    /* how high up the figure each vertex sits, 0 at the soles and 1 at the
+       crown — measured across the whole body, not this one piece of it */
+    const pos = geometry.attributes.position;
+    const span = (hi - lo) > 1e-4 ? (hi - lo) : 0;
     const top = attr.array.BYTES_PER_ELEMENT === 2 ? 65535
               : attr.array.BYTES_PER_ELEMENT === 1 ? 255 : 1;
     const n = attr.count;
@@ -272,6 +338,7 @@
          red. Matching on direction is what tells a dark brown boot from a
          dark blue trouser leg, which matching on distance alone could not. */
       const len = Math.sqrt(r * r + g * g + b * b) || 1e-6;
+      const y = (span && pos) ? (pos.getY(i) - lo) / span : -1;
       let pick = 0, best = Infinity, k = 1;
       for (let j = 0; j < pal.length; j++) {
         const p = pal[j].rgb;
@@ -287,7 +354,17 @@
         /* Eyes, soles and the little lit panels cover a few faces each. Left
            to compete on equal terms a dark eye colour swallows half a dark
            costume, so they have to be a clearly better match to win. */
-        const e = (1 - cos) * 6 + away * away * 0.9 + pal[j].bias;
+        /* And where it is on the body. A boot that claims to be a trouser
+           leg is asking to be two thirds of a body away from the floor; the
+           further outside its region a guess is, the dearer it gets. This is
+           what separates four near-black neutrals that shading had made
+           interchangeable. */
+        let off = 0;
+        if (y >= 0) {
+          const bd = pal[j].band;
+          off = y < bd[0] ? bd[0] - y : y > bd[1] ? y - bd[1] : 0;
+        }
+        const e = (1 - cos) * 6 + away * away * 0.9 + pal[j].bias + off * off * 26;
         if (e < best) { best = e; pick = j; k = kk; }
       }
       if (k < 0.04) k = 0.04;
@@ -295,7 +372,13 @@
       region[i] = pick;
       shade[i] = k;
     }
-    geometry.userData.vxClass = { region, shade, base, keys: pal.map((p) => p.key), top };
+    /* how many vertices each region actually won. A region that won none is a
+       colour picker that cannot move anything, and there is no honest way to
+       show one of those. */
+    const counts = new Array(pal.length).fill(0);
+    for (let i = 0; i < n; i++) counts[region[i]]++;
+    geometry.userData.vxClass = { region, shade, base, counts,
+                                  keys: pal.map((p) => p.key), top };
     return geometry.userData.vxClass;
   }
 
@@ -323,13 +406,60 @@
     };
   }
 
+  /** Which colour pickers this character really has — measured off the model
+      itself, not guessed from a list.
+
+      Some things the twenty models simply do not have. None of them carries a
+      separately coloured iris: what looks like an eye is the same dark colour
+      the hair is baked with, so an Eyes picker has nothing of its own to move.
+      Sleeves are baked as part of the shirt. On the pilot the jacket is the
+      same red as the shirt. Offering pickers for those is offering controls
+      that do nothing, or worse, appear to paint some other part of the body.
+
+      Anything the model does have keeps its picker. */
+  Avatar.prototype.regionsUsed = function () {
+    const used = new Set();
+    this.object.traverse((o) => {
+      const cls = o.geometry && o.geometry.userData && o.geometry.userData.vxClass;
+      if (!cls || !cls.counts) return;
+      for (let i = 0; i < cls.keys.length; i++) {
+        if (cls.counts[i] >= 8) used.add(cls.keys[i]);
+      }
+    });
+    return used;
+  };
+
   /** Repaint this character, keeping every bit of the shading it was baked with. */
   Avatar.prototype.recolor = function (colors) {
     const want = wanted(colors, this.presetId);
+
+    /* The height of the whole figure, worked out once.
+
+       It has to be the whole body: a mesh holding only the boots is, on its
+       own, a thing that runs from its own floor to its own ceiling, and every
+       vertex in it would look like it belonged at the top of a head. Measured
+       across the body, boots sit at the bottom of it where they belong. */
+    let lo = Infinity, hi = -Infinity;
+    if (this.object.userData.vxSpan) {
+      lo = this.object.userData.vxSpan[0]; hi = this.object.userData.vxSpan[1];
+    } else {
+      this.object.traverse((o) => {
+        if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+        const p = o.geometry.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          const y = p.getY(i);
+          if (y < lo) lo = y;
+          if (y > hi) hi = y;
+        }
+      });
+      if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 0; }
+      this.object.userData.vxSpan = [lo, hi];
+    }
+
     let changed = 0;
     this.object.traverse((o) => {
       if (!o.isMesh || !o.geometry || !o.geometry.attributes.color) return;
-      const cls = classify(o.geometry, this.presetId);
+      const cls = classify(o.geometry, this.presetId, lo, hi);
       if (!cls) return;
 
       /* Every character of this kind shares one set of buffers, so this one
@@ -421,5 +551,6 @@
     return a;
   }
 
-  window.VoxeliaAvatars = { create, validate, ids: IDS, ready: whenReady };
+  window.VoxeliaAvatars = { create, validate, ids: IDS, ready: whenReady,
+                            paintableKeys, foldedInto };
 })();
