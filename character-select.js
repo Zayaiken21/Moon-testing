@@ -487,7 +487,26 @@ $('#confirmBtn').addEventListener('click',()=>{const data=payload();localStorage
   const drawer = document.querySelector('.customizer');
   const panel  = document.querySelector('.controls-panel');
   if(!drawer || !panel) return;
+  const inner = document.querySelector('.customizer-inner');
+  const tight = () => window.matchMedia
+    && matchMedia('(orientation:landscape) and (max-height:620px)').matches;
+
+  /* Sideways on a phone the panel does not scroll — it shares its height out,
+     and the colour drawer scrolls inside the share it is given. Work out what
+     that share actually is, rather than guessing it in the stylesheet: the
+     characters above it are a different height on every phone. */
+  const fit = () => {
+    if(!inner) return;
+    if(!tight() || !drawer.open){ inner.style.removeProperty('max-height'); return; }
+    const p = panel.getBoundingClientRect();
+    const i = inner.getBoundingClientRect();
+    /* from the top of the swatches to the bottom inside edge of the panel */
+    const room = p.bottom - i.top - 10;
+    inner.style.maxHeight = Math.max(56, Math.round(room)) + 'px';
+  };
+
   const reveal = () => {
+    fit();
     if(!drawer.open) return;
     /* after the browser has laid the opened drawer out, not before */
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
@@ -501,6 +520,17 @@ $('#confirmBtn').addEventListener('click',()=>{const data=payload();localStorage
     }));
   };
   drawer.addEventListener('toggle', reveal);
+
+  /* and again whenever the room changes: turning the phone, the address bar
+     sliding away, a character chosen that is a different height */
+  let when = 0;
+  const later = () => { clearTimeout(when); when = setTimeout(fit, 120); };
+  addEventListener('resize', later);
+  addEventListener('orientationchange', later);
+  if(window.ResizeObserver) try{ new ResizeObserver(later).observe(panel); }catch(e){}
+  /* once the characters have their pictures and the panel has settled */
+  requestAnimationFrame(()=>requestAnimationFrame(fit));
+  setTimeout(fit, 600);
 })();
 
 // Restore local selection if available

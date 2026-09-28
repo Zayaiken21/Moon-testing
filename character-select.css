@@ -230,7 +230,19 @@ body{display:block;
   .avatar{max-width:min(110px,100%)}
   .preset-card{padding:4px;border-radius:10px}
   .preset-card small{display:none}
-  .color-grid{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:5px}
+  /* Sideways, a swatch is a colour and its name on one line.
+
+     Each one used to carry its hex code on a second line underneath, which
+     made every row about forty-four pixels tall and meant only two of them
+     fitted. The hex is for typing an exact colour in, which is a thing people
+     do at a desk and not on a phone held sideways; the colour button itself
+     still opens the picker. Dropping that line fits half as much again. */
+  .color-grid{grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:5px}
+  .color-control{grid-template-areas:"sw label";grid-template-columns:24px 1fr;
+    align-items:center;padding:4px 6px;row-gap:0}
+  .color-control input[type=color]{width:24px;height:24px;border-radius:7px}
+  .color-control input[type=text]{display:none}
+  .color-control label{font-size:10px}
 
   /* Sideways on a phone, the characters go in one row you swipe along.
 
@@ -247,6 +259,56 @@ body{display:block;
     padding-bottom:4px}
   .preset-card{scroll-snap-align:start}
   .customizer summary{padding:6px 10px}
+
+  /* Sideways on a phone the colours are always on screen, never below a fold.
+
+     Scrolling the panel did work, and that is exactly the trouble with it:
+     "Make it yours" sat under the characters with its top edge at the bottom
+     of the screen, so what a player saw was a heading and a sliced-off row of
+     swatches. Nothing said there was more of it under there. Being able to
+     reach a thing by swiping is not the same as the thing being usable.
+
+     So sideways the panel itself stops scrolling and hands out its height
+     instead: the characters keep the room they need, and the colour drawer
+     takes everything that is left and scrolls inside itself. The drawer's box
+     now ends where the panel ends — which is the part that was wrong before,
+     when it ran off the bottom and took half the swatches with it. */
+  .controls-panel{grid-template-rows:auto min-content minmax(88px,1fr);
+    align-content:stretch;overflow:hidden;padding-bottom:8px}
+  /* sideways, height is the scarce thing, so the character tiles are sized by
+     how much height there is rather than how much width — a phone held
+     sideways is wide and short, and tiles measured off the width came out
+     taller than the room left for them and pushed the colours out again */
+  .segmented button{min-height:30px;padding:0 12px;font-size:12px}
+  .section-head h3{font-size:13px}
+  /* the characters keep their own height — squeezed, they came out as a strip
+     of headless bodies with the names sliced off */
+  .preset-section{min-height:min-content}
+  .customizer{min-height:0}
+
+  /* the drawer keeps at least 136px of the panel, so there is always a
+     drawer's worth of drawer rather than a heading and a sliced-off row */
+
+  /* The height the swatches may take.
+
+     It cannot come from the grid row above. A <details> puts its contents in
+     a slot of the browser's own making, so `grid-template-rows` on the
+     <details> sizes that slot and not the box inside it — the slot came out
+     at 62px with a 224px drawer hanging straight through the bottom of it,
+     which is the same cut-off drawer by another route.
+
+     So the cap goes on the scrolling box itself. The calc is the fallback
+     that works with no script at all; the script below measures the real
+     room left in the panel and replaces it. */
+  .customizer-inner{max-height:max(96px, calc(100dvh - 268px));
+    overflow-y:auto;overscroll-behavior:contain}
+
+  /* room reclaimed from headings for the colours to live in */
+  .controls-panel > .section-head{align-items:center}
+  .preset-section .section-head.compact{margin-bottom:0}
+  .preset-grid{grid-auto-columns:clamp(54px,18vh,100px)}
+  .preset-card strong{font-size:9px}
+
   /* the headings say twice what the buttons beside them already say, and
      sideways on a phone that is two lines the colours could have had */
   .section-head h3{font-size:14px;margin:0}
@@ -261,6 +323,12 @@ body{display:block;
   .selected-copy h2{font-size:14px}
   .name-control input{height:32px}
   .primary-btn,.secondary-btn,.ghost-btn,.icon-btn{min-height:32px;font-size:11px}
+  /* On a screen this short, "Pick your character" is a line of text sitting
+     above a row of characters. It costs about thirty pixels to say something
+     the row underneath it already says, and thirty pixels is most of a row of
+     colours. The characters keep their row; the heading goes. */
+  .preset-section .section-head.compact{display:none}
+
   /* The colour pickers used to be taken away entirely on a screen this
      short, which is one way to describe "we cannot get to the colours".
      The panel scrolls now, so they stay and are simply further down. */
