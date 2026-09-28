@@ -1,4 +1,52 @@
 <!DOCTYPE html>
+<!-- ======================================================================
+     VOXELIA  ·  index.html  ·  WHAT IS WHERE
+     ----------------------------------------------------------------------
+     The whole game is this one file plus five small ones beside it
+     (rewards.js, store.js, voxelia-avatars.js, voxelia-things.js, sw.js).
+     Every part below starts with a banner comment you can search for:
+     type the two-digit number, or the title, to jump straight to it.
+     STYLES          lines 89 - 1689
+       A   TOKENS, RESET & THE PAGE ITSELF                          line    89
+       B   SCREENS — the full-page panels                           line   105
+       C   THE HOME SCREEN                                          line   124
+       D   THE HUD — what sits over the world                       line   175
+       E   THE MAP SCREEN                                           line   282
+       F   TOUCH CONTROLS                                           line   809
+       G   SPLIT SCREEN                                             line  1060
+
+     MARKUP          the page's own tags
+       M   THE PAGE ITSELF                                          line  1690
+
+     SCRIPT          lines 2323 to the end
+       01  GROUNDWORK — randomness that repeats                     line  2323
+       02  THE TEXTURE ATLAS — every block face on one sheet        line  2416
+       03  THE BLOCK CATALOGUE — what each block is                 line  2547
+       04  BIOMES, FAMILIES & ANIMALS — what lives where            line  2741
+       05  THE WORLD — chunks, terrain and saving                   line  2985
+       06  MESHING — turning blocks into triangles                  line  3367
+       07  THE PLAYER — moving, and what you are pointing at        line  3525
+       08  CREATURES — the animals themselves                       line  3658
+       09  DROPPED ITEMS — things lying on the ground               line  4426
+       10  CONTROLS — keyboard, mouse, gamepad, touch               line  4495
+       11  PAGE HELPERS & SETTINGS                                  line  4700
+       12  GAME — the world that is actually running                line  4813
+       13  ICONS & PICTURES — how a thing is drawn in the bag       line  7542
+       14  UI — screens, menus, the HUD                             line  8810
+       15  SPLIT SCREEN — two players, one device                   line 10784
+       16  LIVE — keeping the server awake                          line 11491
+       17  VISITS — rooms, joining and multiplayer                  line 11581
+       18  ITEMS, RECIPES & FUEL                                    line 13103
+       19  VEHICLES — boats, carts and rockets                      line 13679
+       20  HARVESTING, QUESTS & DECORATION                          line 14200
+       21  TRADING & THE BESTIARY                                   line 14999
+       22  THE REEF — everything underwater                         line 15266
+       23  SPACE — planets, rockets and what is on them             line 15540
+       24  MUSIC & STARTING UP                                      line 17376
+
+     Nothing above is decoration: if you cannot find something, the
+     banner it belongs under says what lives there and why.
+     ====================================================================== -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -37,6 +85,13 @@
    taller than what you can actually see, so the bottom row of controls sat
    below the edge of the screen. 100dvh is the part you can really see, and it
    follows the bar as it slides away. */
+/* ======================================================================
+   A · TOKENS, RESET & THE PAGE ITSELF
+   ----------------------------------------------------------------------
+   The colours, the fonts and the rules that stop the page scrolling or
+   bouncing. 100dvh rather than 100vh, so the phone's address bar sliding
+   away does not cut the bottom off the game.
+   ====================================================================== */
 html,body{height:100%;height:100dvh;margin:0;overflow:hidden;max-width:100vw;
   background:var(--ink);color:var(--text);
   font-family:var(--body);-webkit-font-smoothing:antialiased;overscroll-behavior:none;touch-action:none}
@@ -46,6 +101,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #stage{position:fixed;inset:0}
 #stage canvas{display:block;width:100%;height:100%}
 
+/* ======================================================================
+   B · SCREENS — the full-page panels
+   ----------------------------------------------------------------------
+   Home, settings, the bag, the map and the rest: each one covers the page
+   and only one is ever shown.
+   ====================================================================== */
 /* ---------- screens ---------- */
 .screen{position:fixed;inset:0;z-index:40;display:none;overflow:auto;overscroll-behavior:contain;
   background:linear-gradient(180deg, rgba(14,12,22,.55), rgba(14,12,22,.88));
@@ -59,6 +120,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .sheet h2{font-size:22px;margin-bottom:4px}
 .sheet p.lede{color:var(--muted);margin:0 0 20px;font-size:14px;line-height:1.5}
 
+/* ======================================================================
+   C · THE HOME SCREEN
+   ----------------------------------------------------------------------
+   The first thing anybody sees: the wordmark, the mode buttons and the
+   biome cards.
+   ====================================================================== */
 /* ---------- home ---------- */
 #home{background:linear-gradient(105deg, rgba(14,12,22,.94) 0%, rgba(14,12,22,.72) 46%, rgba(14,12,22,.08) 100%)}
 .home-wrap{max-width:min(1180px, 96vw);margin:0 auto;display:grid;
@@ -104,6 +171,13 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 .biome-card dt{font-family:var(--display);color:var(--moon)}
 .biome-card dd{margin:0 0 7px;color:var(--muted);line-height:1.4}
 
+/* ======================================================================
+   D · THE HUD — what sits over the world
+   ----------------------------------------------------------------------
+   The hotbar, the meters, the minimap, the top bar. #hud itself ignores
+   taps; the controls inside it take them back, which is the rule that
+   keeps the world clickable through the gaps.
+   ====================================================================== */
 /* ---------- hud ---------- */
 #hud{position:fixed;inset:0;z-index:30;pointer-events:none;display:none;
   font-size:calc(13px * var(--ui))}
@@ -204,6 +278,11 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #minimap-wrap::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:inset 0 0 18px rgba(0,0,0,.55)}
 #minimap{width:100%;height:100%;display:block}
+/* ======================================================================
+   E · THE MAP SCREEN
+   ----------------------------------------------------------------------
+   The full map, its legend and its panels.
+   ====================================================================== */
 /* The map screen.
 
    Two goes at this were wrong in opposite directions. It began as a column —
@@ -726,6 +805,12 @@ body.creative-mode #meters{display:none !important}
 
 /* ---------- touch ---------- */
 /* ---------- touch controls: one coherent system, sized from --ui ---------- */
+/* ======================================================================
+   F · TOUCH CONTROLS
+   ----------------------------------------------------------------------
+   The sticks and the buttons that only exist on a phone, and the rules
+   that let them be dragged about and resized.
+   ====================================================================== */
 #stick-move{position:absolute;width:calc(120px * var(--ui));height:calc(120px * var(--ui));
   border-radius:50%;border:2px solid rgba(255,255,255,.26);opacity:0;transition:opacity .18s;
   pointer-events:none}
@@ -971,6 +1056,12 @@ body.creative-mode #meters{display:none !important}
    lands on player one's side and nothing is cut off at an edge.
    ================================================================= */
 #p2-panel{display:none}
+/* ======================================================================
+   G · SPLIT SCREEN
+   ----------------------------------------------------------------------
+   Everything that only applies when two people are on one device: the
+   divider, the two halves, and player two's own HUD.
+   ====================================================================== */
 body.split-on #p2-panel{display:block;position:fixed;top:0;bottom:0;left:50%;right:0;
   z-index:32;pointer-events:none}
 /* Player two's strip is the same object as player one's, over their own half:
@@ -1595,6 +1686,13 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 @media (prefers-reduced-motion:reduce){#summon-card.ringing{animation:none}}
 </style>
 </head>
+<!-- ======================================================================
+     M · THE PAGE ITSELF
+     ----------------------------------------------------------------------
+     Almost nothing here is written out by hand. The screens are shells that
+     UI fills in, so if you are looking for the text on a panel it is in
+     the script, not here.
+     ====================================================================== -->
 <body>
 <div id="stage"></div>
 
@@ -2221,6 +2319,15 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
    Engine: WebGL (three.js), pure ES2020. No frameworks, no build step.
    ===================================================================== */
 
+/* ======================================================================
+   01 · GROUNDWORK — randomness that repeats
+   ----------------------------------------------------------------------
+   IS_TOUCH, hashString, mulberry32, hash3i, makeNoise
+
+   Every world is built from its seed alone, so the same seed has to give the
+   same hills on every machine. These are the only sources of randomness the
+   world generator uses; none of them calls Math.random.
+   ====================================================================== */
 const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 /* ---------------------------------------------------------------
@@ -2305,6 +2412,14 @@ function makeNoise(seed) {
    the forty-fifth new block would have silently landed on the last tile and
    every block after it would have worn the wrong texture. 24x24 leaves room
    for hundreds more. */
+/* ======================================================================
+   02 · THE TEXTURE ATLAS — every block face on one sheet
+   ----------------------------------------------------------------------
+   TILE, ATLAS_DIM, ATLAS_PX, atlasCanvas, nextTile, hex2rgb, shade, paintTile
+
+   One canvas holds every block texture. Handing the card a single sheet means
+   the whole world draws in a few calls instead of one per material.
+   ====================================================================== */
 const TILE = 32, ATLAS_DIM = 24, ATLAS_PX = TILE * ATLAS_DIM;
 const atlasCanvas = document.createElement('canvas');
 atlasCanvas.width = atlasCanvas.height = ATLAS_PX;
@@ -2428,6 +2543,15 @@ function paintTile(style, color, accent) {
 /* ---------------------------------------------------------------
    3. Block registry
    --------------------------------------------------------------- */
+/* ======================================================================
+   03 · THE BLOCK CATALOGUE — what each block is
+   ----------------------------------------------------------------------
+   BLOCKS, defBlock, B (the names), BLOCK_TOOL, FLOWERS, JEWELS, AIR
+
+   Every block's id, name, colour, which tile it wears on each face, whether
+   you can see through it and which tool breaks it fastest. B.GRASS and the
+   rest are the ids the rest of the file uses.
+   ====================================================================== */
 const BLOCKS = [];
 function defBlock(o) {
   const id = BLOCKS.length;
@@ -2613,6 +2737,16 @@ const CUSTOM_TILE_START = nextTile; // remaining atlas slots are for player-made
 /* ---------------------------------------------------------------
    4. Biomes — seven, each with its own palette, flora and companion
    --------------------------------------------------------------- */
+/* ======================================================================
+   04 · BIOMES, FAMILIES & ANIMALS — what lives where
+   ----------------------------------------------------------------------
+   BIOMES, FAMILIES, ABILITIES, BIOME_FAMILIES, BIOME_PALETTE, NAME_A,
+   FAMILY_B, FOODS, PRODUCE_POOL, ANIMALS, SPECIES_BY_BIOME, SPECIES_KEYS
+
+   The ten biomes, and the animals each one can produce. Species are built
+   from a family and a biome rather than listed one by one, so a new biome
+   brings its own animals with it.
+   ====================================================================== */
 const BIOMES = [
   {
     key: 'vale', name: 'Verdant Vale', blurb: 'Rolling meadow and broadleaf wood.',
@@ -2847,6 +2981,15 @@ BIOMES.forEach((b, i) => { b.animal = SPECIES_BY_BIOME[i][0]; });
 /* ---------------------------------------------------------------
    5. World — chunks, generation, lighting
    --------------------------------------------------------------- */
+/* ======================================================================
+   05 · THE WORLD — chunks, terrain and saving
+   ----------------------------------------------------------------------
+   CX, CZ, WY, SEA, idxOf, chunkKey, class Chunk, class World
+
+   The world is columns of 16x16 blocks, 168 high, sea level at 108. Chunk
+   holds the blocks; World builds them from the seed, keeps track of which
+   ones are loaded, and remembers what players have changed.
+   ====================================================================== */
 const CX = 16, CZ = 16, WY = 168, SEA = 108;
 const idxOf = (x, y, z) => (y * CZ + z) * CX + x;
 const chunkKey = (cx, cz) => cx + ',' + cz;
@@ -3220,6 +3363,16 @@ class World {
 /* ---------------------------------------------------------------
    6. Renderer + chunk meshing
    --------------------------------------------------------------- */
+/* ======================================================================
+   06 · MESHING — turning blocks into triangles
+   ----------------------------------------------------------------------
+   FACES, atlasTexture, solidMaterial, glassMaterial, waterMaterial,
+   faceTile, buildChunkGeometry, toGeometry
+
+   The card draws triangles, not blocks. Each chunk is walked once and only
+   the faces with air on the other side are kept, which is the difference
+   between a few thousand triangles and a few million.
+   ====================================================================== */
 const FACES = [
   { dir: [-1, 0, 0], shade: 0.72, corners: [[0,1,0,0,1],[0,0,0,0,0],[0,1,1,1,1],[0,0,1,1,0]] },
   { dir: [ 1, 0, 0], shade: 0.72, corners: [[1,1,1,0,1],[1,0,1,0,0],[1,1,0,1,1],[1,0,0,1,0]] },
@@ -3249,13 +3402,6 @@ const UV_STEP = 1 / ATLAS_DIM;
    blur neighbouring tiles into one another at the edges, and without this gap
    a hint of the tile next door showed up along distant block seams. */
 const UV_PAD = 2 / ATLAS_PX;
-function tileUV(tile, u, v) {
-  const col = tile % ATLAS_DIM, row = (tile / ATLAS_DIM) | 0;
-  const u0 = col * UV_STEP + UV_PAD, u1 = (col + 1) * UV_STEP - UV_PAD;
-  const v1 = 1 - row * UV_STEP - UV_PAD, v0 = 1 - (row + 1) * UV_STEP + UV_PAD;
-  return [u0 + (u1 - u0) * u, v0 + (v1 - v0) * v];
-}
-
 const solidMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, vertexColors: true });
 const glassMaterial = new THREE.MeshLambertMaterial({
   map: atlasTexture, vertexColors: true, transparent: true, opacity: 0.42,
@@ -3375,6 +3521,14 @@ function toGeometry(d) {
 /* ---------------------------------------------------------------
    7. Player — movement, collision, abilities
    --------------------------------------------------------------- */
+/* ======================================================================
+   07 · THE PLAYER — moving, and what you are pointing at
+   ----------------------------------------------------------------------
+   PLAYER_W, PLAYER_H, EYE, class Player, raycastVoxel, box, limb, makeNameTag
+
+   Walking, falling, swimming and flying, and the ray that decides which block
+   is under the crosshair.
+   ====================================================================== */
 const PLAYER_W = 0.6, PLAYER_H = 1.8, EYE = 1.62;
 
 class Player {
@@ -3500,6 +3654,15 @@ function makeNameTag(text) {
   } catch (e) { return null; }
 }
 
+/* ======================================================================
+   08 · CREATURES — the animals themselves
+   ----------------------------------------------------------------------
+   buildCreatureModel, creatureIdCounter, class Creature
+
+   Each animal is built out of boxes from its family and colours, then given
+   somewhere to wander, something to eat and somebody to run from. In
+   multiplayer the host owns them and everybody else is told where they are.
+   ====================================================================== */
 function buildCreatureModel(def) {
   const g = new THREE.Group();
   const parts = { legs: [], wings: [], fins: [], tail: null, head: null, body: null };
@@ -4259,6 +4422,14 @@ class Creature {
 /* ---------------------------------------------------------------
    9b. Dropped items — mined blocks fall, settle and get picked up
    --------------------------------------------------------------- */
+/* ======================================================================
+   09 · DROPPED ITEMS — things lying on the ground
+   ----------------------------------------------------------------------
+   dropGeometry, class Drop
+
+   What a broken block or a dropped item looks like while it waits to be
+   picked up.
+   ====================================================================== */
 const dropGeometry = () => new THREE.BoxGeometry(0.28, 0.28, 0.28);
 
 class Drop {
@@ -4320,6 +4491,14 @@ class Drop {
 /* ---------------------------------------------------------------
    10. Input — keyboard, mouse, touch sticks, gamepad
    --------------------------------------------------------------- */
+/* ======================================================================
+   10 · CONTROLS — keyboard, mouse, gamepad, touch
+   ----------------------------------------------------------------------
+   Input, Pad, MISSING, VKEYS, VKEY_LABELS
+
+   Everything that can move a player, in one place, so that the game asks
+   'is forward held?' without caring what is holding it.
+   ====================================================================== */
 const Input = {
   keys: Object.create(null),
   mouseDX: 0, mouseDY: 0,
@@ -4517,6 +4696,15 @@ const MISSING = (() => {
   };
 })();
 
+/* ======================================================================
+   11 · PAGE HELPERS & SETTINGS
+   ----------------------------------------------------------------------
+   $, on, setStyle, $$, Settings, saveSettings, loadSettings,
+   CREATIVE_PALETTE, EMPTY_HOTBAR
+
+   Short ways of reaching the page, and the settings the player has chosen,
+   which are kept in this browser under 'voxelia.settings'.
+   ====================================================================== */
 const $ = (s) => document.querySelector(s) || MISSING(s);
 
 /* Every listener in the game goes through this. If the element is not on the
@@ -4621,6 +4809,15 @@ loadSettings();
 const CREATIVE_PALETTE = [B.GRASS, B.DIRT, B.STONE, B.SAND, B.PLANK, B.OAK, B.LEAF, B.GLOWSTONE, B.BRICK];
 const EMPTY_HOTBAR = () => [null, null, null, null, null, null, null, null, null];
 
+/* ======================================================================
+   12 · GAME — the world that is actually running
+   ----------------------------------------------------------------------
+   Game (the big one): the scene, the camera, the loop, the player, mining
+   and building, vehicles, pets, the wallet, space travel, multiplayer.
+
+   The largest single thing in the file. If something happens in the world
+   rather than on a screen, it happens in here.
+   ====================================================================== */
 const Game = {
   mode: 'survival',
   running: false,
@@ -7341,6 +7538,15 @@ Object.assign(Game, {
  * family always differ, the same item is always the same colour, and the
  * family still reads as a family.
  */
+/* ======================================================================
+   13 · ICONS & PICTURES — how a thing is drawn in the bag
+   ----------------------------------------------------------------------
+   ITEM_COLOUR, hexDistance, hexToHsl, buildItemColours, itemColour,
+   itemSwatch, swatchCache, tileAverage, tileSwatch, thingPicture
+
+   Every block and item needs a small picture for the hotbar, the bag and the
+   shop. Colours are spread apart deliberately so no two things look alike.
+   ====================================================================== */
 const ITEM_COLOUR = {};
 
 /* What colour each thing is drawn in.
@@ -8600,6 +8806,15 @@ Object.assign(Game, {
 /* ---------------------------------------------------------------
    13. Screens & menus
    --------------------------------------------------------------- */
+/* ======================================================================
+   14 · UI — screens, menus, the HUD
+   ----------------------------------------------------------------------
+   UI (the second big one): home, settings, the bag, crafting, the map,
+   the wallet, the store, chat, the bestiary, every panel there is.
+
+   Everything the player looks at and taps. Nothing in here changes the
+   world directly; it asks Game to.
+   ====================================================================== */
 const UI = {
   mode: 'survival',
 
@@ -10565,6 +10780,14 @@ Object.assign(Game, {
    theirs, the same update runs, and it is swapped back. The world itself —
    creatures, weather, crops, saving, the network — ticks once, for player one.
    =================================================================== */
+/* ======================================================================
+   15 · SPLIT SCREEN — two players, one device
+   ----------------------------------------------------------------------
+   Split
+
+   A second camera, a second HUD and a second set of controls on the same
+   screen, with player two able to sign in as themselves.
+   ====================================================================== */
 const Split = {
   on: false,
   acting: 1,            // which player the game is running the turn for
@@ -11264,6 +11487,14 @@ const Split = {
    pocket is not somebody playing — and it says hello at once when the game
    comes back, which is exactly when somebody is about to need it.
    =================================================================== */
+/* ======================================================================
+   16 · LIVE — keeping the server awake
+   ----------------------------------------------------------------------
+   Live
+
+   A quiet heartbeat to the Render service while anybody is playing, so the
+   free instance does not go to sleep between games.
+   ====================================================================== */
 const Live = {
   every: 60000,
   timer: 0,
@@ -11346,6 +11577,14 @@ try {
   window.loadSettings = loadSettings;
 } catch (e) {}
 
+/* ======================================================================
+   17 · VISITS — rooms, joining and multiplayer
+   ----------------------------------------------------------------------
+   Visits
+
+   Hosting a game, finding one, joining it, and everything said between
+   players afterwards: positions, chat, teleports, voice.
+   ====================================================================== */
 const Visits = {
   base() {
     const server = (typeof DEFAULT_SERVER === 'string' && DEFAULT_SERVER) || '';
@@ -12860,6 +13099,15 @@ addEventListener('offline', () => { try { Game.net.showLink('waiting'); } catch 
    numeric inventory can hold both.
    --------------------------------------------------------------- */
 const ITEM_BASE = 4096;
+/* ======================================================================
+   18 · ITEMS, RECIPES & FUEL
+   ----------------------------------------------------------------------
+   ITEMS, I (the names), defItem, isItem, itemDef, thingDef, thingName,
+   tool, RECIPES, FUELS
+
+   Everything that lives in the bag rather than in the world, what it is made
+   from and what burns.
+   ====================================================================== */
 const ITEMS = [];
 const ITEM_BY_NAME = Object.create(null);
 const I = {};
@@ -12894,7 +13142,6 @@ const isItem = (id) => id >= ITEM_BASE;
 const itemDef = (id) => ITEMS[id - ITEM_BASE];
 const thingDef = (id) => (isItem(id) ? itemDef(id) : BLOCKS[id]);
 const thingName = (id) => thingDef(id).name;
-const thingTint = (id) => (isItem(id) ? itemDef(id).tint : BLOCKS[id].tint);
 
 FOODS.forEach(n => defItem({ name: n, kind: 'food', tint: '#E8734C' }));
 PRODUCE_POOL.forEach(n => { if (!ITEM_BY_NAME[n]) defItem({ name: n, kind: 'produce', tint: '#D8CBE8' }); });
@@ -13428,6 +13675,13 @@ RECIPES.push(
 );
 
 /* anything in the same list counts as the same material when crafting */
+/* ======================================================================
+   19 · VEHICLES — boats, carts and rockets
+   ----------------------------------------------------------------------
+   MATERIAL_FAMILIES, VEHICLES, buildVehicleModel, class Vehicle
+
+   What each vehicle is built from, what it looks like, and how it drives.
+   ====================================================================== */
 const MATERIAL_FAMILIES = [
   [B.OAK, B.PINE, B.EMBERWOOD, B.JUNGLEWOOD, B.BANANA_WOOD],
   [B.STONE, B.MARBLE, B.REEFROCK, B.GRAVEL, B.BRICK],
@@ -13942,6 +14196,14 @@ I.WATERING    = defItem({ name: 'Watering Can', kind: 'tool', tool: 'water', tie
 I.SHEARS      = defItem({ name: 'Shears', kind: 'tool', tool: 'shear', tier: 1, tint: '#D6C7B4' });
 
 /* one petal block per flower, so every colour has something to build with */
+/* ======================================================================
+   20 · HARVESTING, QUESTS & DECORATION
+   ----------------------------------------------------------------------
+   PETAL_BLOCKS, HARVEST, QUESTS, simpleJewelBrick
+
+   What a plant gives when you pick it, the small jobs the game sets, and the
+   decorative blocks made out of jewels.
+   ====================================================================== */
 const PETAL_BLOCKS = [];
 FLOWERS.forEach((fid) => {
   const f = BLOCKS[fid];
@@ -14733,6 +14995,15 @@ FAMILIES.villager = { domain: 'land', legs: 2, size: 1.0 };
   };
 });
 
+/* ======================================================================
+   21 · TRADING & THE BESTIARY
+   ----------------------------------------------------------------------
+   TRADE_TABLES, PLANS, BESTIARY_BIOMES, BEAST_FAMILIES, BEAST_PREFIX,
+   TRAIT_WORD, RARITIES, TEMPERS, hslHex, BEASTS
+
+   What things are worth, and the record of every creature the player has
+   met. The index itself is kept on the account, not in the save file.
+   ====================================================================== */
 const TRADE_TABLES = {
   crops: [
     { give: [I.GRAIN, 6], get: [I.SEED_FLOWER, 4] },
@@ -14991,6 +15262,15 @@ const BEASTS = [];
    alongside the bestiary without colliding. Sessile ones root to
    the floor and sway; the rest swim.
    --------------------------------------------------------------- */
+/* ======================================================================
+   22 · THE REEF — everything underwater
+   ----------------------------------------------------------------------
+   SEA_PLANS, SESSILE, ZONES, SEA_FAMILIES, SEA_PREFIX, SEA_TRAITS,
+   REEF_SPECIES
+
+   Reef fish are built the same way land animals are, from a family and a
+   zone, but they swim instead of walk and some of them never move at all.
+   ====================================================================== */
 const SEA_PLANS = ['shark', 'cetacean', 'ray', 'eel', 'fish', 'jelly', 'cephalopod', 'crustacean',
                    'turtle', 'seahorse', 'anemone', 'coral', 'echinoderm', 'mollusk', 'tubeworm', 'pinniped'];
 const SESSILE = ['anemone', 'coral', 'tubeworm'];
@@ -15256,6 +15536,16 @@ Object.assign(Game, {
    Everything is derived from the world seed, so the same seed always
    gives the same system on every machine.
    --------------------------------------------------------------- */
+/* ======================================================================
+   23 · SPACE — planets, rockets and what is on them
+   ----------------------------------------------------------------------
+   PLANET_TYPES, PLANET_NAME_A, PLANET_NAME_B, buildSystem, SPACE_MINERALS,
+   PLANET_TERRAIN, GARAGE, MOON_FLORA, MOONPLANT_BLOCKS, WORLD_TYPES,
+   SPACE_ORES, ORE_ITEMS, ASTEROIDS
+
+   Each system is built from its own seed, so a planet looks the same every
+   time anybody visits it. Landing on one loads a world like any other.
+   ====================================================================== */
 const PLANET_TYPES = [
   { key: 'rocky',   label: 'Rocky world',      sky: '#C9A88A', fog: '#A88A6E', ground: '#B08A62', accent: '#7A5230', grav: 0.9 },
   { key: 'ice',     label: 'Ice world',        sky: '#CFE6F5', fog: '#A8C8DE', ground: '#DCEBF5', accent: '#8FB6CE', grav: 0.7 },
@@ -17082,6 +17372,14 @@ WORLD_TYPES.forEach(w => {
    Tracks live beside the page in audio/. If they are missing the
    game is simply quiet; nothing here can stop it running.
    --------------------------------------------------------------- */
+/* ======================================================================
+   24 · MUSIC & STARTING UP
+   ----------------------------------------------------------------------
+   MUSIC, SOFT_BIOMES, Music, and the lines that start the game
+
+   Which track plays where, how one fades into the next, and the last few
+   lines of the file, which are what actually set everything running.
+   ====================================================================== */
 const MUSIC = {
   home:   { file: 'Home_Screen_music',     gain: 0.85, loop: true  },
   grass:  { file: 'Grass_land_music',      gain: 0.60, loop: true  },
