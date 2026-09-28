@@ -473,5 +473,35 @@ $('#confirmBtn').addEventListener('click',()=>{const data=payload();localStorage
   // when this screen is opened inside the game, hand the choice back to it
   try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'voxelia-character',data},'*'); }catch(e){}toast('Character saved ✓');console.log('VOXELIA character config:',data)});
 
+/* Opening "Make it yours" brings it into view.
+
+   Sideways on a phone the drawer begins below the fold — the characters fill
+   the panel and the colours start underneath them. Tapping the heading opened
+   it correctly and nothing appeared to happen, because everything it opened
+   was off the bottom of the panel. Unless you happened to swipe afterwards,
+   the colours looked as though they had been taken away.
+
+   Now opening it scrolls it up to where it can be seen, and the panel itself
+   still scrolls, so nothing is ever reachable by luck alone. */
+(function(){
+  const drawer = document.querySelector('.customizer');
+  const panel  = document.querySelector('.controls-panel');
+  if(!drawer || !panel) return;
+  const reveal = () => {
+    if(!drawer.open) return;
+    /* after the browser has laid the opened drawer out, not before */
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const d = drawer.getBoundingClientRect(), p = panel.getBoundingClientRect();
+      /* put the drawer's top just inside the panel, but never scroll past
+         the end of it */
+      const want = panel.scrollTop + (d.top - p.top) - 8;
+      const most = panel.scrollHeight - panel.clientHeight;
+      const to   = Math.max(0, Math.min(want, most));
+      try{ panel.scrollTo({top:to, behavior:'smooth'}); }catch(e){ panel.scrollTop = to; }
+    }));
+  };
+  drawer.addEventListener('toggle', reveal);
+})();
+
 // Restore local selection if available
 try{const saved=JSON.parse(localStorage.getItem('voxeliaCharacterV2'));if(saved)window.VOXELIACharacterSelector.setSelection(saved);else{state.colors=presetColors(currentPreset());renderAll()}}catch{state.colors=presetColors(currentPreset());renderAll()}

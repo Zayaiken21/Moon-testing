@@ -163,7 +163,28 @@ body{display:block;
    tall, which looks exactly like the colours having been removed. */
 .customizer{min-height:max-content}
 .customizer summary{padding:clamp(7px,1.2vh,13px) 12px}
-.customizer-inner{padding-right:2px}
+
+/* One scroller, not two.
+
+   The drawer used to be capped at 38vh with a scrollbar of its own, so that
+   it could not push the characters off the screen. What that actually did
+   was hide the colours twice over. The panel around it measures its own
+   scrolling height from the drawer's *capped* height, so as far as the panel
+   was concerned everything was already on show and it stopped scrolling
+   early — while the rest of the swatches sat inside the drawer's own
+   scroller, whose box had been clipped off the bottom of the panel. Neither
+   scroller could reach them: scroll the panel and it was already at the end,
+   scroll the drawer and there was no part of it left on screen to put a
+   finger on. Sideways on a phone that meant thirteen colour pickers of which
+   six could be seen and seven could not be got to at all.
+
+   The drawer is now simply as tall as its contents, and the panel is the one
+   and only thing that scrolls. A panel that scrolls cannot lose anything. */
+.customizer-inner{padding-right:2px;max-height:none;overflow:visible}
+
+/* and the last row clears the bottom edge rather than sitting flush on it,
+   so it reads as the end of a list rather than as a list still going */
+.controls-panel{padding-bottom:clamp(14px,2.5vh,26px);scroll-padding-bottom:14px}
 /* The list keeps enough height to be a list.
 
    With the colour drawer open on a short screen, the two were fighting over
@@ -225,7 +246,6 @@ body{display:block;
     scroll-snap-type:x proximity;overscroll-behavior-x:contain;
     padding-bottom:4px}
   .preset-card{scroll-snap-align:start}
-  .customizer-inner{max-height:38vh;overflow-y:auto;overscroll-behavior:contain}
   .customizer summary{padding:6px 10px}
   /* the headings say twice what the buttons beside them already say, and
      sideways on a phone that is two lines the colours could have had */
