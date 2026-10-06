@@ -237,6 +237,12 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 #lock-hint{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;display:none;
   font-size:12px;color:var(--muted);background:rgba(20,18,28,.72);border:1px solid var(--line);
   border-radius:8px;padding:6px 12px}
+/* the controller list: one line each, quiet unless something is wrong */
+#pad-status .pad-row{display:block;padding:3px 0;font-size:12px;color:var(--text)}
+#pad-status .pad-row b{color:var(--moon);font-weight:700;margin-right:4px}
+#pad-status .pad-row i{font-style:normal;color:var(--moon)}
+#pad-status .pad-row.poor{color:var(--ember)}
+#pad-status .pad-nudge{display:inline-block;margin-top:6px;color:var(--muted);font-size:11.5px;line-height:1.45}
 .bind-row{display:flex;justify-content:space-between;align-items:center;width:100%;gap:12px;
   background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 13px;
   margin-bottom:6px;cursor:pointer;text-align:left}
@@ -2291,6 +2297,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 <script src="rewards.js" onerror="console.info('rewards.js not present, carrying on without it')"></script>
 <script src="voxelia-avatars.js" onerror="console.info('voxelia-avatars.js missing: using block characters')"></script>
 <script src="voxelia-things.js" onerror="console.info('voxelia-things.js missing: using flat pictures')"></script>
+<script src="voxelia-lang.js" onerror="console.info('voxelia-lang.js missing: the game stays in English')"></script>
 <script src="store.js" onerror="console.info('store.js not present, carrying on without it')"></script>
 <script>
   /* keep a copy on the device so the game runs with no connection at all */
@@ -3412,6 +3419,55 @@ const waterMaterial = new THREE.MeshLambertMaterial({
   depthWrite: false, side: THREE.DoubleSide
 });
 
+/* Water that moves.
+
+   It was a flat sheet of blue-green with nothing happening on it — the same
+   material as a solid block, only see-through — so a lake read as a pane of
+   glass laid over the ground.
+
+   The surface is now lifted by three slow waves crossing one another, and
+   the colour lifts along the crests the way water catches the sky. It is
+   done in the shader rather than by editing the geometry, because the chunk
+   buffers are built once and handed to the card: reaching back into them
+   every frame for a bit of ripple would cost more than the rest of the world
+   put together.
+
+   Only the top of a block moves. A wave on the underside of a lake would
+   pull the water off the bank and show daylight through the gap, so
+   everything below the surface stays exactly where the block edge is. */
+/* One clock, kept outside the compile step.
+
+   This uniform used to be created fresh inside onBeforeCompile. That hook is
+   not called once — the card's program is rebuilt whenever the lighting or
+   the fog changes, which on this game is constantly — and each rebuild
+   handed the shader a brand new { value: 0 }. The water's clock was
+   therefore reset to zero several times a second and the surface never moved
+   more than a hair. Holding the object out here means every rebuild is given
+   the same clock, still running. */
+const waterClock = { value: 0 };
+waterMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.vxTime = waterClock;
+  waterMaterial.userData.shader = shader;
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>',
+      '#include <common>\nuniform float vxTime;\nvarying float vxCrest;')
+    .replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n'
+      + 'vec4 vxW = modelMatrix * vec4(transformed, 1.0);\n'
+      + 'float vxTop = step(0.72, fract(vxW.y + 0.001));\n'
+      + 'float vxA = sin(vxW.x * 0.55 + vxTime * 1.15);\n'
+      + 'float vxB = sin(vxW.z * 0.43 - vxTime * 0.87);\n'
+      + 'float vxC = sin((vxW.x + vxW.z) * 0.31 + vxTime * 0.61);\n'
+      + 'transformed.y += (vxA * 0.045 + vxB * 0.038 + vxC * 0.026) * vxTop;\n'
+      + 'vxCrest = (vxA + vxB + vxC) * 0.3333 * vxTop;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying float vxCrest;')
+    .replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n'
+      + 'gl_FragColor.rgb += vec3(0.05, 0.09, 0.12) * vxCrest;\n'
+      + 'gl_FragColor.a = clamp(gl_FragColor.a + vxCrest * 0.06, 0.55, 0.92);');
+};
+
 function faceTile(block, faceIndex) {
   if (faceIndex === 3) return block.top;
   if (faceIndex === 2) return block.bottom;
@@ -4501,7 +4557,59 @@ class Drop {
    ====================================================================== */
 const Input = {
   keys: Object.create(null),
-  mouseDX: 0, mouseDY: 0,
+
+  /* ---------------- the mouse belongs to one player ----------------
+
+     There used to be a single mouseDX and mouseDY for the whole game. In
+     split screen that is a bug with teeth: the frame runs twice, once as
+     player one and once as player two, through the very same update()
+     function. Whatever the mouse had moved since the last frame was read by
+     whichever turn got to it first, and whatever arrived in between was read
+     by the other one. Moving the mouse anywhere on the screen — including
+     over player two's half, just to look at it — fed turning into player
+     two's camera that nobody had asked for. From the outside that is a
+     player spinning on the spot with no way to stop it.
+
+     Now each player has their own pile of unread movement, and the mouse
+     puts what it collects into exactly one of them: mouseOwner. Never both.
+     Never "whoever is acting", which was the whole problem.
+
+     mouseOwner is also completely separate from which controller a player is
+     using. Those two were tangled together before — forcePad === -1 meant
+     "this player is on keyboard and mouse", so picking up a controller took
+     the mouse away, and handing the mouse over reassigned a controller. They
+     are different questions and they are asked separately now: a player can
+     hold a controller and still have the mouse, and player two can be given
+     the mouse without anybody's controller changing. */
+  look: { 1: { dx: 0, dy: 0 }, 2: { dx: 0, dy: 0 } },
+  mouseOwner: 1,
+
+  /** Whose turn the game is running right now. */
+  actor() {
+    return (typeof Split !== 'undefined' && Split.on && Split.acting === 2) ? 2 : 1;
+  },
+
+  /* mouseDX and mouseDY still read and write the way they always did, so
+     every line that used them — the touch sticks, the places that clear
+     them between screens — carries on working. They just now point at the
+     pile belonging to the player whose turn it is. */
+  get mouseDX() { return this.look[this.actor()].dx; },
+  set mouseDX(v) { this.look[this.actor()].dx = v; },
+  get mouseDY() { return this.look[this.actor()].dy; },
+  set mouseDY(v) { this.look[this.actor()].dy = v; },
+
+  /** Hand the mouse to a player. Nothing else about either one changes. */
+  giveMouseTo(who) {
+    const w = who === 2 ? 2 : 1;
+    if (this.mouseOwner === w) return w;
+    /* drop whatever the old owner had not read yet, so the handover does not
+       arrive as a flick of the view */
+    this.look[1].dx = this.look[1].dy = 0;
+    this.look[2].dx = this.look[2].dy = 0;
+    this.mouseOwner = w;
+    return w;
+  },
+
   moveStick: { x: 0, y: 0, active: false, id: null, ox: 0, oy: 0 },
   sprintLatch: false,
   lastStickTap: 0,
@@ -4536,14 +4644,93 @@ const Input = {
 
   gamepadBlocked: false,
 
+  /* ---------------- controllers, and how they really behave ----------------
+
+     A web page cannot pair a Bluetooth controller. That is not a gap in this
+     game: pairing belongs to the operating system, and the browser is only
+     ever handed controllers the machine has already accepted. Web Bluetooth
+     cannot do it either — controllers are HID devices and that specification
+     blocks HID outright — and WebHID, which can talk to some of them, is
+     Chromium-only and still needs the pairing done first.
+
+     So what is done here is everything on this side of that line: notice a
+     controller the moment it arrives, keep hold of which player it belongs
+     to, measure how fast it is really reporting, and say plainly when it is
+     struggling.
+
+     Three things that surprise people, all handled below:
+
+       - getGamepads() hands back a NEW snapshot every call, so a pad object
+         kept from last frame has sticks frozen at last frame's values. It is
+         read once a frame here and shared, instead of four or five times.
+       - A controller stays invisible until a button is pressed on it with
+         the tab in focus. Nothing is broken; the browser is waiting.
+       - Firefox stops polling a background tab, so sticks read flat. */
+  padSnap: null,
+  padSnapAt: -1,
+  padHealth: Object.create(null),     // index -> how it is behaving
+  padNames: Object.create(null),      // index -> the name it reported
+
   rawPads() {
     if (this.gamepadBlocked || !navigator.getGamepads) return [];
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (this.padSnap && now - this.padSnapAt < 4) return this.padSnap;
     try {
-      return navigator.getGamepads() || [];
+      this.padSnap = navigator.getGamepads() || [];
+      this.padSnapAt = now;
+      this.watchPads(now);
+      return this.padSnap;
     } catch (e) {
       this.gamepadBlocked = true;   // the page forbids the gamepad feature
       return [];
     }
+  },
+
+  /* How fast each controller is really reporting.
+
+     Over Bluetooth a pad may report at 30 a second, or drop to almost
+     nothing on a weak link; wired it can be 250. The game does not need it
+     to be fast, because turning is scaled by how much time has passed rather
+     than by how many frames — a slow pad turns at the same speed, in coarser
+     steps. But a pad that has stopped reporting looks exactly like a player
+     sitting still, and that is worth saying out loud rather than leaving
+     somebody to wonder why their controller died. */
+  watchPads(now) {
+    for (const p of this.padSnap) {
+      if (!p || !p.connected) continue;
+      const h = this.padHealth[p.index] || (this.padHealth[p.index] = {
+        hz: 0, lastStamp: -1, lastSeen: now, ticks: 0, since: now, slow: false
+      });
+      if (p.timestamp !== h.lastStamp) {
+        h.lastStamp = p.timestamp;
+        h.lastSeen = now;
+        h.ticks++;
+      }
+      if (now - h.since >= 1000) {
+        h.hz = Math.round(h.ticks * 1000 / (now - h.since));
+        h.ticks = 0; h.since = now;
+        h.slow = h.hz > 0 && h.hz < 20;
+      }
+      this.padNames[p.index] = p.id || this.padNames[p.index] || '';
+    }
+  },
+
+  /** A controller that has gone quiet for long enough to be a problem. */
+  padStale(index) {
+    const h = this.padHealth[index];
+    if (!h) return false;
+    const t = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    return (t - h.lastSeen) > 1500;
+  },
+
+  /** What to tell the player about one controller, in words. */
+  padReport(index) {
+    const h = this.padHealth[index];
+    if (!h) return 'press a button on it';
+    if (this.padStale(index)) return 'not responding';
+    if (!h.hz) return 'connected';
+    if (h.slow) return h.hz + '/sec · slow, move it closer';
+    return h.hz + '/sec';
   },
 
   pollGamepadFly() {
@@ -4705,6 +4892,36 @@ const MISSING = (() => {
    Short ways of reaching the page, and the settings the player has chosen,
    which are kept in this browser under 'voxelia.settings'.
    ====================================================================== */
+/* A button is never a submit button.
+
+   A <button> with no type attribute IS a submit button — that is the HTML
+   default, not an opinion. Forty-nine of the controls on the settings screen
+   are made that way, and a submit button's job is to send a form and load
+   whatever comes back. With no <form> around them nothing happens, which is
+   why this has stayed quiet; put one anywhere above them, or open the game
+   inside a wrapper that supplies one, and every control on that screen
+   becomes a page reload.
+
+   A reload loses the world the player is standing in, so this is belt and
+   braces: the listener below refuses any submission anywhere, and anything
+   already in the markup without a type is given one. Nothing in this game
+   has ever wanted to submit a form. */
+addEventListener('submit', (e) => { e.preventDefault(); e.stopPropagation(); }, true);
+addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('button:not([type])').forEach((b) => { b.type = 'button'; });
+});
+
+/* Used wherever the game builds a button, so the default cannot come back by
+   somebody forgetting it once. */
+function makeButton(className, html) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.type = 'button';
+  if (className) b.className = className;
+  if (html !== undefined) b.innerHTML = html;
+  return b;
+}
+
 const $ = (s) => document.querySelector(s) || MISSING(s);
 
 /* Every listener in the game goes through this. If the element is not on the
@@ -5532,6 +5749,41 @@ const Game = {
       }
     }
 
+    /* ---- the tornado ----
+       A storm has to be findable, or the only way to learn where it is, is
+       to be picked up by it. It is drawn as a dark eye with the circle of
+       ground it is tearing up around it, so the map says both where it is
+       and how much of the world to stay away from. */
+    const tornadoNow = (typeof Tornado !== 'undefined' && Tornado.where) ? Tornado.where() : null;
+    if (tornadoNow) {
+      const tx = W / 2 + (tornadoNow.x - px) / blocksPerPixel;
+      const tz = H / 2 + (tornadoNow.z - pz) / blocksPerPixel;
+      if (tx > -40 && tz > -40 && tx < W + 40 && tz < H + 40) {
+        const rr = Math.max(4, tornadoNow.r / blocksPerPixel);
+        const beat = 0.6 + Math.sin(performance.now() * 0.004) * 0.25;
+        g.save();
+        g.globalAlpha = 0.28 * beat;
+        g.fillStyle = '#C9D4F5';
+        g.beginPath(); g.arc(tx, tz, rr * 3.4, 0, Math.PI * 2); g.fill();
+        g.restore();
+        g.strokeStyle = '#8FB4E8';
+        g.lineWidth = 2 * scale;
+        g.beginPath(); g.arc(tx, tz, rr * 2.2, 0, Math.PI * 2); g.stroke();
+        /* a little spiral, so it reads as a tornado and not a waypoint */
+        g.beginPath();
+        for (let a = 0; a < Math.PI * 5; a += 0.22) {
+          const rad = rr * 0.18 + (a / (Math.PI * 5)) * rr * 1.5;
+          const fx = tx + Math.cos(a + performance.now() * 0.002) * rad;
+          const fy = tz + Math.sin(a + performance.now() * 0.002) * rad;
+          if (a === 0) g.moveTo(fx, fy); else g.lineTo(fx, fy);
+        }
+        g.strokeStyle = '#0B0D16';
+        g.lineWidth = 2.6 * scale;
+        g.stroke();
+      }
+    }
+
+
     /* You.
 
        An arrow five pixels across, white on a busy map, was easy to lose —
@@ -5876,13 +6128,20 @@ const Game = {
     });
 
     addEventListener('mousemove', (e) => {
+      /* Straight into the owner's pile, not into whoever's turn it happens
+         to be when this fires. That distinction is the whole fix for player
+         two spinning on the spot. */
+      const buf = Input.look[Input.mouseOwner] || Input.look[1];
       if (this.pointerLocked) {
-        Input.mouseDX += e.movementX; Input.mouseDY += e.movementY;
+        buf.dx += e.movementX; buf.dy += e.movementY;
       } else if (this.dragLook) {
-        Input.mouseDX += e.clientX - this.dragX;
-        Input.mouseDY += e.clientY - this.dragY;
+        buf.dx += e.clientX - this.dragX;
+        buf.dy += e.clientY - this.dragY;
         this.dragX = e.clientX; this.dragY = e.clientY;
       }
+      /* Not locked and not dragging: the mouse is just lying on the desk or
+         being moved across player two's half to look at it. That must turn
+         nobody's head, which is what it used to do. */
     });
 
     addEventListener('contextmenu', (e) => { if (this.running) e.preventDefault(); });
@@ -6205,6 +6464,12 @@ Object.assign(Game, {
     } else {
       p.vel.y -= 26 * (this.gravityScale || 1) * dt;
       if (p.onGround) { p.jumpsLeft = has('doubleJump') ? 2 : 1; }
+
+      /* The tornado, if there is one and it has hold of this player. It goes
+         after gravity on purpose: it has to be able to beat the fall, and it
+         does that by adding lift to a velocity that has already had gravity
+         taken out of it, rather than fighting it for the same frame. */
+      this.tornadoPull(dt, (typeof Split !== 'undefined' && Split.on) ? Split.acting : 1);
       if (jumpTap && p.jumpsLeft > 0) {
         /* The same push off the ground everywhere. Low gravity then does the
            rest on its own: a long, floaty hop on a small world and a normal
@@ -6398,6 +6663,7 @@ Object.assign(Game, {
     this.showTips(dt);
     this.updateMusic(dt);
     this.updateWeather(dt);
+    this.tornadoTick(dt);
     const close = this.nearestCreature(6);
     if (close && close.domain === 'water' && !this.metSpecies.has(close.species)) {
       this.metSpecies.add(close.species);
@@ -6420,7 +6686,7 @@ Object.assign(Game, {
       else this.dayTime = (this.dayTime + gap * Math.min(1, dt * 2) + 1) % 1;
       this.dayTarget = (this.dayTarget + dt / 600) % 1;
     }
-    this.applySky();
+    this.applySky(dt);
     this.streamChunks(IS_TOUCH ? 5 : 9);
   },
 
@@ -6922,19 +7188,60 @@ Object.assign(Game, {
     }
   },
 
-  applySky() {
-    const bi = this.world.biomeAt(Math.floor(this.player.pos.x), Math.floor(this.player.pos.z));
+  applySky(dt) {
+    const px = Math.floor(this.player.pos.x), pz = Math.floor(this.player.pos.z);
+    const bi = this.world.biomeAt(px, pz);
     const b = BIOMES[bi];
     const dayness = Math.max(0.10, Math.sin(this.dayTime * Math.PI * 2) * 0.5 + 0.5);
     if (!this._sky) {
       this._sky = new THREE.Color(); this._fogCol = new THREE.Color();
+      this._skyWant = new THREE.Color(); this._fogWant = new THREE.Color();
       this._deep = new THREE.Color('#1B5E86');
       this.scene.background = this._sky;
       this.scene.fog = new THREE.Fog(0x000000, 10, 100);
       this.scene.fog.color = this._fogCol;
+      this._litHemi = 0; this._litSun = 0;
+      this._skyFirst = true;
     }
-    this._sky.set(b.sky).multiplyScalar(0.20 + dayness * 0.85);
-    this._fogCol.set(b.fog).multiplyScalar(0.20 + dayness * 0.85);
+
+    /* The sky is mixed from the land around you, not from the block you are
+       standing on.
+
+       Both of these were snapped straight to the new value with .set(), so
+       walking over a biome border changed the sky and the fog between one
+       frame and the next — desert orange to snowfield white in a single
+       step, which is not a sunrise, it is a scene change. Worse, standing
+       right on a border flickered between the two every time you shifted a
+       foot.
+
+       Now the colour is mixed from four points around the player, so a
+       border is a gradual change rather than a line, and the result is eased
+       towards rather than jumped to. Crossing from one land into another
+       takes about a second and a half, which reads as the light changing. */
+    const R = 26;
+    const near = [[px, pz], [px + R, pz], [px - R, pz], [px, pz + R], [px, pz - R]];
+    this._skyWant.set('#000000'); this._fogWant.set('#000000');
+    const tmp = this._tmpCol || (this._tmpCol = new THREE.Color());
+    let light = 0;
+    for (const [sx, sz] of near) {
+      const nb = BIOMES[this.world.biomeAt(sx, sz)] || b;
+      tmp.set(nb.sky); this._skyWant.add(tmp);
+      tmp.set(nb.fog); this._fogWant.add(tmp);
+      light += nb.light;
+    }
+    const n = near.length;
+    this._skyWant.multiplyScalar(1 / n);
+    this._fogWant.multiplyScalar(1 / n);
+    const blendLight = light / n;
+
+    this._skyWant.multiplyScalar(0.20 + dayness * 0.85);
+    this._fogWant.multiplyScalar(0.20 + dayness * 0.85);
+    /* first frame in a world arrives at its colour rather than fading up
+       from black */
+    const ease = this._skyFirst ? 1 : Math.min(1, (dt || 0.016) * 0.7);
+    this._skyFirst = false;
+    this._sky.lerp(this._skyWant, ease);
+    this._fogCol.lerp(this._fogWant, ease);
     if (this.player.inWater) { this._sky.lerp(this._deep, 0.75); this._fogCol.copy(this._sky); }
     const clarity = this.gear.goggles ? 0.8 : 0.35;
     const far = (Settings.renderDistance * CX) * (this.player.inWater ? clarity : 0.98);
@@ -6943,8 +7250,20 @@ Object.assign(Game, {
     const gloom = (this.weather === 'rain') ? 0.55 : (this.weather === 'snow') ? 0.72 : (this.weather === 'cloudy') ? 0.8 : 1;
     this._sky.multiplyScalar(gloom);
     this._fogCol.multiplyScalar(gloom);
-    this.hemi.intensity = (0.30 + dayness * 0.72) * b.light * gloom;
-    this.sun.intensity = dayness * 0.85 * b.light;
+    /* the lamps ease across a border too, or the ground would change
+       brightness a beat before the sky caught up */
+    const wantHemi = (0.30 + dayness * 0.72) * blendLight * gloom;
+    const wantSun = dayness * 0.85 * blendLight;
+    const lampEase = Math.min(1, (dt || 0.016) * 0.7);
+    this._litHemi += (wantHemi - this._litHemi) * (this._litHemi ? lampEase : 1);
+    this._litSun += (wantSun - this._litSun) * (this._litSun ? lampEase : 1);
+    this.hemi.intensity = this._litHemi;
+    this.sun.intensity = this._litSun;
+
+    /* the water's own clock, wound on here because this runs every frame and
+       already knows how much time has passed */
+    waterClock.value += (dt || 0.016);
+
     const ang = this.dayTime * Math.PI * 2;
     this.sun.position.set(Math.cos(ang) * 120, Math.sin(ang) * 140, 60).add(this.player.pos);
     this.sun.target.position.copy(this.player.pos);
@@ -6992,7 +7311,43 @@ Object.assign(Game, {
         return;
       }
     }
-    const hit = this.aim();
+    let hit = this.aim();
+
+    /* Once you start breaking a block, you keep breaking THAT block.
+
+       Progress used to be thrown away the instant the crosshair touched a
+       different block, and on a phone that makes mining close to impossible:
+       you are dragging a thumb across the glass to aim while the other one
+       holds the mine button, the crosshair wanders a few pixels onto the
+       block next door, and the bar drops to nothing. The only way to finish
+       anything was to hold perfectly still, which is not a thing you can do
+       while also looking where you are going.
+
+       So while the button is held, the block you began on stays the target,
+       as long as it is still there and still in reach. Let go and the lock
+       goes with it. Nothing breaks any faster than before — the same block
+       takes the same time — it simply no longer needs a surgeon's hand to
+       finish what you started. Aim somewhere else and hold it there and the
+       lock gives way, because that is a change of mind rather than a wobble;
+       a phone is given a little longer to wobble than a mouse is. */
+    if (Input.buttons.mine && this.lockedBlock) {
+      const L = this.lockedBlock;
+      /* getBlock, not get. There is no World.get — it returned undefined
+         every single frame, so the lock was dropped as soon as it was made
+         and the whole wobble-tolerance did nothing on any device. */
+      const still = this.world ? this.world.getBlock(L.x, L.y, L.z) : 0;
+      const d = Math.abs(L.x + 0.5 - this.player.pos.x)
+              + Math.abs(L.y + 0.5 - this.player.pos.y)
+              + Math.abs(L.z + 0.5 - this.player.pos.z);
+      if (still && still === L.id && d < 14) {
+        if (hit && (hit.x !== L.x || hit.y !== L.y || hit.z !== L.z)) {
+          this.aimDrift = (this.aimDrift || 0) + dt;
+        } else this.aimDrift = 0;
+        if (this.aimDrift < (IS_TOUCH ? 0.45 : 0.28)) hit = L;
+        else { this.lockedBlock = null; this.aimDrift = 0; }
+      } else { this.lockedBlock = null; this.aimDrift = 0; }
+    }
+
     if (hit) {
       this.highlight.visible = true;
       this.highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
@@ -7000,6 +7355,7 @@ Object.assign(Game, {
 
     if (!Input.buttons.mine || !hit) {
       this.breakProgress = 0; this.lastHit = null;
+      this.lockedBlock = null; this.aimDrift = 0;
       $('#break-bar').style.width = '0%';
       return;
     }
@@ -7019,10 +7375,13 @@ Object.assign(Game, {
     if (this.swingLoop <= 0) { this.swing(); this.swingLoop = 0.34; }
     if (this.lastHit && (this.lastHit.x !== hit.x || this.lastHit.y !== hit.y || this.lastHit.z !== hit.z)) this.breakProgress = 0;
     this.lastHit = hit;
+    /* remember what we are working on, so a wobble cannot lose it */
+    if (!this.lockedBlock) this.lockedBlock = { x: hit.x, y: hit.y, z: hit.z, id: hit.id };
     const quarry = this.hasAbility('quarry') ? 2 : 1;
     this.breakProgress += dt * (this.mode === 'creative' ? 99 : quarry * check.speed / block.hardness);
     if (this.breakProgress >= 1) {
       this.breakProgress = 0;
+      this.lockedBlock = null; this.aimDrift = 0;
       // one press, one block: you must release and press again for the next
       this.lastHit = null;      // straight on to whatever you are pointing at next
       this.world.setBlock(hit.x, hit.y, hit.z, AIR);
@@ -7895,6 +8254,7 @@ Object.assign(Game, {
     bar.innerHTML = '';
     this.hotbar.forEach((id, i) => {
       const slot = document.createElement('button');
+      slot.type = 'button';
       slot.className = 'slot' + (i === this.slot ? ' active' : '') + (id === null ? ' empty' : '');
       if (id === null) {
         slot.title = 'Empty';
@@ -8847,6 +9207,9 @@ const UI = {
       mouseTo.value = String(Settings.mouseTo || 1);
       mouseTo.addEventListener('change', () => {
         Settings.mouseTo = parseInt(mouseTo.value, 10) === 2 ? 2 : 1;
+        /* Actually hand it over. This used to set the number and say so in a
+           toast while nothing read it, so the control was for show. */
+        Input.giveMouseTo(Settings.mouseTo);
         Game.toast('The mouse now steers Player ' + Settings.mouseTo + '.');
         try { saveSettings(); } catch (e) {}
       });
@@ -9347,8 +9710,26 @@ const UI = {
       this.drawBindings();
     });
 
-    addEventListener('gamepadconnected', () => this.padStatus());
-    addEventListener('gamepaddisconnected', () => this.padStatus());
+    /* A controller arriving or going is worth a word either way: over
+       Bluetooth they drop out silently and the player is left pressing a
+       stick that does nothing. */
+    addEventListener('gamepadconnected', (e) => {
+      this.padStatus();
+      this.renderSplitPanel && this.renderSplitPanel();
+      const n = ((e.gamepad && e.gamepad.id) || 'Controller').replace(/\s*\([^)]*\)\s*$/, '');
+      Game.toast(n.slice(0, 30) + ' connected.');
+    });
+    addEventListener('gamepaddisconnected', (e) => {
+      const i = e.gamepad && e.gamepad.index;
+      if (typeof i === 'number') { delete Input.padHealth[i]; delete Input.padNames[i]; }
+      this.padStatus();
+      this.renderSplitPanel && this.renderSplitPanel();
+      if (typeof Split !== 'undefined' && Split.on && (Split.p1Pad === i || Split.p2Pad === i)) {
+        Game.toast('Player ' + (Split.p1Pad === i ? '1' : '2') + '\u2019s controller dropped out.');
+      } else {
+        Game.toast('Controller disconnected.');
+      }
+    });
     this.drawBindings();
     this.padStatus();
   },
@@ -9357,8 +9738,7 @@ const UI = {
     const wrap = $('#pad-binds');
     wrap.innerHTML = '';
     for (const [action, label] of Object.entries(Pad.labels)) {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       row.innerHTML = `<span>${label}</span><b>${Pad.awaiting === action ? 'press a button…' : 'Button ' + Pad.map[action]}</b>`;
       row.addEventListener('click', () => {
         Pad.awaiting = Pad.awaiting === action ? null : action;
@@ -9368,16 +9748,67 @@ const UI = {
     }
   },
 
+  /* The controller panel: what is connected, how well, and how to add one.
+
+     It cannot offer a "pair over Bluetooth" button, because no web page can.
+     Pairing is done by the machine, in its own Bluetooth settings, and the
+     browser is then handed whatever the machine accepted. Pretending
+     otherwise would put a button there that could never work, so instead
+     this says where the pairing actually happens on the device being used,
+     and then gets on with the part a page can do: noticing the controller
+     the instant it arrives and reporting how it is behaving. */
+  padHelp() {
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua))
+      return 'Settings › Bluetooth on this iPad or iPhone, then come back.';
+    if (/Android/i.test(ua))
+      return 'Settings › Connected devices › Pair new device, then come back.';
+    if (/Mac OS X|Macintosh/i.test(ua))
+      return 'System Settings › Bluetooth, hold the pairing button on the pad, then come back.';
+    if (/Windows/i.test(ua))
+      return 'Settings › Bluetooth & devices › Add device, then come back.';
+    return 'Pair it in this device’s own Bluetooth settings, then come back.';
+  },
+
   padStatus() {
     const el = $('#pad-status');
+    if (!el) return;
     if (Input.gamepadBlocked) {
       el.textContent = 'This page is not allowed to read controllers. Open the file directly, or add allow="gamepad" to the iframe.';
       return;
     }
-    const pad = Input.activePad();
-    el.textContent = pad
-      ? 'Connected: ' + pad.id
-      : 'No controller yet. Plug one in or press a button on it — it is picked up straight away.';
+    const pads = [];
+    for (const p of Input.rawPads()) if (p && p.connected) pads.push(p);
+
+    if (!pads.length) {
+      el.innerHTML = '<b>No controller yet.</b> Plug one in over USB, or pair it over '
+        + 'Bluetooth: ' + this.padHelp()
+        + '<br><span class="pad-nudge">Already paired? <b>Press any button on it</b> — '
+        + 'browsers keep a controller hidden until it is used once.</span>';
+      return;
+    }
+
+    /* Up to two, because split screen is two players. A third is listed and
+       plainly marked as spare rather than silently ignored. */
+    const who = (i) => {
+      if (typeof Split === 'undefined' || !Split.on) return Input.forcePad === i ? 'in use' : '';
+      if (Split.p1Pad === i) return 'Player 1';
+      if (Split.p2Pad === i) return 'Player 2';
+      return 'spare';
+    };
+    const rows = pads.slice(0, 4).map((p, n) => {
+      const name = (p.id || 'Controller').replace(/\s*\([^)]*\)\s*$/, '').slice(0, 34);
+      const tag = who(p.index);
+      const rate = Input.padReport(p.index);
+      const bad = Input.padStale(p.index) || (Input.padHealth[p.index] || {}).slow;
+      return '<span class="pad-row' + (bad ? ' poor' : '') + '">'
+           + '<b>' + (n + 1) + '.</b> ' + name
+           + (tag ? ' · <i>' + tag + '</i>' : '')
+           + ' · ' + rate + '</span>';
+    }).join('');
+    const extra = pads.length > 2
+      ? '<br><span class="pad-nudge">Split screen uses two. The rest sit spare.</span>' : '';
+    el.innerHTML = rows + extra;
   },
 
   // runs every frame so a rebind can capture the next button press
@@ -9404,8 +9835,7 @@ const UI = {
     if (!wrap) return;
     wrap.innerHTML = '';
     for (const [action, label] of Object.entries(VKEY_LABELS)) {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       const shown = VKEYS[action].replace('Key', '').replace('ShiftLeft', 'Shift');
       row.innerHTML = `<span>${label}</span><b>${this.vkeyAwait === action ? 'press a key\u2026' : shown}</b>`;
       row.addEventListener('click', () => {
@@ -9660,8 +10090,7 @@ const UI = {
     if (!slots.length) { el.innerHTML = '<p class="lede">No saved worlds yet. Start a world, then Pause and press Save.</p>'; return; }
     el.innerHTML = '';
     slots.forEach(sl => {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ` +
         `${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}${sl.everCreative ? ' \u00b7 creative used' : ''}` +
         `</small></span><b>Play</b><i class="slot-del" title="Delete this world">\u2715</i>`;
@@ -9695,6 +10124,7 @@ const UI = {
       list.innerHTML = '';
       people.forEach(p => {
         const b = document.createElement('button');
+        b.type = 'button';
         b.textContent = p.name || 'a player';
         b.addEventListener('click', () => {
           Game.offerCompanion(c, p.id);
@@ -9710,6 +10140,7 @@ const UI = {
     box.style.cssText = 'flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);' +
                         'border-radius:10px;padding:9px 11px;color:var(--text);font-family:var(--display);font-size:13px';
     const go = document.createElement('button');
+    go.type = 'button';
     go.className = 'btn';
     go.textContent = 'Give';
     const send = () => {
@@ -9773,6 +10204,7 @@ const UI = {
       row.className = 'mark-row';
       const active = Game.activeWaypoint === w;
       const go = document.createElement('button');
+      go.type = 'button';
       go.className = 'grow';
       go.innerHTML = `<strong>${w.name}</strong><br><small>${w.x}, ${w.y}, ${w.z}</small>`;
       const state = document.createElement('span');
@@ -9783,6 +10215,7 @@ const UI = {
         this.renderWaypoints();
       });
       const del = document.createElement('button');
+      del.type = 'button';
       del.className = 'del';
       del.textContent = 'Remove';
       del.addEventListener('click', (ev) => {
@@ -9798,6 +10231,7 @@ const UI = {
     });
     if (list.length > 1) {
       const clear = document.createElement('button');
+      clear.type = 'button';
       clear.className = 'btn';
       clear.textContent = 'Remove every mark';
       clear.addEventListener('click', () => {
@@ -9850,6 +10284,7 @@ const UI = {
       /* Where did it get to? The arrow points at it and keeps pointing while
          it wanders, until you are standing next to it. */
       const findIt = document.createElement('button');
+      findIt.type = 'button';
       findIt.className = 'btn';
       findIt.textContent = 'Find';
       findIt.addEventListener('click', () => {
@@ -9857,11 +10292,13 @@ const UI = {
         this.closeCompanions();
       });
       const give = document.createElement('button');
+      give.type = 'button';
       give.className = 'btn';
       give.textContent = 'Give';
       give.style.display = (Game.net && Game.net.connected) ? '' : 'none';
       give.addEventListener('click', () => this.showGivePicker(c));
       const follow = document.createElement('button');
+      follow.type = 'button';
       follow.className = 'btn';
       follow.textContent = c.companion ? 'Following' : 'Follow';
       follow.classList.toggle('on', !!c.companion);
@@ -9949,8 +10386,7 @@ const UI = {
     const binds = Split.loadBinds().p2;
     box.innerHTML = '';
     for (const [key, label] of rows) {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       row.innerHTML = '<span>' + label + '</span>';
       const k = document.createElement('kbd');
       k.textContent = Split.keyLabel(binds[key]);
@@ -10004,6 +10440,7 @@ const UI = {
         pd.buttons + ' buttons, ' + pd.axes + ' axes' + (pd.rumble ? ', rumble' : '');
       info.appendChild(title); info.appendChild(detail);
       const id = document.createElement('button');
+      id.type = 'button';
       id.className = 'btn';
       id.textContent = 'Which is this?';
       id.addEventListener('click', () => {
@@ -10198,8 +10635,7 @@ const UI = {
     if (!slots.length) { el.innerHTML = '<p class="lede">No saves in this browser yet.</p>'; return; }
     el.innerHTML = '';
     slots.forEach(sl => {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       row.innerHTML = `<span><strong>${sl.name}</strong><br><small>${sl.seed || ''} \u00b7 ` +
         `${(sl.savedAt || '').slice(0, 16).replace('T', ' ')}${sl.everCreative ? ' \u00b7 creative used' : ''}` +
         `</small></span><b>Load</b><i class="danger slot-del" title="Delete this world">\u2715</i>`;
@@ -10528,6 +10964,7 @@ const UI = {
         listEl.innerHTML = '';
         games.forEach(g => {
           const row = document.createElement('button');
+          row.type = 'button';
           row.className = 'bind-row';
           row.innerHTML = `<span><strong>${g.name}</strong><br><small>code ${g.code} \u00b7 ${g.players}/${g.max} playing \u00b7 ${g.mode}</small></span><b>Join</b>`;
           row.addEventListener('click', () => this.joinByCode(g.code));
@@ -10908,7 +11345,14 @@ const Split = {
   },
 
   /** Whether this player is the one holding the mouse. */
-  hasMouse(which) { return (Settings.mouseTo || 1) === which; },
+  /* Who the mouse belongs to. Settings.mouseTo is what the player chose;
+     Input.mouseOwner is where the movement actually lands, so the two are
+     kept in step here rather than being allowed to drift apart. */
+  hasMouse(which) {
+    const owner = (Settings.mouseTo || 1) === 2 ? 2 : 1;
+    if (Input.mouseOwner !== owner) Input.giveMouseTo(owner);
+    return owner === which;
+  },
 
   /* Run something as one player or the other.
 
@@ -10952,12 +11396,23 @@ const Split = {
            'mount', 'onRope', 'ropeAt', 'prevJump', 'prevInteract', 'prevPadFly', 'prevPadMenu',
            'prevSlotNext', 'prevSlotPrev', 'prevPadBag', 'prevPadMap', 'prevPadCraft',
            'prevPadView', 'camDist', 'breakProgress', 'lastHit', 'swingT',
+           'lockedBlock', 'aimDrift',
            'swingLoop', 'placeCooldown', 'bucketed', 'hintTimer',
            // each player wears their own character and has their own body
-           'selfBody', 'selfView', 'character', 'characterStamp', 'skin'],
+           'selfBody', 'selfView', 'character', 'characterStamp', 'skin',
+           /* Player two's own way of playing.
+
+              'mode' was not on this list, so creative and survival were one
+              setting for the pair of them: player one switching to survival
+              took player two's free hand away mid-game without asking. It is
+              theirs now — each player's turn runs in their own mode, and the
+              world itself (what spawns, what the weather does) still happens
+              once, as it always did. */
+           'mode'],
 
   /* world-wide work that must happen once per frame, not once per player */
   WORLD_ONLY: ['animateHand', 'applySky', 'autosaveTick', 'growCrops', 'repopulate', 'settleWater',
+               'tornadoTick',
                'showTips', 'updateLeashes', 'updateMusic', 'updateWeather', 'questTick',
                'updatePrompt', 'updateGuide', 'noteSighting', 'updateHeld', 'refreshHotbar',
                'musicTick'],
@@ -11024,6 +11479,7 @@ const Split = {
     if (!this.joinPick || list.indexOf(this.joinPick) < 0) this.joinPick = list[0];
     for (const id of list) {
       const b = document.createElement('button');
+      b.type = 'button';
       b.type = 'button';
       b.className = 'p2-card' + (id === this.joinPick ? ' picked' : '');
       /* A picture of the character, not its name. Player two was choosing
@@ -11161,7 +11617,10 @@ const Split = {
       gear: {}, riding: null, passengerIn: null, mount: null, onRope: null,
       bucketed: [], camDist: undefined, breakProgress: 0, lastHit: null,
       character, characterStamp: JSON.stringify(character), skin: p2skin,
-      selfBody: p2body, selfView: 'third'
+      selfBody: p2body, selfView: 'third',
+      /* they start in whatever player one is playing, and can change it
+         afterwards without touching player one */
+      mode: Game.mode
     };
     // in creative, player two gets the same free hand
     if (Game.mode === 'creative') this.p2.hotbar = Game.hotbar.slice();
@@ -11281,14 +11740,23 @@ const Split = {
      are handed to player two, so the two never fight over the same button. */
   updateP1(dt) {
     const savedKeys = Input.keys, savedPressed = Input.pressed;
-    const savedDX = Input.mouseDX, savedDY = Input.mouseDY;
     const savedMine = Input.mouseMine, savedPlace = Input.mousePlace;
     const view = this.viewFor(1, savedKeys, savedPressed);
+    this.acting = 1;                    // so Input.mouseDX means player one's
     Input.keys = view.keys; Input.pressed = view.pressed;
     Input.forcePad = this.p1Pad;
-    // if the mouse was handed to player two, player one steers some other way
+
+    /* The mouse movement is not saved and put back any more.
+
+       It used to be: this turn took a copy of Input.mouseDX, ran the update —
+       which reads it and sets it back to zero — and then restored the copy so
+       player two's turn could have it. Which meant that with the mouse set to
+       player one, BOTH players were turned by it, every frame, by the same
+       amount. That is the spinning.
+
+       Each player has their own pile now and the mouse only ever fills one of
+       them, so there is nothing to hand on and nothing to put back. */
     if (!this.hasMouse(1)) {
-      Input.mouseDX = 0; Input.mouseDY = 0;
       Input.mouseMine = false; Input.mousePlace = false;
       Input.buttons.mine = !!view.keys[view.binds.mine];
       Input.buttons.place = !!view.keys[view.binds.place];
@@ -11296,10 +11764,7 @@ const Split = {
     try { Game.update(dt); }
     finally {
       Input.keys = savedKeys; Input.pressed = savedPressed;
-      if (!this.hasMouse(1)) {
-        Input.mouseDX = savedDX; Input.mouseDY = savedDY;
-        Input.mouseMine = savedMine; Input.mousePlace = savedPlace;
-      }
+      if (!this.hasMouse(1)) { Input.mouseMine = savedMine; Input.mousePlace = savedPlace; }
     }
   },
 
@@ -11309,7 +11774,6 @@ const Split = {
     if (!this.p2) return;
     const savedKeys = Input.keys, savedButtons = Input.buttons;
     const savedMove = Input.moveStick, savedLook = Input.lookStick;
-    const savedDX = Input.mouseDX, savedDY = Input.mouseDY;
     const savedPressed = Input.pressed;
     const savedMouseMine = Input.mouseMine, savedMousePlace = Input.mousePlace;
     const savedToast = Game.toast;
@@ -11331,13 +11795,16 @@ const Split = {
       };
       Input.moveStick = { x: 0, y: 0, active: false }; Input.lookStick = { x: 0, y: 0, active: false };
       if (this.hasMouse(2)) {
-        // the mouse is theirs: its movement and its buttons come through as they are
-        Input.mouseDX = savedDX; Input.mouseDY = savedDY;
+        /* The mouse is theirs. Its movement is already sitting in their own
+           pile — the listener put it there — so there is nothing to copy
+           across. Only the buttons need saying. */
         Input.mouseMine = savedMouseMine || !!savedKeys[view.binds.mine];
         Input.mousePlace = savedMousePlace || !!savedKeys[view.binds.place];
         Input.buttons.mine = Input.mouseMine;
         Input.buttons.place = Input.mousePlace;
       } else {
+        /* The mouse is player one's. Player two turns with their look keys,
+           which are fed into their own pile and nobody else's. */
         Input.mouseMine = !!savedKeys[view.binds.mine];
         Input.mousePlace = !!savedKeys[view.binds.place];
         Input.mouseDX = look.dx; Input.mouseDY = look.dy;
@@ -11358,7 +11825,6 @@ const Split = {
       Game.toast = savedToast;
       Input.keys = savedKeys; Input.buttons = savedButtons;
       Input.moveStick = savedMove; Input.lookStick = savedLook;
-      Input.mouseDX = savedDX; Input.mouseDY = savedDY;
       Input.mouseMine = savedMouseMine; Input.mousePlace = savedMousePlace;
       Input.pressed = savedPressed;
       this.swap();
@@ -12613,6 +13079,22 @@ Game.net = {
         }
         break;
       }
+      case 'flying': {
+        /* Somebody is flying a ship with us in it, right now. This arrives
+           four times a second while they fly, so a passenger's view follows
+           the pilot as it happens rather than catching up at the landing. */
+        if (!m.pilot || m.pilot === this.selfId) break;
+        if (Game.realm !== 'space') break;
+        if (!m.crew || m.crew.indexOf(this.selfId) < 0) break;
+        if (Game.tethered) break;              // out on the line: fly yourself
+        if (Game.spacePilotId !== m.pilot) {
+          Game.spacePilotId = m.pilot;
+          Game.wasCarried = true;
+          if (Game.toast) Game.toast('Riding along — they have the controls.');
+        }
+        Game.pilotHeard = performance.now();
+        break;
+      }
       case 'life': {
         // the host's list of animals: add anything we do not have yet
         if (this.isHost) return;
@@ -12993,8 +13475,60 @@ Game.net = {
     });
     const wornStamp = JSON.stringify(worn);
     if (this.sentSkin !== wornStamp) { this.sentSkin = wornStamp; this.send({ t: 'look', skin: worn }); }
-    // which world you are on, only when it changes
-    if (this.sentRealm !== Game.realm) { this.sentRealm = Game.realm; this.send({ t: 'realm', realm: Game.realm }); }
+    /* Which world you are on.
+
+       This used to be said once, the moment it changed, and never again. One
+       dropped packet and everybody else had you filed under the wrong world
+       for the rest of the session — and a peer in the wrong world is simply
+       not drawn, so that is a player whose rocket nobody can see, ever, with
+       nothing to suggest anything went wrong. Anyone joining after you
+       launched never heard it at all.
+
+       It still goes the instant it changes, and is now repeated every couple
+       of seconds besides. One short message twice over costs nothing next to
+       being invisible. */
+    if (this.sentRealm !== Game.realm) {
+      this.sentRealm = Game.realm;
+      this.realmAgain = 0;
+      this.send({ t: 'realm', realm: Game.realm });
+    } else {
+      this.realmAgain = (this.realmAgain || 0) + 0.05;
+      if (this.realmAgain > 2) {
+        this.realmAgain = 0;
+        this.send({ t: 'realm', realm: Game.realm });
+      }
+    }
+
+    /* Who is flying whom, while it is happening.
+
+       The crew was only ever announced when the ship changed world — at the
+       launch, and at the landing. In between, out in orbit, nobody had been
+       told who was at the controls, so every passenger was quietly flying
+       themselves: the pilot turned and the people in the back carried
+       straight on. It came right at the moment of landing because that is
+       when the one and only crew message was sent, which is exactly how it
+       looked from a passenger seat.
+
+       The pilot now says who is aboard four times a second for as long as
+       they are flying. Passengers follow in real time, and if the pilot
+       stops saying it — they stepped out, they landed, the link dropped —
+       it lapses on its own and everybody gets their own controls back
+       rather than being welded to a ship that is no longer there. */
+    if (Game.realm === 'space' && !Game.spacePilotId) {
+      this.crewBeat = (this.crewBeat || 0) + 0.05;
+      if (this.crewBeat >= 0.25) {
+        this.crewBeat = 0;
+        const riders = [];
+        if (Game.crewWith) {
+          for (const id of Game.crewWith) if (this.peers.has(id)) riders.push(id);
+        }
+        const seat = Game.riding && Game.riding.id;
+        if (seat) for (const q of this.peers.values()) {
+          if (q.aboard === seat && riders.indexOf(q.id) < 0) riders.push(q.id);
+        }
+        if (riders.length) this.send({ t: 'flying', pilot: this.selfId, crew: riders });
+      }
+    }
 
     const x = Math.round(p.x * 100) / 100, y = Math.round(p.y * 100) / 100, z = Math.round(p.z * 100) / 100;
     const yaw = Math.round(Game.player.yaw * 1000) / 1000;
@@ -13319,6 +13853,7 @@ Object.assign(UI, {
 
     const chip = (id, countText, onClick, note) => {
       const el = document.createElement('button');
+      el.type = 'button';
       el.className = 'block-chip';
       el.appendChild(thingPicture(id, 34));
       const label = document.createElement('div');
@@ -13457,6 +13992,7 @@ Object.assign(UI, {
       keys.forEach(k => {
         const def = ANIMALS[k];
         const el = document.createElement('button');
+        el.type = 'button';
         el.className = 'block-chip';
         el.innerHTML = `<div style="width:34px;height:34px;border-radius:50% 50% 46% 46%;background:${def.body};` +
           `border:2px solid ${def.accent}"></div><div><strong>${def.name}</strong>` +
@@ -13484,6 +14020,7 @@ Object.assign(UI, {
       note.textContent = 'Everything that trusts you. Rename any of them, and choose who walks with you.';
       body.appendChild(note);
       const open = document.createElement('button');
+      open.type = 'button';
       open.className = 'btn';
       open.textContent = 'Open the companion panel';
       open.addEventListener('click', () => { this.closeAll(); this.openCompanions(); });
@@ -14797,6 +15334,19 @@ Object.assign(Game, {
     this.weatherMesh = new THREE.Points(geo, mat);
     this.weatherMesh.frustumCulled = false;
     this.scene.add(this.weatherMesh);
+  },
+
+  /* The storm, wound on once per frame. Split screen stubs this out for
+     player two's turn (see WORLD_ONLY) so one tornado does not move twice
+     as fast just because two people are looking at it. */
+  tornadoTick(dt) {
+    try { Tornado.tick(dt); Tornado.cool(dt); } catch (e) {}
+  },
+
+  /* The pull on whichever player's turn this is. Not world work: each body
+     has to be asked separately or only one of two players could be caught. */
+  tornadoPull(dt, who) {
+    try { return Tornado.pull(dt, who || 1); } catch (e) { return false; }
   },
 
   updateWeather(dt) {
@@ -16329,8 +16879,14 @@ Object.assign(Game, {
     let carried = false;
     if (this.spacePilotId) {
       const pilot = this.net.peers.get(this.spacePilotId);
-      if (!pilot || (pilot.realm && pilot.realm !== 'space')) {
+      /* A pilot who has stopped saying they are flying has stopped flying
+         us: they stepped out, they landed, or the link went. Without this
+         a passenger stays pinned to a ship that is not there any more, with
+         controls that do nothing. */
+      const quiet = this.pilotHeard && (performance.now() - this.pilotHeard) > 1500;
+      if (!pilot || (pilot.realm && pilot.realm !== 'space') || quiet) {
         this.spacePilotId = null;                  // they are gone: you fly yourself
+        this.pilotHeard = 0;
         this.toast('You have the controls now.');
       } else if (this.tethered) {
         // out on the tether, held to their ship rather than to a fixed point
@@ -16922,6 +17478,7 @@ Object.assign(UI, {
     const list = $('#chart-list');
     list.innerHTML = '';
     const home = document.createElement('button');
+    home.type = 'button';
     home.className = 'bind-row';
     home.innerHTML = '<span><strong>Voxelia</strong><br><small>Home. Ten biomes, one ocean, ' +
       'and everything you have built.</small></span><b>' +
@@ -16941,8 +17498,7 @@ Object.assign(UI, {
     list.appendChild(head);
 
     sys.planets.forEach(p => {
-      const row = document.createElement('button');
-      row.className = 'bind-row';
+      const row = makeButton('bind-row');
       const here = Game.realm === 'planet:' + p.id;
       row.innerHTML =
         `<span><span class="chart-dot" style="background:${p.colors.ground};box-shadow:0 0 14px ${p.colors.sky}"></span>` +
@@ -17373,7 +17929,512 @@ WORLD_TYPES.forEach(w => {
    game is simply quiet; nothing here can stop it running.
    --------------------------------------------------------------- */
 /* ======================================================================
-   24 · MUSIC & STARTING UP
+   24 · THE BLACK TORNADO — storm worlds only
+   ----------------------------------------------------------------------
+   Tornado, tornadoTick, tornadoPull, tornadoOnMap
+
+   A storm world gets a tornado. It wanders a wide circle, tears the ground
+   up as it passes, carries what it took around inside itself, throws it
+   back out, and when it finally blows itself out every block it swallowed
+   grows back exactly where it was.
+
+   Three rules that shaped the whole thing:
+
+     - Flying is immunity. Somebody in creative, or wearing a jetpack, is
+       already in the air on purpose; dragging them into a spiral they did
+       not ask for would take the game away from them.
+     - What it takes, it gives back. The holes it leaves are remembered, not
+       guessed at, so the world is exactly as it was once the storm has gone.
+       A tornado that permanently ate somebody's house would be a bug with a
+       weather system wrapped around it.
+     - It is world work, not player work. The funnel moves and eats blocks
+       once per frame no matter how many people are watching; only the pull
+       on a body is worked out per player, so in split screen both players
+       can be caught by the same storm without it moving twice as fast.
+   ====================================================================== */
+const Tornado = {
+  /* Nothing at all until a storm world is entered. */
+  live: null,
+  group: null,
+  model: null,          // the funnel from the .glb, once it arrives
+  modelAsked: false,
+
+  /* ---------------- the numbers ----------------
+     Feet, because that is how the size was asked for, converted once here
+     rather than scattered through the code as magic numbers. A block is a
+     metre, and a metre is about 3.28 feet. */
+  FEET: 1 / 3.2808,
+  GRAB_FEET: 7,          // how far out it tears blocks up
+  HEIGHT: 23,            // how tall the funnel stands, in blocks
+  LIFE: 78,              // seconds before it blows itself out
+  ORBIT: 58,             // how wide a circle it wanders
+  MAX_TAKEN: 420,        // the most blocks it will ever hold at once
+
+  grabRadius() { return this.GRAB_FEET * this.FEET; },
+
+  /* ---------------- is there one, and where ---------------- */
+  shouldExist() {
+    /* Storm worlds only. Game.offworld is the planet you landed on; home is
+       never stormy, so a tornado can never turn up in the world somebody
+       has been building in for weeks. */
+    const w = Game.offworld;
+    return !!(w && w.type === 'storm' && Game.realm !== 'space');
+  },
+
+  /* ---------------- making one ---------------- */
+  spawn() {
+    const p = Game.player.pos;
+    /* It starts a little way off rather than on top of whoever just landed,
+       and circles a centre point near them so it stays somewhere findable
+       instead of wandering off the edge of the world. */
+    const a = Math.random() * Math.PI * 2;
+    this.live = {
+      cx: p.x + Math.cos(a) * 24,
+      cz: p.z + Math.sin(a) * 24,
+      ang: Math.random() * Math.PI * 2,
+      spin: (Math.random() < 0.5 ? -1 : 1) * (0.055 + Math.random() * 0.05),
+      wobble: Math.random() * 9,
+      x: 0, z: 0,
+      t: 0,
+      life: this.LIFE * (0.75 + Math.random() * 0.5),
+      taken: new Map(),            // "x,y,z" -> the block that was there
+      debris: [],                  // what is going round inside it
+      eatTimer: 0,
+      caught: Object.create(null)  // who is inside, and how long they have been
+    };
+    this.live.x = this.live.cx + Math.cos(this.live.ang) * this.ORBIT;
+    this.live.z = this.live.cz + Math.sin(this.live.ang) * this.ORBIT;
+    /* The ground height has to be known from the very first frame.
+       It used to be worked out in tick() only, and tick() returns the moment
+       it has spawned one — so for that first frame T.y was undefined. Every
+       sum that touched it came out NaN, and because NaN fails every
+       comparison silently, the launch condition could never be true: a
+       player could be carried upwards for ever and never be thrown. */
+    this.live.y = Game.world.heightAt
+      ? Game.world.heightAt(Math.floor(this.live.x), Math.floor(this.live.z))
+      : Game.player.pos.y;
+    this.build();
+    Game.toast('A black tornado is tearing across the plain.');
+  },
+
+  /* ---------------- the look of it ---------------- */
+  build() {
+    if (this.group) { this.dispose(); }
+    const G = new THREE.Group();
+
+    /* The funnel. The supplied model is used when it is there, and a plain
+       one is built out of rings when it is not, so a missing file costs the
+       storm its detail and never its existence. */
+    if (this.model) {
+      const m = this.model.clone(true);
+      m.scale.setScalar(this.HEIGHT / 6.6);      // the model stands 6.6 tall
+      G.add(m);
+      this.funnel = m;
+    } else {
+      this.funnel = this.plainFunnel();
+      G.add(this.funnel);
+      this.askForModel();
+    }
+
+    /* Two clouds of motes turning at different speeds: a pale outer sheath
+       that catches the light, and a darker, tighter column inside it. One
+       alone reads as fog; the two together read as something turning. */
+    this.motes = this.moteCloud(1100, 0x8E9A86, 0.30, 0.62, 1);
+    this.dust = this.moteCloud(700, 0x15171F, 0.42, 0.74, 0.58);
+    G.add(this.motes, this.dust);
+
+    /* Rings dragged along the ground, so there is something underfoot that
+       says how far the damage reaches. */
+    this.rings = new THREE.Group();
+    for (let i = 0; i < 4; i++) {
+      const r = this.grabRadius() * (0.55 + i * 0.42);
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(r, r * 1.04, 48),
+        new THREE.MeshBasicMaterial({ color: 0x2A3047, transparent: true,
+          opacity: 0.30 - i * 0.05, side: THREE.DoubleSide, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      this.rings.add(ring);
+    }
+    G.add(this.rings);
+
+    /* Where the debris lives. Kept as its own group so one line empties it. */
+    this.junk = new THREE.Group();
+    G.add(this.junk);
+
+    this.group = G;
+    Game.scene.add(G);
+  },
+
+  plainFunnel() {
+    /* Stacked rings, narrow at the bottom and wide at the top, each one
+       turned a little further than the last so the whole thing reads as a
+       twist rather than a stack. */
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({
+      color: 0x0A0B12, transparent: true, opacity: 0.86, side: THREE.DoubleSide,
+      depthWrite: false });
+    for (let i = 0; i < 14; i++) {
+      const f = i / 13;
+      const r = 0.42 + f * f * 2.0;
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.12, r, 0.55, 14, 1, true), mat);
+      ring.position.y = f * 6.6;
+      ring.rotation.y = f * 2.4;
+      g.add(ring);
+    }
+    return g;
+  },
+
+  moteCloud(count, colour, size, opacity, squeeze) {
+    const pos = new Float32Array(count * 3);
+    const seed = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      seed[i] = Math.random() * 1000;
+      const y = Math.random() * this.HEIGHT;
+      const rad = (0.3 + (y / this.HEIGHT) * 2.3 + Math.random() * 0.6) * squeeze;
+      const a = Math.random() * Math.PI * 2;
+      pos[i * 3] = Math.cos(a) * rad;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = Math.sin(a) * rad;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: colour, size, transparent: true, opacity, depthWrite: false }));
+    pts.userData.seed = seed;
+    pts.userData.squeeze = squeeze;
+    pts.frustumCulled = false;
+    return pts;
+  },
+
+  /* The supplied funnel, fetched once. If it is not there, or three.js has
+     no loader, the ring version stays and nothing is said about it. */
+  askForModel() {
+    if (this.modelAsked) return;
+    this.modelAsked = true;
+    if (!window.THREE || !THREE.GLTFLoader) return;
+    try {
+      new THREE.GLTFLoader().load('models/voxelia_black_tornado.glb', (g) => {
+        g.scene.traverse((o) => {
+          if (!o.isMesh) return;
+          o.frustumCulled = false;
+          if (o.material) {
+            o.material = o.material.clone();
+            o.material.transparent = true;
+            o.material.opacity = 0.92;
+            o.material.depthWrite = false;
+            o.material.side = THREE.DoubleSide;
+          }
+        });
+        this.model = g.scene;
+        /* swap it in under a storm that is already running */
+        if (this.live) this.build();
+      }, undefined, () => {});
+    } catch (e) {}
+  },
+
+  dispose() {
+    if (!this.group) return;
+    try { Game.scene.remove(this.group); } catch (e) {}
+    this.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material && o.material.dispose) o.material.dispose();
+    });
+    this.group = null; this.junk = null; this.motes = null; this.dust = null;
+  },
+
+  /* ---------------- putting the ground back ----------------
+     Every block it swallowed, returned to exactly where it came from. This
+     is why `taken` is a map of position to block rather than a count. */
+  giveBack() {
+    if (!this.live) return;
+    let back = 0;
+    for (const [key, id] of this.live.taken) {
+      const [x, y, z] = key.split(',').map(Number);
+      /* only if nobody has built there in the meantime — their block wins */
+      if (Game.world.getBlock(x, y, z) === AIR) { Game.world.setBlock(x, y, z, id); back++; }
+    }
+    this.live.taken.clear();
+    return back;
+  },
+
+  end(quiet) {
+    if (!this.live) return;
+    const back = this.giveBack();
+    this.dispose();
+    this.live = null;
+    if (!quiet) Game.toast('The tornado blows itself out. ' + back + ' blocks settle back.');
+  },
+
+  /* ---------------- once a frame, for the world ---------------- */
+  tick(dt) {
+    if (!this.shouldExist()) { if (this.live) this.end(true); return; }
+    if (!this.live) {
+      /* it does not arrive the second you land: a storm world is given a
+         little quiet first */
+      this.wait = (this.wait || 18 + Math.random() * 30) - dt;
+      if (this.wait > 0) return;
+      this.wait = 0;
+      this.spawn();
+      return;
+    }
+
+    const T = this.live;
+    T.t += dt;
+    T.life -= dt;
+    if (T.life <= 0) { this.end(); this.wait = 40 + Math.random() * 50; return; }
+
+    /* ---- where it is now: a slow circle, with a wobble so the path is not
+       a perfect ring ---- */
+    T.ang += T.spin * dt;
+    const wob = Math.sin(T.t * 0.37 + T.wobble) * 9 + Math.sin(T.t * 0.11) * 5;
+    T.x = T.cx + Math.cos(T.ang) * (this.ORBIT + wob);
+    T.z = T.cz + Math.sin(T.ang) * (this.ORBIT + wob);
+    const ground = Game.world.heightAt ? Game.world.heightAt(Math.floor(T.x), Math.floor(T.z))
+                                       : Game.player.pos.y;
+    T.y = isFinite(ground) ? ground : (isFinite(T.y) ? T.y : Game.player.pos.y);
+
+    if (this.group) {
+      this.group.position.set(T.x, T.y, T.z);
+      /* fade in as it arrives and out as it dies, so it never pops */
+      const age = Math.min(1, T.t / 3);
+      const dying = Math.min(1, Math.max(0, T.life) / 4);
+      const show = Math.min(age, dying);
+      this.group.visible = show > 0.02;
+      if (this.funnel) {
+        this.funnel.rotation.y = T.t * 1.9 * Math.sign(T.spin || 1);
+        this.funnel.rotation.z = Math.sin(T.t * 0.72) * 0.045;
+        this.funnel.scale.setScalar((this.model ? this.HEIGHT / 6.6 : 1) * (0.6 + show * 0.4));
+      }
+      this.swirl(this.motes, T.t, 2.3);
+      this.swirl(this.dust, T.t, -1.6);
+      if (this.rings) this.rings.rotation.y = -T.t * 0.5;
+    }
+
+    this.eat(dt);
+    this.carry(dt);
+  },
+
+  swirl(pts, t, rate) {
+    if (!pts) return;
+    const arr = pts.geometry.attributes.position.array;
+    const seed = pts.userData.seed;
+    const sq = pts.userData.squeeze;
+    const n = seed.length;
+    for (let i = 0; i < n; i++) {
+      let y = arr[i * 3 + 1];
+      /* everything climbs, and starts again at the bottom when it tops out —
+         which is what makes it read as a column being drawn upwards */
+      y += (3 + (y / this.HEIGHT) * 7) * 0.016;
+      if (y > this.HEIGHT) y -= this.HEIGHT;
+      const a = t * (rate + y * 0.05) + seed[i];
+      const r = (0.3 + (y / this.HEIGHT) * 2.3 + 0.35 * Math.sin(seed[i] * 1.3 + t * 2)) * sq;
+      arr[i * 3] = Math.cos(a) * r;
+      arr[i * 3 + 1] = y;
+      arr[i * 3 + 2] = Math.sin(a) * r;
+    }
+    pts.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- tearing the ground up ---------------- */
+  eat(dt) {
+    const T = this.live;
+    T.eatTimer -= dt;
+    if (T.eatTimer > 0) return;
+    T.eatTimer = 0.09;
+    if (T.taken.size >= this.MAX_TAKEN) return;
+
+    const R = this.grabRadius();
+    const bx = Math.floor(T.x), bz = Math.floor(T.z);
+    const reach = Math.max(1, Math.ceil(R));
+    /* a handful of goes per turn, rather than the whole circle every frame:
+       a tornado that stripped its entire footprint in one tick would leave a
+       perfect cylinder of air and cost a frame doing it */
+    for (let n = 0; n < 5; n++) {
+      const dx = bx + (Math.random() * 2 - 1) * reach;
+      const dz = bz + (Math.random() * 2 - 1) * reach;
+      if (Math.hypot(dx - T.x, dz - T.z) > R) continue;
+      const x = Math.floor(dx), z = Math.floor(dz);
+      const top = Game.world.heightAt ? Game.world.heightAt(x, z) : Math.floor(T.y);
+      const y = top - 1 + ((Math.random() * 3) | 0);
+      if (y < 2) continue;
+      const id = Game.world.getBlock(x, y, z);
+      if (!id || id === AIR) continue;
+      const b = BLOCKS[id];
+      if (!b || b.hardness > 20) continue;          // bedrock stays put
+      const key = x + ',' + y + ',' + z;
+      if (T.taken.has(key)) continue;
+      if (!Game.world.setBlock(x, y, z, AIR)) continue;
+      T.taken.set(key, id);
+      this.addDebris(id, x + 0.5, y + 0.5, z + 0.5);
+      /* in a room, everybody sees the same hole appear */
+      try { if (Game.net && Game.net.connected) Game.net.sendEdit(x, y, z, AIR); } catch (e) {}
+    }
+  },
+
+  addDebris(id, wx, wy, wz) {
+    if (!this.junk || this.junk.children.length > 150) return;
+    const T = this.live;
+    let mesh = null;
+    try {
+      const tint = (BLOCKS[id] && BLOCKS[id].tint) || '#8899AA';
+      mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.42, 0.42),
+        new THREE.MeshLambertMaterial({ color: new THREE.Color(tint) }));
+    } catch (e) { return; }
+    const dx = wx - T.x, dz = wz - T.z;
+    mesh.userData.spin = {
+      ang: Math.atan2(dz, dx),
+      rad: Math.max(0.6, Math.hypot(dx, dz)),
+      y: Math.max(0.5, wy - T.y),
+      rate: 2.2 + Math.random() * 1.6,
+      rise: 2.6 + Math.random() * 3.4,
+      tumble: Math.random() * 2,
+      id, out: null
+    };
+    this.junk.add(mesh);
+  },
+
+  /* ---------------- what it is carrying, and throwing ---------------- */
+  carry(dt) {
+    if (!this.junk) return;
+    const T = this.live;
+    const kill = [];
+    for (const m of this.junk.children) {
+      const s = m.userData.spin;
+      if (!s) continue;
+      if (s.out) {
+        /* thrown clear: a plain arc, and gone when it lands */
+        s.out.t += dt;
+        m.position.x += s.out.vx * dt;
+        m.position.z += s.out.vz * dt;
+        s.out.vy -= 22 * dt;
+        m.position.y += s.out.vy * dt;
+        m.rotation.x += dt * 5; m.rotation.z += dt * 4;
+        if (s.out.t > 4 || m.position.y < -2) kill.push(m);
+        continue;
+      }
+      s.ang += s.rate * dt;
+      s.y += s.rise * dt;
+      s.rad += dt * 0.35;
+      /* the funnel is narrow at the bottom and wide at the top, so what it
+         carries has to follow the same shape or it floats outside the wall */
+      const want = 0.5 + (s.y / this.HEIGHT) * 2.4;
+      s.rad += (want - s.rad) * Math.min(1, dt * 2);
+      m.position.set(Math.cos(s.ang) * s.rad, s.y, Math.sin(s.ang) * s.rad);
+      m.rotation.y += dt * s.rate;
+      m.rotation.x += dt * s.tumble;
+      if (s.y >= this.HEIGHT * 0.92) {
+        /* flung out of the top, in whatever direction it happened to be
+           travelling — which is what makes the debris spray look like it
+           came off a spinning thing rather than out of a pipe */
+        const tangent = s.ang + Math.PI / 2;
+        const speed = 11 + Math.random() * 13;
+        s.out = { t: 0, vx: Math.cos(tangent) * speed, vz: Math.sin(tangent) * speed,
+                  vy: 5 + Math.random() * 7 };
+      }
+    }
+    for (const m of kill) {
+      this.junk.remove(m);
+      if (m.geometry) m.geometry.dispose();
+      if (m.material && m.material.dispose) m.material.dispose();
+    }
+  },
+
+  /* ---------------- the pull on one body ----------------
+     Called for each player in turn, so in split screen both of them can be
+     caught by the same storm. Returns true while it has hold of somebody. */
+  pull(dt, who) {
+    if (!this.live || !this.group || !this.group.visible) return false;
+    const T = this.live;
+    const p = Game.player;
+
+    /* Flying is immunity, and it is checked first so that nothing else in
+       here can get a word in. Creative flight, a jetpack, already being on
+       the way up in somebody's ship — all of it means hands off. */
+    if (p.flying || Game.mode === 'creative' || Game.riding || Game.passengerIn) {
+      delete T.caught[who]; return false;
+    }
+
+    const dx = p.pos.x - T.x, dz = p.pos.z - T.z;
+    const dist = Math.hypot(dx, dz);
+    const grab = this.grabRadius();
+    const reach = grab * 3.2;                 // felt well before it has you
+    if (dist > reach || p.pos.y > T.y + this.HEIGHT + 6) {
+      delete T.caught[who]; return false;
+    }
+
+    const held = (T.caught[who] = (T.caught[who] || 0) + dt);
+    const height = Math.max(0, p.pos.y - T.y);
+    const climb = Math.min(1, height / this.HEIGHT);
+
+    /* Outside the throat it only drags you in. Inside it, you go up. */
+    const bite = Math.max(0, 1 - dist / reach);
+    const inward = dist > grab * 0.5 ? 1 : 0.15;
+    const toward = Math.atan2(-dz, -dx);
+    const swirlDir = toward + (Math.PI / 2) * Math.sign(T.spin || 1);
+
+    /* round and round, and faster the higher it has carried you — which is
+       what was asked for, and also what makes it frightening rather than
+       merely inconvenient */
+    const whirl = (7 + climb * 16) * bite;
+    p.vel.x += (Math.cos(swirlDir) * whirl + Math.cos(toward) * 9 * inward) * bite * dt;
+    p.vel.z += (Math.sin(swirlDir) * whirl + Math.sin(toward) * 9 * inward) * bite * dt;
+
+    if (dist < grab * 1.6) {
+      /* lifted. The rise builds rather than starting at full tilt, so being
+         caught feels like being taken rather than teleported. */
+      const lift = (16 + climb * 20) * Math.min(1, held / 1.2);
+      p.vel.y += lift * dt;
+      p.vel.y = Math.min(p.vel.y, 24);
+      p.onGround = false;
+      p.flying = false;
+
+    }
+
+    /* And eventually it lets go.
+
+       This used to live inside the "am I in the throat" test above, which
+       meant a player who had been whirled out to the edge on the way up was
+       never thrown — they simply kept rising, with nothing to end it. A
+       tornado always finishes what it started: once it has had hold of
+       somebody near the top, or has had them long enough, it throws them,
+       wherever they have drifted to. The direction is random, which is the
+       point — nobody can learn where they are going to land. */
+    {
+      const topped = height > this.HEIGHT * 0.86;
+      if ((topped || held > 7.5) && !T.launching && held > 0.6) {
+        const a = Math.random() * Math.PI * 2;
+        const force = 26 + Math.random() * 20;
+        p.vel.x = Math.cos(a) * force;
+        p.vel.z = Math.sin(a) * force;
+        p.vel.y = 13 + Math.random() * 11;
+        delete T.caught[who];
+        Game.toast('The tornado throws you clear!');
+        /* a breath before it can take hold again, or it would catch the same
+           player on the way back down and never let them go */
+        T.launching = 1.5;
+        return true;
+      }
+    }
+    return true;
+  },
+
+  /* a short pause after a throw, counted down with the world */
+  cool(dt) {
+    if (this.live && this.live.launching) {
+      this.live.launching -= dt;
+      if (this.live.launching <= 0) this.live.launching = 0;
+    }
+  },
+
+  /** Where it is, for the map. Null when there is not one. */
+  where() {
+    return this.live ? { x: this.live.x, z: this.live.z, r: this.grabRadius() } : null;
+  }
+};
+
+/* ======================================================================
+   25 · MUSIC & STARTING UP
    ----------------------------------------------------------------------
    MUSIC, SOFT_BIOMES, Music, and the lines that start the game
 

@@ -1,12 +1,13 @@
 /* Voxelia service worker — offline play, background sync, push. */
 /* Bumped from v30 because voxelia.html is gone. Without a new name the
    old 816 KB copy would sit in everybody's cache for good. */
-const CACHE = 'voxelia-v31';
+const CACHE = 'voxelia-v33';
 const SHELL = [
   './', './index.html', './manifest.json',
   './store.js', './rewards.js',
   './voxelia-avatars.js', './character-select.html', './character-select.css', './character-select.js',
-  './voxelia-things.js', './models/things/manifest.json',
+  './voxelia-things.js', './voxelia-lang.js', './models/things/manifest.json',
+  './models/voxelia_black_tornado.glb',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   // whichever way the music was uploaded, one of these will exist
   './audio/Home_Screen_music.ogg', './audio/Home_Screen_music.mp3',
