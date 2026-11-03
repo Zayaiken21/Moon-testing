@@ -348,6 +348,34 @@
     return bakedPalette(String(presetId || '')).folded || {};
   }
 
+  /* ---- the head -----------------------------------------------------
+
+     Above the neck a model has only skin, hair, and a few small extras: the
+     white of an eye, a lens, a panel of a helmet. It has no shirt, no
+     jacket and no boots. The palette does not know that, and on several
+     models it got it wrong in exactly that way, because a garment happened
+     to be baked in a brown very near the hair:
+
+       - the explorer's hair matched his jacket, so the Hair picker moved
+         nothing at all and the Outerwear picker repainted his head;
+       - the pilot's hair split down the middle between hair and shirt,
+         which is what left bare patches across the top of her head;
+       - both starfarers' hair split between hair and shirt the same way,
+         leaving a ragged dark hairline;
+       - the builder's face went to the shirt, and came out red.
+
+     So above the neck the clothing is simply not in the running, and the
+     choice is made among the things a head actually has. Near-white vertices
+     are left out of the rule, because an eye white is none of those and is
+     better off wherever the palette put it. Nothing below the neck changes. */
+  /* Where the neck is, measured on the models rather than guessed: slicing
+     all twenty figures into bands shows the chin between 0.68 and 0.72 of
+     the way up, with the collars below it. 0.70 puts the whole face and jaw
+     on the head side and leaves every collar on the body side. */
+  const HEAD_FROM = 0.70;
+  const HEAD_PALE = 0.45;          // bright enough to be an eye white, not skin
+  const ON_HEAD = { skin: 1, hair: 1, eyes: 1, acc1: 1, acc2: 1 };
+
   /* Which palette colour each vertex came from, and how shaded it was.
      Worked out once per model and kept on the geometry, because it depends
      only on how the model was baked. */
@@ -377,8 +405,12 @@
          dark blue trouser leg, which matching on distance alone could not. */
       const len = Math.sqrt(r * r + g * g + b * b) || 1e-6;
       const y = (span && pos) ? (pos.getY(i) - lo) / span : -1;
-      let pick = 0, best = Infinity, k = 1;
+      /* Above the neck, and not an eye white: only the things a head has may
+         be chosen. See the note above ON_HEAD. */
+      const headOnly = y >= HEAD_FROM && Math.min(r, g, b) <= HEAD_PALE;
+      let pick = -1, best = Infinity, k = 1;
       for (let j = 0; j < pal.length; j++) {
+        if (headOnly && !ON_HEAD[pal[j].key]) continue;
         const p = pal[j].rgb;
         const pl = pal[j].len;
         if (pl < 1e-5) continue;
@@ -405,11 +437,26 @@
         const e = (1 - cos) * 6 + away * away * 0.9 + pal[j].bias + off * off * 26;
         if (e < best) { best = e; pick = j; k = kk; }
       }
+      /* A head with no hair entry in its palette would find nothing to pick;
+         the whole palette decides for that one, as it did before. */
+      if (pick < 0) {
+        for (let j = 0; j < pal.length; j++) {
+          const p = pal[j].rgb, pl = pal[j].len;
+          if (pl < 1e-5) continue;
+          const cos = (r * p[0] + g * p[1] + b * p[2]) / (len * pl);
+          const kk = len / pl;
+          const away = Math.log(Math.max(0.02, kk));
+          const e = (1 - cos) * 6 + away * away * 0.9 + pal[j].bias;
+          if (e < best) { best = e; pick = j; k = kk; }
+        }
+        if (pick < 0) pick = 0;
+      }
       if (k < 0.04) k = 0.04;
       if (k > 3) k = 3;
       region[i] = pick;
       shade[i] = k;
     }
+
     /* how many vertices each region actually won. A region that won none is a
        colour picker that cannot move anything, and there is no honest way to
        show one of those. */

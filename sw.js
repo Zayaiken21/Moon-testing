@@ -1,7 +1,7 @@
 /* Voxelia service worker — offline play, background sync, push. */
 /* Bumped from v30 because voxelia.html is gone. Without a new name the
    old 816 KB copy would sit in everybody's cache for good. */
-const CACHE = 'voxelia-v33';
+const CACHE = 'voxelia-v34';
 const SHELL = [
   './', './index.html', './manifest.json',
   './store.js', './rewards.js',
