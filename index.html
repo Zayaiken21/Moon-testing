@@ -253,6 +253,9 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
    description. The description takes whatever room is left over. */
 #chart-list .bind-row b{white-space:nowrap;flex:0 0 auto}
 #chart-list .bind-row>span{flex:1 1 auto;min-width:0}
+/* a moon sits under the world it belongs to */
+#chart-list .bind-row.chart-moon{margin-left:18px;border-left:2px solid rgba(255,255,255,.10)}
+#chart-list .bind-row.chart-moon strong{font-size:.95em;opacity:.92}
 #gear-badge{position:absolute;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));
   display:none;gap:6px;flex-wrap:wrap;justify-content:center;max-width:70vw}
 #gear-badge.show{display:flex}
@@ -268,7 +271,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
 
 #hotbar .slot{transition:transform .12s ease, border-color .12s ease}
 .screen .sheet{box-shadow:0 18px 60px rgba(0,0,0,.5)}
-#drive-hint{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:30%;
+#drive-hint{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:30%;right:auto;
   display:none;flex-direction:column;gap:3px;background:rgba(20,18,28,.82);border:1px solid var(--line);
   border-left:3px solid var(--moon);border-radius:12px;padding:9px 12px;max-width:200px;
   box-shadow:0 6px 22px rgba(0,0,0,.45)}
@@ -559,8 +562,15 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-0.01em}
     left:calc(50% - 60px);transform:translateX(-50%) scale(var(--ui))}
   #break-bar-wrap{bottom:calc(46px + env(safe-area-inset-bottom))}
   #prompt{bottom:calc(46px + env(safe-area-inset-bottom));font-size:calc(10.5px * var(--ui))}
-  #drive-hint{bottom:auto;top:calc(52px + env(safe-area-inset-top));
-    left:auto;right:calc(74px + env(safe-area-inset-right));max-width:150px;padding:6px 9px}
+  /* On a phone held sideways the right hand edge is the minimap, the height
+     lever and the thumb buttons, all stacked. This rule used to park the
+     vehicle's controls right there, so the panel sat across the minimap and
+     the lever and hid the view besides. It goes on the left instead, under
+     the place name, where nothing else lives and it can be read at a glance
+     without covering the way ahead. */
+  #drive-hint{bottom:auto;top:calc(56px + env(safe-area-inset-top));
+    right:auto;left:calc(8px + env(safe-area-inset-left));
+    max-width:min(34vw,180px);padding:6px 9px;z-index:6}
   #altimeter{top:auto;bottom:calc(46px + env(safe-area-inset-bottom));right:calc(6px + env(safe-area-inset-right))} #companions{width:min(320px,70vw)} }
 #space-bar{position:absolute;left:50%;transform:translateX(-50%);
   bottom:calc(env(safe-area-inset-bottom) + 96px);display:none;flex-direction:column;gap:8px;
@@ -928,7 +938,13 @@ body.creative-mode #meters{display:none !important}
   #top-bar button{padding:3px 9px;font-size:calc(9.5px * var(--ui))}
   #biome-card{top:calc(28px + env(safe-area-inset-top));left:calc(6px + env(safe-area-inset-left));max-width:26vw}
   #ability-badge{display:none}
-  #drive-hint{bottom:auto;top:calc(70px + env(safe-area-inset-top));right:calc(72px * var(--ui))}
+  /* The right of the screen belongs to the buttons, the minimap and the
+     height lever. This rule added `right` while leaving `left` set from the
+     base rule, so the box stretched across the whole screen and parked
+     itself on top of all three. It sits on the left now, under the place
+     name, where it can be read without covering anything. */
+  #drive-hint{bottom:auto;right:auto;top:calc(78px + env(safe-area-inset-top));
+    left:calc(8px + env(safe-area-inset-left));max-width:min(44vw,230px)}
   #altimeter{top:calc(30% )}
   #biome-card{top:6px;left:calc(6px + env(safe-area-inset-left));max-width:32vw;padding:6px 9px}
   #ability-badge{top:6px;right:calc(6px + env(safe-area-inset-right));max-width:30vw;padding:6px 9px}
@@ -939,7 +955,7 @@ body.creative-mode #meters{display:none !important}
   .slot canvas{width:24px;height:24px}
   #break-bar-wrap{bottom:52px}
   #prompt{bottom:52px;font-size:11px;padding:5px 10px}
-  #drive-hint{bottom:96px;max-width:150px}
+  #drive-hint{bottom:auto;right:auto;top:calc(74px + env(safe-area-inset-top));max-width:min(56vw,190px)}
   #fullscreen{bottom:auto;top:calc(6px + env(safe-area-inset-top));right:38vw}
   .home-wrap{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);padding-top:6px;gap:12px;
     max-width:100vw;align-items:start}
@@ -2646,9 +2662,24 @@ B.GOLD      = simple('Gold Vein',      'Mineral', 'ore', '#F2C14E', 2.6);
 B.AMETHYST  = simple('Amethyst Geode', 'Mineral', 'ore', '#9B5DE5', 2.8);
 B.MOONSTONE = simple('Moonstone',      'Mineral', 'ore', '#8FE3D0', 3.0);
 B.EMBERITE  = simple('Emberite',       'Mineral', 'ore', '#FF6B3D', 3.2);
+/* Minerals that only exist off the home world. Each kind of moon and each
+   kind of planet carries its own, so what you bring home says where you have
+   been rather than being the same iron you can dig in your own back garden. */
+B.SELENITE  = simple('Selenite Vein',  'Mineral', 'ore', '#CFE4FF', 3.1);
+B.REGOLITE  = simple('Helium Regolith','Mineral', 'ore', '#A8E8FF', 2.6);
+B.RIMEITE   = simple('Rimeite',        'Mineral', 'ore', '#BFE8F5', 2.9);
+B.FERRITE   = simple('Ferrite Lode',   'Mineral', 'ore', '#9AA0A8', 3.4);
+B.PYROCLAST = simple('Pyroclast',      'Mineral', 'ore', '#FF8A4C', 3.3);
+B.VOIDGLASS = simple('Void Glass',     'Mineral', 'ore', '#9A4DFF', 3.6);
+B.STARIRON  = simple('Star Iron',      'Mineral', 'ore', '#A8D4FF', 3.8);
+B.QUANTITE  = simple('Quantite Seam',  'Mineral', 'ore', '#3FFFC0', 4.0);
+
 // ore tiles need the accent colour baked in — repaint with accent
 [[B.COAL, '#2B2B31'], [B.COPPER, '#C87A3E'], [B.IRON, '#D6C7B4'], [B.GOLD, '#F2C14E'],
- [B.AMETHYST, '#9B5DE5'], [B.MOONSTONE, '#8FE3D0'], [B.EMBERITE, '#FF6B3D']].forEach(([id, c]) => {
+ [B.AMETHYST, '#9B5DE5'], [B.MOONSTONE, '#8FE3D0'], [B.EMBERITE, '#FF6B3D'],
+ [B.SELENITE, '#CFE4FF'], [B.REGOLITE, '#A8E8FF'], [B.RIMEITE, '#BFE8F5'],
+ [B.FERRITE, '#9AA0A8'], [B.PYROCLAST, '#FF8A4C'], [B.VOIDGLASS, '#9A4DFF'],
+ [B.STARIRON, '#A8D4FF'], [B.QUANTITE, '#3FFFC0']].forEach(([id, c]) => {
   const t = paintTile('ore', '#6E6A78', c);
   BLOCKS[id].top = BLOCKS[id].side = BLOCKS[id].bottom = t;
 });
@@ -3175,6 +3206,10 @@ class World {
     else if (band < 104) { ore = B.COPPER; richness = 0.36; }
     else { ore = B.COAL; richness = 0.34; }
     if (n.n3(x * 0.13, y * 0.17, z * 0.13) < richness) return 0;
+    /* Off home, a good share of the seam is this world's own mineral. Rock
+       on another planet used to hand you the same iron and coal as the back
+       garden, which gave you no reason to dig it. */
+    if (PLANET_ORE_ID && hash3i(x, y * 5 + 1, z) > 0.45) return PLANET_ORE_ID;
     // rare glowing jewels, only in the deep
     if (y < 80 && hash3i(x, y, z) > 0.986) {
       return JEWELS[Math.floor(hash3i(x + 7, y + 3, z + 11) * JEWELS.length) % JEWELS.length];
@@ -5838,6 +5873,52 @@ const Game = {
       }
     }
 
+    /* ---- everybody else ----
+
+       The map's own description has always said it shows players, and it
+       never did: in a room you could see every tamed animal and not one of
+       the people you were playing with. Each one is a dot in their own
+       colour with their name under it, and player two on a split screen is
+       here too. */
+    const others = [];
+    if (this.net && this.net.peers) {
+      for (const [, peer] of this.net.peers) {
+        if (!peer || !peer.model) continue;
+        /* only the ones standing on the same world as you */
+        if ((peer.realm || 'ground') !== (this.realm || 'ground')) continue;
+        others.push({ x: peer.model.position.x, z: peer.model.position.z,
+                      name: peer.name || 'player', tint: '#F2C14E' });
+      }
+    }
+    if (typeof Split !== 'undefined' && Split.on && Split.p2 && Split.p2.player &&
+        Split.acting !== 2) {
+      others.push({ x: Split.p2.player.pos.x, z: Split.p2.player.pos.z,
+                    name: 'Player 2', tint: '#8FB4E8' });
+    }
+    for (const o of others) {
+      const sx = W / 2 + (o.x - px) / blocksPerPixel;
+      const sy = H / 2 + (o.z - pz) / blocksPerPixel;
+      if (sx < -12 || sy < -12 || sx > W + 12 || sy > H + 12) continue;
+      g.save();
+      g.globalAlpha = 0.45;
+      g.fillStyle = o.tint;
+      g.beginPath(); g.arc(sx, sy, (big ? 9 : 6) * scale, 0, Math.PI * 2); g.fill();
+      g.restore();
+      g.fillStyle = o.tint;
+      g.strokeStyle = '#13111B';
+      g.lineWidth = 2.2 * scale;
+      g.beginPath(); g.arc(sx, sy, (big ? 5.5 : 4) * scale, 0, Math.PI * 2); g.fill(); g.stroke();
+      if (big) {
+        g.font = '600 ' + Math.round(11 * scale) + 'px sans-serif';
+        g.textAlign = 'center';
+        g.lineWidth = 3.2 * scale;
+        g.strokeStyle = 'rgba(10,9,16,.85)';
+        g.strokeText(o.name, sx, sy - 9 * scale);
+        g.fillStyle = o.tint;
+        g.fillText(o.name, sx, sy - 9 * scale);
+      }
+    }
+
     /* ---- the tornado ----
        A storm has to be findable, or the only way to learn where it is, is
        to be picked up by it. It is drawn as a dark eye with the circle of
@@ -6783,6 +6864,73 @@ Object.assign(Game, {
     this.streamChunks(IS_TOUCH ? 5 : 9);
   },
 
+  /* ---------------- the sun, and the moons overhead ----------------
+
+     A world whose chart entry said two moons had an empty sky: the moons
+     existed only as marbles in the space view. These are the real things,
+     hanging at the far edge of sight, each on its own orbit, rising and
+     setting with the day. Home has one of its own. */
+  HOME_MOONS: [{ name: 'The Moon', radius: 9, dist: 40, phase: 0.8,
+                 colors: { ground: '#D6D2C4', sky: '#EFEFEA' } }],
+
+  ensureSkyBodies() {
+    if (this._skyBodies && this._skyBodies.group.parent === this.scene) return this._skyBodies;
+    const group = new THREE.Group();
+    const disc = (colour, size, opacity) => new THREE.Mesh(
+      new THREE.SphereGeometry(size, 18, 12),
+      new THREE.MeshBasicMaterial({ color: colour, fog: false, transparent: true,
+                                    opacity: opacity === undefined ? 1 : opacity,
+                                    depthWrite: false }));
+    const sun = disc('#FFF6D8', 26);
+    sun.add(disc('#FFE9A8', 46, 0.16));
+    group.add(sun);
+    this.scene.add(group);
+    this._skyBodies = { group, sun, moons: [], forWorld: null };
+    return this._skyBodies;
+  },
+
+  /* Build one disc per moon of whatever world you are standing on. */
+  skyMoonsFor(sk) {
+    const which = this.offworld ? this.offworld : null;
+    const key = which ? 'planet:' + which.id : 'home';
+    if (sk.forWorld === key) return;
+    sk.forWorld = key;
+    sk.moons.forEach((m) => sk.group.remove(m.mesh));
+    sk.moons = [];
+    const list = which ? (which.moons || []) : this.HOME_MOONS;
+    list.forEach((m, i) => {
+      const size = 9 + (m.radius || 8) * 1.5;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 16, 12),
+        new THREE.MeshBasicMaterial({ color: (m.colors && m.colors.ground) || '#CFCFC8',
+                                      fog: false, depthWrite: false }));
+      mesh.add(new THREE.Mesh(new THREE.SphereGeometry(size * 1.35, 14, 10),
+        new THREE.MeshBasicMaterial({ color: (m.colors && m.colors.sky) || '#DDE6F0',
+                                      fog: false, transparent: true, opacity: 0.14,
+                                      depthWrite: false })));
+      sk.group.add(mesh);
+      sk.moons.push({ mesh, moon: m, lean: 0.25 + i * 0.45, rate: 0.72 + i * 0.31 });
+    });
+  },
+
+  updateSkyBodies(ang) {
+    if (!this.scene || !this.player) return;
+    const sk = this.ensureSkyBodies();
+    this.skyMoonsFor(sk);
+    const R = 720;
+    const p = this.player.pos;
+    sk.sun.position.set(Math.cos(ang) * R, Math.sin(ang) * R * 0.88, R * 0.30).add(p);
+    sk.sun.visible = Math.sin(ang) > -0.22;
+    for (const e of sk.moons) {
+      /* its own orbit, so the moons are never all in the same place and a
+         two-moon world really does read as a two-moon world */
+      const a = ang * e.rate + (e.moon.phase || 0);
+      e.mesh.position.set(Math.cos(a) * R * 0.92,
+                          Math.sin(a) * R * 0.80,
+                          Math.sin(a * 0.6 + e.lean) * R * 0.5).add(p);
+      e.mesh.visible = e.mesh.position.y > p.y - R * 0.12;
+    }
+  },
+
   /* How long one turn of this world takes, in real seconds. */
   dayCycleSeconds() {
     const n = this.offworld && this.offworld.dayLength;
@@ -7334,8 +7482,27 @@ Object.assign(Game, {
     this._fogWant.multiplyScalar(1 / n);
     const blendLight = light / n;
 
-    this._skyWant.multiplyScalar(0.20 + dayness * 0.85);
-    this._fogWant.multiplyScalar(0.20 + dayness * 0.85);
+    /* Night is not the day turned down.
+
+       Both colours used to be multiplied by the time of day and nothing
+       else, so midnight was simply a dimmer version of noon: a lavender
+       world stayed lavender all night, a washed-out mauve that read as fog
+       rather than darkness. Night now has a colour of its own and the day
+       is mixed towards it, so the sky actually goes dark and comes back.
+
+       How dark depends on the air. A world with no atmosphere has nothing
+       to hold the light after its sun goes down, so its night is nearly
+       black; a thick, cloudy one keeps a dull glow. */
+    const air = PLANET_SHAPE ? Math.min(1, (PLANET_SHAPE.clouds || 0) * 1.3) : 0.55;
+    const night = this._night || (this._night = new THREE.Color());
+    night.copy(this._skyWant).multiplyScalar(0.14 + air * 0.12);
+    night.lerp(this._deepNight || (this._deepNight = new THREE.Color('#080C18')),
+               0.70 - air * 0.35);
+    const lit = Math.max(0, Math.min(1, (dayness - 0.14) / 0.52));
+    this._skyWant.multiplyScalar(0.34 + dayness * 0.72);
+    this._fogWant.multiplyScalar(0.34 + dayness * 0.72);
+    this._skyWant.lerp(night, 1 - lit);
+    this._fogWant.lerp(night, 1 - lit);
     /* first frame in a world arrives at its colour rather than fading up
        from black */
     const ease = this._skyFirst ? 1 : Math.min(1, (dt || 0.016) * 0.7);
@@ -7345,15 +7512,25 @@ Object.assign(Game, {
     if (this.player.inWater) { this._sky.lerp(this._deep, 0.75); this._fogCol.copy(this._sky); }
     const clarity = this.gear.goggles ? 0.8 : 0.35;
     const far = (Settings.renderDistance * CX) * (this.player.inWater ? clarity : 0.98);
-    this.scene.fog.near = far * 0.45;
-    this.scene.fog.far = far;
+    /* How much air there is to look through. Every other world was given the
+       same thick haze as home, so a lunar world with no atmosphere at all
+       came out as foggy as a swamp and you could not see the place you had
+       flown to. A world's own cloud figure sets it now: none on the Moon,
+       plenty on a toxic world. */
+    const airy = PLANET_SHAPE ? (1.45 - (PLANET_SHAPE.clouds || 0) * 0.80) : 1;
+    this.scene.fog.near = far * 0.45 * airy;
+    this.scene.fog.far = far * airy;
     const gloom = (this.weather === 'rain') ? 0.55 : (this.weather === 'snow') ? 0.72 : (this.weather === 'cloudy') ? 0.8 : 1;
     this._sky.multiplyScalar(gloom);
     this._fogCol.multiplyScalar(gloom);
     /* the lamps ease across a border too, or the ground would change
        brightness a beat before the sky caught up */
-    const wantHemi = (0.30 + dayness * 0.72) * blendLight * gloom;
-    const wantSun = dayness * 0.85 * blendLight;
+    /* Airless worlds are lit the way airless worlds are: almost nothing
+       bounces, so the sun is hard and the shadows are deep. Home and the
+       cloudy worlds keep their soft, scattered light. */
+    const vac = PLANET_SHAPE ? Math.max(0, 1 - (PLANET_SHAPE.clouds || 0) * 2.2) : 0;
+    const wantHemi = (0.30 + dayness * 0.72) * blendLight * gloom * (1 - vac * 0.34);
+    const wantSun = dayness * 0.85 * blendLight * (1 + vac * 0.40);
     const lampEase = Math.min(1, (dt || 0.016) * 0.7);
     this._litHemi += (wantHemi - this._litHemi) * (this._litHemi ? lampEase : 1);
     this._litSun += (wantSun - this._litSun) * (this._litSun ? lampEase : 1);
@@ -7365,6 +7542,7 @@ Object.assign(Game, {
     waterClock.value += (dt || 0.016);
 
     const ang = this.dayTime * Math.PI * 2;
+    this.updateSkyBodies(ang);
     this.sun.position.set(Math.cos(ang) * 120, Math.sin(ang) * 140, 60).add(this.player.pos);
     this.sun.target.position.copy(this.player.pos);
     this.sun.target.updateMatrixWorld();
@@ -14600,10 +14778,20 @@ class Vehicle {
     return this.lightsOn;
   }
 
+  /* Is there room for the hull here?
+
+     This used to sample one column, one block wide, which is narrower than
+     anything in the garage: a wing or a hull corner went into a cliff the
+     nose had missed. It now samples the middle and the four sides at the
+     vehicle's own width. */
   blocked(world, x, y, z) {
-    for (let dy = 0; dy <= 1; dy++) {
-      const b = BLOCKS[world.getBlock(Math.floor(x), Math.floor(y + dy), Math.floor(z))];
-      if (b.solid && b.id !== AIR) return true;
+    const r = Math.max(0.6, (this.def.scale || 1) * 0.8);
+    const spots = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]];
+    for (const [ox, oz] of spots) {
+      for (let dy = 0; dy <= 1; dy++) {
+        const b = BLOCKS[world.getBlock(Math.floor(x + ox), Math.floor(y + dy), Math.floor(z + oz))];
+        if (b && b.solid && b.id !== AIR) return true;
+      }
     }
     return false;
   }
@@ -14626,12 +14814,17 @@ class Vehicle {
     let nz = this.pos.z - Math.cos(this.yaw) * this.speed * dt;
     const ground = world.surfaceY(Math.floor(nx), Math.floor(nz));
 
-    // nose against a wall: stop rather than drive through it
+    /* Nose against a wall: stop rather than drive through it.
+
+       Aircraft were let out of this test, so a plane flew into a mountain,
+       was pushed up to the top of it by the ground check below, and came out
+       the other side. Nothing is let out of it now; a plane simply loses its
+       airspeed against the rock, the way everything else does. */
     const probeY = this.kind === 'cart' ? this.pos.y + 0.9 : this.pos.y + 0.4;
-    if (this.kind !== 'plane' && this.blocked(world, nx, probeY, nz) &&
+    if (this.blocked(world, nx, probeY, nz) &&
         !(this.kind === 'cart' && ground + 1 - this.pos.y <= 2.05)) {
       nx = this.pos.x; nz = this.pos.z;
-      this.speed *= 0.15;
+      this.speed *= this.kind === 'plane' ? 0.45 : 0.15;
     }
 
     if (this.kind === 'boat') {
@@ -16266,10 +16459,32 @@ function buildSystem(seedText) {
     if (!name) name = 'World ' + (i + 1);
     taken.add(name);
 
+    /* A moon is a place, not a marble. It gets everything a planet gets —
+       an id of its own, a kind of ground, gravity, a day — so the chart can
+       list it, the ship can fly to it and the ground can be stood on. */
     const moons = [];
     const moonCount = Math.floor(r() * 3);
     for (let m = 0; m < moonCount; m++) {
-      moons.push({ name: name + ' ' + ['I', 'II', 'III'][m], radius: 6 + r() * 6, dist: 26 + m * 16 + r() * 10 });
+      const mt = MOON_TYPES[Math.floor(r() * MOON_TYPES.length)];
+      const radius = 6 + r() * 6;
+      moons.push({
+        id: 1000 + i * 8 + m,
+        name: name + ' ' + ['I', 'II', 'III'][m],
+        type: mt.key,
+        label: mt.label,
+        colors: { sky: mt.sky, fog: mt.fog, ground: mt.ground, accent: mt.accent, grav: mt.grav },
+        isMoon: true,
+        parent: i,
+        parentName: name,
+        radius,
+        dist: 26 + m * 16 + r() * 10,
+        phase: r() * Math.PI * 2,
+        /* a small body holds you lightly, and turns fast */
+        gravity: Math.round((0.10 + (radius - 6) / 6 * 0.14) * 100) / 100,
+        dayLength: Math.round(3 + r() * 9),
+        moons: [],
+        note: null
+      });
     }
 
     const world = {
@@ -16283,7 +16498,10 @@ function buildSystem(seedText) {
          than home, so landing on one felt like nothing had changed. */
       gravity: 0,        // filled in below, once the radius is known
       radius: 30 + r() * 40,
-      orbit: 170 + i * 78 + r() * 40,
+      /* The others start well outside home's own orbit. They used to begin at
+         170, almost on top of home at 150, so arriving in orbit could put you
+         nearer a stranger's world than your own. */
+      orbit: 300 + i * 86 + r() * 44,
       angle: r() * Math.PI * 2,
       speed: (0.02 + r() * 0.05) / (1 + i * 0.35),
       moons,
@@ -16305,6 +16523,11 @@ function buildSystem(seedText) {
     planets.push(world);
   }
   planets.forEach(p => {
+    p.moons.forEach(mo => {
+      mo.note = [planetWaterNote(mo.type), 'A moon of ' + p.name + '.',
+                 'Gravity ' + mo.gravity + 'g, a day of about ' + mo.dayLength + ' hours.',
+                 planetGroundNote(mo.type)].filter(Boolean).join(' ');
+    });
     p.note = [
       planetWaterNote(p.type),
       p.moons.length ? p.moons.length + (p.moons.length === 1 ? ' moon.' : ' moons.') : 'No moons.',
@@ -16547,7 +16770,14 @@ Object.assign(Game, {
     if (keepAvatar && peer.character) this.dressPeer(peer, peer.character);
   },
 
-  /** Put another player into their chosen model, falling back to blocks until it loads. */
+  /** Put a player into their chosen model.
+
+     The block body used to stand there in the meantime, so every character
+     appeared for a moment as a stand-in and then snapped into the real one —
+     the flicker of somebody else's character before your own. It is hidden
+     from the start now, and the only thing that ever brings it back is the
+     rigged model failing to load, which would otherwise leave nobody there
+     at all. */
   dressPeer(peer, cfg) {
     if (!peer || !window.VoxeliaAvatars) return;
     const ok = VoxeliaAvatars.validate(Object.assign({ name: peer.name }, cfg || {}));
@@ -16556,16 +16786,35 @@ Object.assign(Game, {
     peer.character = ok;
     if (peer.avatarStamp === stamp) return;
     peer.avatarStamp = stamp;
+    const tag = peer.model.children.find((c) => c.isSprite);
+    const blocks = peer.model.children.filter((c) => c !== tag && c !== (peer.avatar && peer.avatar.object));
+    blocks.forEach((c) => { c.visible = false; });
+    /* Hiding the stand-in is what stops the flicker, but a player nobody can
+       see at all is worse than a blocky one. On a fast connection the model
+       is here long before this fires and nothing is ever shown; on a slow
+       one the blocks come back rather than leaving an empty patch of air
+       where somebody is standing. */
+    if (peer.standInTimer) clearTimeout(peer.standInTimer);
+    peer.standInTimer = setTimeout(() => {
+      peer.standInTimer = null;
+      if (peer.avatarStamp === stamp && !peer.avatar) blocks.forEach((c) => { c.visible = true; });
+    }, 1500);
     VoxeliaAvatars.create(ok).then((av) => {
+      if (peer.standInTimer) { clearTimeout(peer.standInTimer); peer.standInTimer = null; }
       if (peer.avatarStamp !== stamp) { av.dispose(); return; }   // they changed again meanwhile
       if (peer.avatar) peer.avatar.dispose();
-      // keep the name tag, swap the body
-      const tag = peer.model.children.find((c) => c.isSprite);
-      peer.model.children.slice().forEach((c) => { if (c !== tag) peer.model.remove(c); });
+      // keep the name tag, drop the stand-in for good, put the real one on
+      const keep = peer.model.children.find((c) => c.isSprite);
+      peer.model.children.slice().forEach((c) => { if (c !== keep) peer.model.remove(c); });
       av.object.scale.setScalar(1.0);
       peer.model.add(av.object);
       peer.avatar = av;
-    }).catch(() => { /* the block body stays: a missing model is never fatal */ });
+    }).catch(() => {
+      /* nothing arrived: better a block body than an invisible player */
+      if (peer.standInTimer) { clearTimeout(peer.standInTimer); peer.standInTimer = null; }
+      if (peer.avatarStamp !== stamp) return;
+      blocks.forEach((c) => { c.visible = true; });
+    });
   },
 
   /* ---------------- a body you can actually look at ----------------
@@ -16835,20 +17084,73 @@ Object.assign(Game, {
     scene.add(star);
 
     this.planetMeshes = [];
+
+    /* Home, where you came from. Going to orbit used to drop you in empty
+       space beside the star with your own world nowhere to be seen; now you
+       start beside it and fly out from there, and you can fly back to it the
+       same way you fly to anywhere else. */
+    this.homeBody = {
+      id: -1, name: 'Voxelia', type: 'terran', label: 'Home',
+      colors: { sky: '#8FC6E8', fog: '#6FA8C7', ground: '#5FA945', accent: '#7A5433' },
+      isHome: true, radius: 48, orbit: 150, angle: 0.0, speed: 0.03,
+      gravity: 1, dayLength: 24, moons: this.HOME_MOONS,
+      note: 'Home. Ten biomes, one ocean, and everything you have built.'
+    };
+    {
+      const h = this.homeBody;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(h.radius, 28, 20),
+                                  new THREE.MeshLambertMaterial({ color: h.colors.ground }));
+      mesh.add(new THREE.Mesh(new THREE.SphereGeometry(h.radius * 1.07, 20, 14),
+        new THREE.MeshBasicMaterial({ color: h.colors.sky, transparent: true, opacity: 0.20 })));
+      for (const m of h.moons) {
+        const mm = new THREE.Mesh(new THREE.SphereGeometry(m.radius, 12, 9),
+          new THREE.MeshLambertMaterial({ color: m.colors.ground }));
+        mm.userData.moon = m;
+        mesh.add(mm);
+      }
+      scene.add(mesh);
+      this.planetMeshes.push({ planet: h, mesh });
+    }
+
     for (const p of sys.planets) {
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius, 24, 18),
                                   new THREE.MeshLambertMaterial({ color: p.colors.ground }));
       const halo = new THREE.Mesh(new THREE.SphereGeometry(p.radius * 1.06, 18, 14),
                                   new THREE.MeshBasicMaterial({ color: p.colors.sky, transparent: true, opacity: 0.16 }));
       mesh.add(halo);
-      for (const m of p.moons) {
-        const mm = new THREE.Mesh(new THREE.SphereGeometry(m.radius, 12, 10),
-                                  new THREE.MeshLambertMaterial({ color: '#B8BDC8' }));
-        mm.userData.moon = m;
-        mesh.add(mm);
-      }
       scene.add(mesh);
       this.planetMeshes.push({ planet: p, mesh });
+      /* Moons ride with their planet but are listed in their own right, so
+         the chart shows them, the ship can set a course for one and Land
+         works on one. They used to be grey marbles stuck to a parent and
+         nothing else. */
+      for (const m of p.moons) {
+        const mm = new THREE.Mesh(new THREE.SphereGeometry(m.radius, 14, 11),
+                                  new THREE.MeshLambertMaterial({ color: m.colors.ground }));
+        const glow = new THREE.Mesh(new THREE.SphereGeometry(m.radius * 1.05, 12, 9),
+                                    new THREE.MeshBasicMaterial({ color: m.colors.sky,
+                                      transparent: true, opacity: 0.12 }));
+        mm.add(glow);
+        mm.userData.moon = m;
+        mesh.add(mm);
+        this.planetMeshes.push({ planet: m, mesh: mm, orbits: mesh });
+      }
+    }
+
+    /* Put every body where it belongs before the first frame, so arriving in
+       orbit lands you beside home rather than beside where home will be once
+       the clock has ticked. */
+    for (const entry of this.planetMeshes) {
+      const p = entry.planet;
+      if (p.isMoon) continue;
+      entry.mesh.position.set(Math.cos(p.angle) * p.orbit, Math.sin(p.angle * 0.4) * 40,
+                              Math.sin(p.angle) * p.orbit);
+      entry.mesh.children.forEach((child) => {
+        const m = child.userData.moon;
+        if (!m) return;
+        const ma = m.phase || 0;
+        child.position.set(Math.cos(ma) * m.dist, Math.sin(ma * 0.6) * 6, Math.sin(ma) * m.dist);
+      });
     }
 
     // floating minerals to gather on a tether
@@ -16935,7 +17237,18 @@ Object.assign(Game, {
     this.realm = 'space';
     // one shared entry point per system, so a crew arrives together
     const anchor = mulberry32(hashString((this.homeSeed || (this.world && this.world.seedText) || 'voxelia') + ':orbit'));
-    this.spacePos = new THREE.Vector3((anchor() - 0.5) * 50, 40 + anchor() * 16, 320 + anchor() * 30);
+    /* You leave from home, so you arrive beside home and fly out from there,
+       rather than appearing in open space with your own world out of sight. */
+    const homeEntry = this.planetMeshes && this.planetMeshes.find(e => e.planet.isHome);
+    if (homeEntry) {
+      const at = this.bodyPos(homeEntry, new THREE.Vector3());
+      const out = at.clone().normalize();
+      this.spacePos = at.clone()
+        .add(out.multiplyScalar(homeEntry.planet.radius + 26))
+        .add(new THREE.Vector3((anchor() - 0.5) * 10, homeEntry.planet.radius * 0.28, 0));
+    } else {
+      this.spacePos = new THREE.Vector3((anchor() - 0.5) * 50, 40 + anchor() * 16, 320 + anchor() * 30);
+    }
     this.spaceVel = new THREE.Vector3();
     this.tethered = false;
     this.pendingCrew = crew;
@@ -16953,7 +17266,7 @@ Object.assign(Game, {
     if (this.courseTo) {
       const entry = this.planetMeshes.find(e => e.planet.id === this.courseTo.id);
       if (entry) {
-        this.spacePos.copy(entry.mesh.position).add(
+        this.spacePos.copy(this.bodyPos(entry)).add(
           new THREE.Vector3(0, this.courseTo.radius * 0.4, this.courseTo.radius + 80));
         this.spaceVel.set(0, 0, 0);
         this.aimedAt = this.courseTo.id;
@@ -16999,13 +17312,14 @@ Object.assign(Game, {
 
     for (const entry of this.planetMeshes) {
       const p = entry.planet;
+      if (p.isMoon) continue;              // a moon rides with its planet, below
       const a = p.angle + t * p.speed;
       entry.mesh.position.set(Math.cos(a) * p.orbit, Math.sin(a * 0.4) * 40, Math.sin(a) * p.orbit);
       entry.mesh.rotation.y = t * 0.05 + p.angle;
-      entry.mesh.children.forEach((child, i) => {
+      entry.mesh.children.forEach((child) => {
         const m = child.userData.moon;
         if (!m) return;
-        const ma = t * 0.4 + i * 2;
+        const ma = m.phase + t * 0.4;
         child.position.set(Math.cos(ma) * m.dist, Math.sin(ma * 0.6) * 6, Math.sin(ma) * m.dist);
       });
     }
@@ -17215,7 +17529,7 @@ Object.assign(Game, {
     this.landTarget = null;
     let best = Infinity;
     for (const entry of this.planetMeshes) {
-      const d = entry.mesh.position.distanceTo(this.spacePos);
+      const d = this.bodyPos(entry).distanceTo(this.spacePos);
       if (d >= entry.planet.radius + 90) continue;
       /* the one you asked for is worth a good deal of distance */
       const score = (this.aimedAt === entry.planet.id) ? d * 0.25 : d;
@@ -17224,7 +17538,7 @@ Object.assign(Game, {
     /* once you are nowhere near the world you picked, stop favouring it */
     if (this.aimedAt && (!this.landTarget || this.landTarget.planet.id !== this.aimedAt)) {
       const aim = this.planetMeshes.find((e) => e.planet.id === this.aimedAt);
-      if (!aim || aim.mesh.position.distanceTo(this.spacePos) > aim.planet.radius + 400) {
+      if (!aim || this.bodyPos(aim).distanceTo(this.spacePos) > aim.planet.radius + 400) {
         this.aimedAt = null;
       }
     }
@@ -17236,6 +17550,16 @@ Object.assign(Game, {
    34. Landing, and worlds that are not this one
    --------------------------------------------------------------- */
 Object.assign(Game, {
+  /* Where a body actually is. A planet's mesh sits in the scene, but a moon's
+     rides inside its planet's, so its own position is only an offset from the
+     planet. Everything that measures a distance has to ask for this. */
+  bodyPos(entry, out) {
+    const v = out || (this._bodyTmp || (this._bodyTmp = new THREE.Vector3()));
+    if (!entry || !entry.mesh) return v.set(0, 0, 0);
+    if (entry.orbits) return entry.mesh.getWorldPosition(v);
+    return v.copy(entry.mesh.position);
+  },
+
   /* every planet gets its own creatures, drawn from the roster and
      recoloured to that world's palette so nothing looks like home */
   planetSpecies(planet) {
@@ -17244,7 +17568,10 @@ Object.assign(Game, {
     const r = mulberry32(hashString(planet.name + ':life'));
     const keys = SPECIES_KEYS.filter(k => !ANIMALS[k].npc);
     const roster = [];
-    for (let i = 0; i < 60; i++) {
+    /* A moon holds a handful of things, and nearly all of them are worth
+       writing home about. A planet holds a whole wildlife. */
+    const many = planet.isMoon ? 14 : 60;
+    for (let i = 0; i < many; i++) {
       const src = ANIMALS[keys[Math.floor(r() * keys.length)]];
       const key = 'p' + planet.id + '_' + i;
       const shift = r() * 360;
@@ -17253,7 +17580,7 @@ Object.assign(Game, {
         name: planet.name + ' ' + src.name.split(' ').pop(),
         body: hslHex(shift, 0.45 + r() * 0.3, 0.35 + r() * 0.3),
         accent: hslHex(shift + 40, 0.5 + r() * 0.3, 0.5 + r() * 0.25),
-        rare: r() < 0.18,
+        rare: r() < (planet.isMoon ? 0.55 : 0.18),
         offworld: planet.id
       });
       if (ANIMALS[key].colors) {
@@ -17365,6 +17692,10 @@ Object.assign(Game, {
   },
 
   landOn(planet) {
+    /* Home is on the chart like anywhere else, but coming back to it is not
+       landing on a new world: it is the world you left, with your buildings
+       in it. */
+    if (planet && planet.isHome) { this.returnHome(); return; }
     this.crewWith = null;                 // the flight is over; seats start again
     this.spacePilotId = null;
     this.aimedAt = null;                  // you arrived; nothing left to aim at
@@ -17643,7 +17974,7 @@ Object.assign(UI, {
     $('#space-where').textContent = Game.tethered ? 'On the tether' : 'Aboard the ship';
     $('#space-target').textContent = t
       ? t.planet.name + ' \u00b7 ' + t.planet.label + ' \u00b7 ' + Math.round(
-          t.mesh.position.distanceTo(Game.spacePos)) + ' out'
+          Game.bodyPos(t).distanceTo(Game.spacePos)) + ' out'
       : 'Open the star chart and pick a heading';
     setStyle('#space-land', 'display', t ? '' : 'none');
     $('#space-tether').textContent = Game.tethered ? 'Back in ship' : 'Step out on tether';
@@ -17662,6 +17993,25 @@ Object.assign(UI, {
       (Game.realm === 'ground' ? 'you are here' : 'set course') + '</b>';
     home.addEventListener('click', () => {
       if (Game.realm === 'ground') return;
+      /* From orbit, home is a place you fly to like any other, and you land
+         on it when you get there. From anywhere else, going home is simply
+         going home. */
+      if (Game.realm === 'space' && Game.homeBody) {
+        const entry = Game.planetMeshes.find(e => e.planet.isHome);
+        if (entry) {
+          Game.aimedAt = Game.homeBody.id;
+          const at = Game.bodyPos(entry, new THREE.Vector3());
+          const away = at.clone().normalize();
+          Game.spacePos.copy(at).add(away.multiplyScalar(Game.homeBody.radius + 60))
+            .add(new THREE.Vector3(0, Game.homeBody.radius * 0.3, 0));
+          Game.spaceVel.set(0, 0, 0);
+          Game.player.yaw = Math.atan2(at.x - Game.spacePos.x, at.z - Game.spacePos.z) + Math.PI;
+          Game.toast('Voxelia is off the bow. Land when you are ready.');
+          this.closeAll();
+          this.refreshSpaceBar();
+          return;
+        }
+      }
       this.closeAll();
       Game.returnHome();
     });
@@ -17674,12 +18024,16 @@ Object.assign(UI, {
        : 'Pick one to set a course; you launch from the ground in a rocket.');
     list.appendChild(head);
 
-    sys.planets.forEach(p => {
-      const row = makeButton('bind-row');
+    /* One row per body. A moon gets the same row as a planet, indented and
+       named for the world it belongs to, because it is the same kind of
+       place: you fly to it, you land on it, you dig it. */
+    const addRow = (p, moon) => {
+      const row = makeButton('bind-row' + (moon ? ' chart-moon' : ''));
       const here = Game.realm === 'planet:' + p.id;
+      const dot = `<span class="chart-dot" style="background:${p.colors.ground};` +
+                  `box-shadow:0 0 ${moon ? 8 : 14}px ${p.colors.sky}"></span>`;
       row.innerHTML =
-        `<span><span class="chart-dot" style="background:${p.colors.ground};box-shadow:0 0 14px ${p.colors.sky}"></span>` +
-        `<strong>${p.name}${Game.courseTo === p ? ' \u2713' : ''}</strong><br>` +
+        `<span>${dot}<strong>${p.name}${Game.courseTo === p ? ' \u2713' : ''}</strong><br>` +
         `<small>${p.label} \u00b7 ${p.note}</small></span>` +
         `<b>${here ? 'you are here' : (Game.realm === 'space' ? 'fly there' : 'set course')}</b>`;
       row.addEventListener('click', () => {
@@ -17694,13 +18048,14 @@ Object.assign(UI, {
                Land honour the name you pressed. */
             Game.aimedAt = p.id;
             // stand off the world at a fixed, safe distance and face it
-            const away = entry.mesh.position.clone().normalize();
-            Game.spacePos.copy(entry.mesh.position)
+            const at = Game.bodyPos(entry, new THREE.Vector3());
+            const away = at.clone().normalize();
+            Game.spacePos.copy(at)
               .add(away.multiplyScalar(p.radius + 55))
               .add(new THREE.Vector3(0, p.radius * 0.3, 0));
             Game.spaceVel.set(0, 0, 0);
-            Game.player.yaw = Math.atan2(entry.mesh.position.x - Game.spacePos.x,
-                                         entry.mesh.position.z - Game.spacePos.z) + Math.PI;
+            Game.player.yaw = Math.atan2(at.x - Game.spacePos.x,
+                                         at.z - Game.spacePos.z) + Math.PI;
             Game.player.pitch = 0;
             Game.toast('Arrived at ' + p.name + '.');
             this.closeAll();
@@ -17716,6 +18071,10 @@ Object.assign(UI, {
         }
       });
       list.appendChild(row);
+    };
+    sys.planets.forEach(p => {
+      addRow(p, false);
+      (p.moons || []).forEach(m => addRow(m, true));
     });
     this.toggle('starchart');
   }
@@ -17751,14 +18110,14 @@ function planetShape(typeKey) {
   for (let i = 0; i < PLANET_TYPES.length; i++) {
     if (PLANET_TYPES[i].key === typeKey && PLANET_TYPES[i].survey) {
       const w = PLANET_TYPES[i].survey;
-      sh = { relief: w.relief, craters: w.craters, ridge: w.ridge, life: w.life };
+      sh = { relief: w.relief, craters: w.craters, ridge: w.ridge, life: w.life, clouds: w.clouds };
       break;
     }
   }
   if (!sh) {
     const t = PLANET_TERRAIN[typeKey] || PLANET_TERRAIN.rocky;
     const relief = Math.max(0.25, Math.min(1, t.amp / 2.2));
-    sh = { relief, craters: 0, ridge: relief * 0.7, life: Math.min(1, t.flora * 3) };
+    sh = { relief, craters: 0, ridge: relief * 0.7, life: Math.min(1, t.flora * 3), clouds: 0.4 };
   }
   /* How thickly the mineral spires stand. Every other world used to get the
      same one-in-seven columns of them, which buried the ground under the
@@ -17840,7 +18199,7 @@ Object.assign(Game, {
         b._home = {
           surface: b.surface, sub: b.sub, amp: b.amp, base: b.base,
           tree: b.tree, treeChance: b.treeChance, sky: b.sky, fog: b.fog,
-          light: b.light, name: b.name, blurb: b.blurb
+          light: b.light, name: b.name, blurb: b.blurb, swatch: b.swatch
         };
       }
       // every biome on this world is a variation of its one character
@@ -17858,6 +18217,12 @@ Object.assign(Game, {
                                     'Deep', 'Shallows', 'Field', 'Expanse'][i];
       b.blurb = t.cover ? 'Sheeted in ' + BLOCKS[t.cover].name.toLowerCase() + '.'
                         : planet.label.toLowerCase() + ', gravity ' + planet.gravity + 'g.';
+      /* The map draws the ground from the biome's swatch, and that was left
+         as home's green and gold, so the map of a crystal world looked like
+         a map of the home valley. It takes this world's own colours now. */
+      const face = BLOCKS[t.surface];
+      b.swatch = [face && face.tint ? face.tint : planet.colors.ground,
+                  planet.colors.accent, planet.colors.sky];
     });
     /* The water goes where this world's survey puts it, which is what makes
        the chart's description true on the ground. */
@@ -17865,6 +18230,7 @@ Object.assign(Game, {
     this.planetCover = t.cover;
     WATER_Y = planetWaterLevel(planet.type);
     PLANET_SHAPE = planetShape(planet.type);
+    PLANET_ORE_ID = PLANET_ORE[planet.type] || 0;
   },
 
   restoreHomeTerrain() {
@@ -17876,6 +18242,7 @@ Object.assign(Game, {
     this.planetCover = null;
     WATER_Y = SEA;
     PLANET_SHAPE = null;
+    PLANET_ORE_ID = 0;
   }
 });
 
@@ -18047,14 +18414,22 @@ const MOON_FLORA = [
 
 const MOONPLANT_BLOCKS = [];
 MOON_FLORA.forEach(([key, name, form, glow, h, rarity]) => {
-  const tall = h >= 5;
+  /* Waist-high or more is something you walk into, not through. Only true
+     ground cover — the mosses, one block of it — stays soft, the way grass
+     does at home. At five this let reeds, caps and lumens through, which is
+     how you could walk straight across another world's undergrowth. */
+  const tall = h >= 2;
   const style = (form === 'crystal' || form === 'shard' || form === 'prism' || form === 'geode') ? 'crystal'
               : (form === 'moss' || form === 'halo') ? 'grass'
               : (form === 'reed' || form === 'coil' || form === 'web' || form === 'veil') ? 'leaf' : 'glow';
   const id = defBlock({
     name, category: 'Moon Flora', hardness: 0.2,
     glow: rarity === 'mythic' ? 15 : rarity === 'exotic' ? 13 : rarity === 'rare' ? 11 : 8,
-    tint: glow, varied: 0.3, opaque: false, solid: false,
+    /* Anything waist-high or more is something you walk into, not through.
+       `tall` was worked out here and then never used, so every spire on
+       every other world — some of them twenty blocks of crystal — was a
+       thing you strolled straight through. Ground cover stays soft. */
+    tint: glow, varied: 0.3, opaque: false, solid: tall,
     top: paintTile(style, glow), side: 0, bottom: 0,
     moonForm: form, moonHeight: h, rarity, moonKey: key
   });
@@ -18177,20 +18552,61 @@ const ASTEROIDS = [
   { key: 'regolith',     name: 'Regolith clump',      matrix: '#5d5a55', holds: ['regolith', 'helium3', 'silicate'] }
 ];
 
-/* the survey types stand alongside the originals, so a system mixes both */
-WORLD_TYPES.forEach(w => {
+/* ---------------------------------------------------------------
+   39b. Moons, and what you dig out of another world
+
+   A planet whose chart entry says two moons had two grey marbles
+   circling it in the space view and nothing else: you could not fly
+   to one, land on one, or see one from the ground. Moons are places
+   now, with their own kind of ground, their own mineral and their own
+   animals, and they hang in the sky of the world they belong to.
+   --------------------------------------------------------------- */
+const MOON_TYPES = [
+  { key: 'moon_ash',    label: 'Ash moon',     sky: '#33333C', fog: '#24242B', ground: '#8A8593', accent: '#C6C9D6',
+    grav: 0.20, relief: 0.42, sea: 0, craters: 1.00, ice: 0.02, clouds: 0, life: 0, ridge: 0.30, tree: 'none',
+    surface: 'GRAVEL', sub: 'STONE', ore: 'SELENITE' },
+  { key: 'moon_dust',   label: 'Dust moon',    sky: '#3C382F', fog: '#2A2720', ground: '#B9A882', accent: '#E0C08A',
+    grav: 0.17, relief: 0.30, sea: 0, craters: 0.90, ice: 0.00, clouds: 0, life: 0, ridge: 0.20, tree: 'none',
+    surface: 'SAND', sub: 'STONE', ore: 'REGOLITE' },
+  { key: 'moon_rime',   label: 'Rime moon',    sky: '#C6DCEA', fog: '#8FB0C6', ground: '#DCEBF5', accent: '#8FB6CE',
+    grav: 0.24, relief: 0.38, sea: 0, craters: 0.55, ice: 1.00, clouds: 0.10, life: 0, ridge: 0.30, tree: 'none',
+    surface: 'SNOW', sub: 'ICE', ore: 'RIMEITE' },
+  { key: 'moon_iron',   label: 'Iron moon',    sky: '#4A3A32', fog: '#332722', ground: '#8A6A58', accent: '#C87A3E',
+    grav: 0.28, relief: 0.60, sea: 0, craters: 0.70, ice: 0, clouds: 0, life: 0, ridge: 0.60, tree: 'none',
+    surface: 'GRAVEL', sub: 'IRON', ore: 'FERRITE' },
+  { key: 'moon_ember',  label: 'Ember moon',   sky: '#3A1E1A', fog: '#2A1512', ground: '#4A2A26', accent: '#FF6B3D',
+    grav: 0.26, relief: 0.70, sea: 0, craters: 0.45, ice: 0, clouds: 0, life: 0, ridge: 0.75, tree: 'none',
+    surface: 'ASH', sub: 'EMBERITE', ore: 'PYROCLAST' },
+  { key: 'moon_glass',  label: 'Glass moon',   sky: '#2A2440', fog: '#1C1830', ground: '#6A5A9E', accent: '#A97BFF',
+    grav: 0.19, relief: 0.75, sea: 0, craters: 0.35, ice: 0.20, clouds: 0, life: 0, ridge: 0.90, tree: 'none',
+    surface: 'MARBLE', sub: 'AMETHYST', ore: 'VOIDGLASS' }
+];
+
+/* Which mineral belongs to which world, so rock off home is worth digging.
+   Filled in as the types are registered, below. */
+const PLANET_ORE = {};
+let PLANET_ORE_ID = 0;       // the one for the world you are standing on
+
+function registerWorldType(w, isMoon) {
   PLANET_TYPES.push({
     key: w.key, label: w.label, sky: w.sky, fog: w.fog,
-    ground: w.ground, accent: w.accent, grav: w.grav, survey: w
+    ground: w.ground, accent: w.accent, grav: w.grav, survey: w, moon: !!isMoon
   });
+  const pick = (name, fallback) => (name && B[name] !== undefined ? B[name] : fallback);
   PLANET_TERRAIN[w.key] = {
-    surface: w.key === 'oceanic' ? B.CORALSAND : w.key === 'glacial' || w.key === 'tundra' ? B.SNOW
-           : w.key === 'volcanic' ? B.ASH : w.key === 'desert' || w.key === 'arid' ? B.SAND
-           : w.key === 'lunar' ? B.GRAVEL : w.key === 'ferrous' ? B.GRAVEL
-           : w.key === 'carbon' ? B.STONE : w.key === 'crystalline' ? B.MARBLE
-           : w.key === 'fungal' ? B.MYCELIUM : w.key === 'toxic' ? B.JUNGLETURF
+    surface: isMoon ? pick(w.surface, B.GRAVEL)
+           : w.key === 'oceanic' ? B.CORALSAND
+           : w.key === 'glacial' || w.key === 'tundra' ? B.SNOW
+           : w.key === 'volcanic' ? B.ASH
+           : w.key === 'desert' || w.key === 'arid' ? B.SAND
+           : w.key === 'lunar' || w.key === 'ferrous' ? B.GRAVEL
+           : w.key === 'carbon' ? B.STONE
+           : w.key === 'crystalline' ? B.MARBLE
+           : w.key === 'fungal' ? B.MYCELIUM
+           : w.key === 'toxic' ? B.JUNGLETURF
            : w.key === 'shattered' ? B.STONE : B.GRASS,
-    sub: w.key === 'ferrous' ? B.IRON : w.key === 'carbon' ? B.COAL
+    sub: isMoon ? pick(w.sub, B.STONE)
+       : w.key === 'ferrous' ? B.IRON : w.key === 'carbon' ? B.COAL
        : w.key === 'crystalline' ? B.AMETHYST : w.key === 'volcanic' ? B.EMBERITE
        : w.key === 'glacial' ? B.ICE : B.STONE,
     amp: 0.6 + w.relief * 2.4,
@@ -18200,7 +18616,29 @@ WORLD_TYPES.forEach(w => {
     water: Math.round((w.sea - 0.45) * 40),
     cover: w.ice > 0.6 ? B.ICE : null
   };
+  if (w.ore && B[w.ore] !== undefined) PLANET_ORE[w.key] = B[w.ore];
+}
+
+/* the survey types stand alongside the originals, so a system mixes both */
+const WORLD_ORES = {
+  terran: 'COPPER', oceanic: 'MOONSTONE', arid: 'GOLD', desert: 'REGOLITE',
+  tundra: 'RIMEITE', glacial: 'RIMEITE', volcanic: 'PYROCLAST', lunar: 'SELENITE',
+  ferrous: 'FERRITE', carbon: 'COAL', crystalline: 'VOIDGLASS', fungal: 'AMETHYST',
+  toxic: 'EMBERITE', shattered: 'STARIRON'
+};
+WORLD_TYPES.forEach(w => {
+  registerWorldType(Object.assign({ ore: WORLD_ORES[w.key] }, w), false);
 });
+MOON_TYPES.forEach(w => registerWorldType(w, true));
+
+/* The ten originals predate the survey and have no mineral of their own, so
+   they are given one here rather than left to the home world's iron. */
+Object.entries({ rocky: 'FERRITE', ice: 'RIMEITE', ember: 'PYROCLAST', ocean: 'MOONSTONE',
+   jungle: 'AMETHYST', ashen: 'SELENITE', crystal: 'VOIDGLASS', dust: 'REGOLITE',
+   storm: 'STARIRON', fungal: 'QUANTITE' }).forEach(([k, name]) => {
+  if (B[name] !== undefined) PLANET_ORE[k] = B[name];
+});
+
 
 
 

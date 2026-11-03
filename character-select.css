@@ -382,3 +382,9 @@ body{display:block;
   #randomCharacterBtn::after{content:"\2726";font-size:17px}
   .topbar h1{font-size:17px}
 }
+
+/* The flat figure underneath is a last resort, not a loading state: showing
+   it first meant every character appeared as a generic template and then
+   snapped into itself. It only comes back if the model pack fails. */
+.avatar-stage>.avatar,.thumb-stage>.avatar{opacity:0;transition:opacity .3s ease}
+.avatar-stage.no-3d>.avatar,.thumb-stage.no-3d>.avatar{opacity:1}

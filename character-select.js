@@ -113,8 +113,15 @@ const Preview3D = {
 
   show(presetId, colors) {
     this.want = presetId;
+    /* Whatever was standing here is somebody else. It used to stay on screen
+       until the new model finished downloading, which is the flicker of the
+       old character; it goes now, before anything else happens. */
+    if (this.avatar) {
+      try { this.rig.remove(this.avatar.object); this.avatar.dispose(); } catch (e) {}
+      this.avatar = null;
+    }
     const go = this.boot();
-    if (!go) return;
+    if (!go) { noModels(); return; }
     go.then(() => {
       if (this.want !== presetId) return;
       return VoxeliaAvatars.create({ characterVersion: 2, presetId, name: 'Preview', colors: toPacket(colors) })
@@ -130,7 +137,7 @@ const Preview3D = {
              might in principle have */
           try{ renderColors(); }catch(e){}
         });
-    }).catch(() => {});
+    }).catch(() => { noModels(); });
   },
 
   recolor(colors) {
@@ -331,6 +338,18 @@ function toPacket(c) {
 }
 
 const $ = s => document.querySelector(s);
+/* The flat CSS figure is a last resort, not a loading state.
+
+   It used to sit under every preview and every tile until the real model
+   arrived, so picking a character showed a generic template first and the
+   real one a moment later. It is hidden from the start now, and the only
+   thing that brings it back is the model pack failing outright, which would
+   otherwise leave an empty box. */
+function noModels() {
+  document.querySelectorAll('.avatar-stage, .thumb-stage')
+    .forEach((el) => el.classList.add('no-3d'));
+}
+
 const presetGrid = $('#presetGrid');
 const colorGrid = $('#colorGrid');
 /* The big preview is replaced on every render, so it must be looked up fresh

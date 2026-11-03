@@ -376,6 +376,128 @@
   const HEAD_PALE = 0.45;          // bright enough to be an eye white, not skin
   const ON_HEAD = { skin: 1, hair: 1, eyes: 1, acc1: 1, acc2: 1 };
 
+  /* ---- holes in the hair ------------------------------------------------
+
+     Keeping the clothing off the head is not the whole story. Several models
+     carry patches baked in the skin colour that sit INSIDE the hair: single
+     specks on the starfarers, and on the explorer a band right across the
+     back of his head. Painted as skin they read as bare scalp showing
+     through, which is what a bald patch is.
+
+     A hole can be told from a face by what is above and below it. Looking
+     straight down a column through the figure, a hole has hair over it AND
+     hair under it; a forehead has the fringe above it and nothing but more
+     face below, and a temple has hair above it and jaw below. So the model
+     is divided into columns, each column is asked how high and how low its
+     hair reaches, and skin caught between the two becomes hair.
+
+     This asks nothing about how the mesh is built, which matters: these are
+     merged meshes, so one flat quad can cover a whole cheek while the hair
+     beside it has thousands of vertices. Counting neighbouring vertices
+     would simply have counted the hair every time. */
+  const HOLE_GRID = 56;            // columns across the head, each way
+  const HOLE_EDGE = 0.025;         // clear of the hair's own top and bottom
+
+  function fillHairHoles(region, shade, base, pos, lo, hi, pal) {
+    const span = (hi - lo) > 1e-4 ? (hi - lo) : 0;
+    if (!span || !pos) return 0;
+    let hairIdx = -1, skinIdx = -1;
+    for (let j = 0; j < pal.length; j++) {
+      if (pal[j].key === 'hair') hairIdx = j;
+      if (pal[j].key === 'skin') skinIdx = j;
+    }
+    if (hairIdx < 0 || skinIdx < 0) return 0;
+
+    const n = region.length;
+    const neck = lo + span * HEAD_FROM;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, head = 0;
+    for (let i = 0; i < n; i++) {
+      if (pos.getY(i) < neck) continue;
+      head++;
+      const x = pos.getX(i), z = pos.getZ(i);
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (z < z0) z0 = z; if (z > z1) z1 = z;
+    }
+    if (head < 200 || !(x1 > x0) || !(z1 > z0)) return 0;
+
+    const G = HOLE_GRID;
+    const sx = G / (x1 - x0 + 1e-9), sz = G / (z1 - z0 + 1e-9);
+    const cellOf = (x, z) => {
+      let i = Math.floor((x - x0) * sx); if (i < 0) i = 0; if (i >= G) i = G - 1;
+      let k = Math.floor((z - z0) * sz); if (k < 0) k = 0; if (k >= G) k = G - 1;
+      return i * G + k;
+    };
+    const hiY = new Float32Array(G * G).fill(-Infinity);
+    const loY = new Float32Array(G * G).fill(Infinity);
+    const lit = new Float32Array(G * G);
+    const litN = new Float32Array(G * G);
+    for (let i = 0; i < n; i++) {
+      if (region[i] !== hairIdx) continue;
+      const y = pos.getY(i);
+      if (y < neck) continue;
+      const c = cellOf(pos.getX(i), pos.getZ(i));
+      if (y > hiY[c]) hiY[c] = y;
+      if (y < loY[c]) loY[c] = y;
+      lit[c] += shade[i]; litN[c]++;
+    }
+
+    /* The nose is the one piece of face that sticks out far enough to share a
+       column with the fringe above it and the hair below it, and it came out
+       painted down the middle. Nothing at the very front of the head is a
+       hole, so the frontmost sliver is left alone. */
+    let zFront = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (region[i] !== skinIdx || pos.getY(i) < neck) continue;
+      const z = pos.getZ(i);
+      if (z > zFront) zFront = z;
+    }
+    const noseLine = zFront - span * 0.035;
+
+    const edge = span * HOLE_EDGE;
+    const hairLen = pal[hairIdx].len || 1;
+    let filled = 0;
+    for (let i = 0; i < n; i++) {
+      if (region[i] !== skinIdx) continue;
+      const y = pos.getY(i);
+      if (y < neck) continue;
+      if (pos.getZ(i) > noseLine) continue;
+      const c = cellOf(pos.getX(i), pos.getZ(i));
+      const caught = litN[c] && hiY[c] > y + edge && loY[c] < y - edge;
+      /* A speck at the outer edge of the hair has no hair under it in its own
+         column, but every column around it has hair reaching past it on both
+         sides. That is still a hole, seen from one step out. */
+      let ring = 0;
+      if (!caught) {
+        const ci = (c / G) | 0, ck = c % G;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            if (!dx && !dz) continue;
+            const ii = ci + dx, kk = ck + dz;
+            if (ii < 0 || ii >= G || kk < 0 || kk >= G) continue;
+            const d = ii * G + kk;
+            if (litN[d] && hiY[d] > y + edge && loY[d] < y - edge) ring++;
+          }
+        }
+      }
+      if (!caught && ring < 3) continue;              // not caught between
+      if (!litN[c] && !ring) continue;
+      /* A hole was lit as skin, which is far brighter than hair, so carrying
+         its own brightness across would leave a pale blob exactly where the
+         patch used to be. It takes the shading of the hair in its column. */
+      let k = litN[c] ? lit[c] / litN[c] : 0;
+      if (!(k > 0)) {
+        const r = base[i * 3], g = base[i * 3 + 1], b = base[i * 3 + 2];
+        k = Math.sqrt(r * r + g * g + b * b) / hairLen;
+      }
+      if (k < 0.04) k = 0.04;
+      if (k > 3) k = 3;
+      region[i] = hairIdx;
+      shade[i] = k;
+      filled++;
+    }
+    return filled;
+  }
+
   /* Which palette colour each vertex came from, and how shaded it was.
      Worked out once per model and kept on the geometry, because it depends
      only on how the model was baked. */
@@ -456,6 +578,8 @@
       region[i] = pick;
       shade[i] = k;
     }
+
+    fillHairHoles(region, shade, base, pos, lo, hi, pal);
 
     /* how many vertices each region actually won. A region that won none is a
        colour picker that cannot move anything, and there is no honest way to
