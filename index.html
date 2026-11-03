@@ -1715,29 +1715,29 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
         <label for="seed-input">World seed</label>
         <div class="seed-row">
           <input id="seed-input" spellcheck="false" autocomplete="off" />
-          <button class="btn" id="seed-roll">New seed</button>
+          <button type="button" class="btn" id="seed-roll">New seed</button>
         </div>
       </div>
 
       <div class="field">
         <label>How you want to play</label>
         <div class="mode-picker">
-          <button class="mode-option picked" data-mode="survival">
+          <button type="button" class="mode-option picked" data-mode="survival">
             <strong>Survival</strong><small>Gather every block. Stamina, breath, real effort.</small>
           </button>
-          <button class="mode-option" data-mode="creative">
+          <button type="button" class="mode-option" data-mode="creative">
             <strong>Creative</strong><small>Fly freely. Every block, unlimited.</small>
           </button>
         </div>
       </div>
 
-      <button class="play" id="play">Enter the world</button>
+      <button type="button" class="play" id="play">Enter the world</button>
       <div class="minor-row">
-        <button class="btn" id="open-character">Character</button>
-        <button class="btn" id="open-settings">Settings</button>
-        <button class="btn" id="open-guide">How to play</button>
-        <button class="btn" id="open-multiplayer">Multiplayer</button>
-        <button class="btn" id="open-load">Load a world</button>
+        <button type="button" class="btn" id="open-character">Character</button>
+        <button type="button" class="btn" id="open-settings">Settings</button>
+        <button type="button" class="btn" id="open-guide">How to play</button>
+        <button type="button" class="btn" id="open-multiplayer">Multiplayer</button>
+        <button type="button" class="btn" id="open-load">Load a world</button>
       </div>
       <p class="preview-note" id="preview-biomes">Reading the seed…</p>
     </div>
@@ -1753,11 +1753,11 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <div id="crosshair"></div>
   <div id="biome-card"><div id="biome-name">—</div><div id="biome-blurb"></div><div id="coords"></div></div>
   <div id="ability-badge"><span>No companion</span></div>
-  <button id="fullscreen" title="Pause and options">❙❙</button>
+  <button type="button" id="fullscreen" title="Pause and options">❙❙</button>
   <div id="top-bar">
-    <button id="mic-desktop" title="Microphone (V)">🎤 Mic</button>
-    <button id="bar-pause" title="Pause">❙❙</button>
-    <button id="chat-desktop" title="Chat (T)">💬 Chat</button>
+    <button type="button" id="mic-desktop" title="Microphone (V)">🎤 Mic</button>
+    <button type="button" id="bar-pause" title="Pause">❙❙</button>
+    <button type="button" id="chat-desktop" title="Chat (T)">💬 Chat</button>
   </div>
   <div id="prompt"></div>
   <div id="meters">
@@ -1772,51 +1772,51 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <div id="waypoint-guide"></div>
   <div id="altimeter"></div>
   <div id="alt-lever">
-    <button class="btn" id="alt-up">▲</button>
+    <button type="button" class="btn" id="alt-up">▲</button>
     <div id="alt-track"><div id="alt-fill"></div></div>
-    <button class="btn" id="alt-down">▼</button>
-    <button class="btn" id="alt-level">level</button>
+    <button type="button" class="btn" id="alt-down">▼</button>
+    <button type="button" class="btn" id="alt-level">level</button>
     <small id="alt-read"></small>
   </div>
-  <button id="minimap-wrap" title="Open the map"><canvas id="minimap" width="132" height="132"></canvas></button>
+  <button type="button" id="minimap-wrap" title="Open the map"><canvas id="minimap" width="132" height="132"></canvas></button>
   <div id="lock-hint">Click the world to capture the mouse, or hold a button and drag to look</div>
   <div id="chat-log"></div>
-  <div id="chat-bar"><input id="chat-input" maxlength="200" placeholder="Say something, or /help for commands…" /><button class="btn" id="chat-send">Send</button></div>
+  <div id="chat-bar"><input id="chat-input" maxlength="200" placeholder="Say something, or /help for commands…" /><button type="button" class="btn" id="chat-send">Send</button></div>
   <div id="space-bar">
     <div><b id="space-where">Aboard the ship</b><small id="space-target"></small></div>
     <div class="space-actions">
-      <button class="btn" id="space-chart">Star chart</button>
-      <button class="btn" id="space-tether">Step out on tether</button>
-      <button class="btn" id="space-land">Land here</button>
+      <button type="button" class="btn" id="space-chart">Star chart</button>
+      <button type="button" class="btn" id="space-tether">Step out on tether</button>
+      <button type="button" class="btn" id="space-land">Land here</button>
     </div>
   </div>
   <div id="give-card">
     <b>Give <span id="give-who">a companion</span> to</b>
     <div id="give-list"></div>
-    <button class="btn" id="give-cancel">Cancel</button>
+    <button type="button" class="btn" id="give-cancel">Cancel</button>
   </div>
   <div id="offer-card">
     <div class="offer-who"><span class="offer-dot" id="offer-dot"></span>
       <div><b id="offer-name">A companion</b><small id="offer-from"></small></div></div>
     <p id="offer-note"></p>
     <div class="seg">
-      <button class="btn" id="offer-yes">Take it in</button>
-      <button class="btn" id="offer-no">No thanks</button>
+      <button type="button" class="btn" id="offer-yes">Take it in</button>
+      <button type="button" class="btn" id="offer-no">No thanks</button>
     </div>
   </div>
   <div id="link-state" role="status" aria-live="polite"></div>
   <div id="summon-card">
     <p id="summon-text">Somebody would like you to come over.</p>
     <div class="summon-actions">
-      <button class="btn" id="summon-no">Stay here</button>
-      <button class="btn primary" id="summon-yes">Go to them</button>
+      <button type="button" class="btn" id="summon-no">Stay here</button>
+      <button type="button" class="btn primary" id="summon-yes">Go to them</button>
     </div>
   </div>
   <!-- player two's own readouts, on player two's own half of the screen -->
   <div id="p2-panel">
     <i id="p2-crosshair"></i>
-    <div id="p2-top"><button id="p2-pause" title="Pause">&#10074;&#10074;</button></div>
-    <button id="p2-map-wrap"><canvas id="p2-map" width="132" height="132"></canvas></button>
+    <div id="p2-top"><button type="button" id="p2-pause" title="Pause">&#10074;&#10074;</button></div>
+    <button type="button" id="p2-map-wrap"><canvas id="p2-map" width="132" height="132"></canvas></button>
     <div id="p2-meters">
       <div class="meter-row"><span>Stamina</span><span class="meter"><i id="p2-stamina" style="width:100%"></i></span></div>
       <div class="meter-row" id="p2-breath-row"><span>Breath</span><span class="meter"><i id="p2-breath" style="width:100%"></i></span></div>
@@ -1871,16 +1871,16 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <div id="stick-move"><div id="stick-nub"></div></div>
   <div class="pad">
     <div class="pad-strip">
-      <button class="tbtn tiny" id="btn-bag">Bag</button>
-      <button class="tbtn tiny" id="btn-drop">Drop</button>
-      <button class="tbtn tiny" id="btn-alt">Fly</button>
-      <button class="tbtn tiny" id="btn-lamp">Lamp</button>
+      <button type="button" class="tbtn tiny" id="btn-bag">Bag</button>
+      <button type="button" class="tbtn tiny" id="btn-drop">Drop</button>
+      <button type="button" class="tbtn tiny" id="btn-alt">Fly</button>
+      <button type="button" class="tbtn tiny" id="btn-lamp">Lamp</button>
     </div>
     <div class="pad-arc">
-      <button class="tbtn act" id="btn-interact">Use</button>
-      <button class="tbtn act" id="btn-place">Place</button>
-      <button class="tbtn act" id="btn-mine">Mine</button>
-      <button class="tbtn big" id="btn-jump">Jump</button>
+      <button type="button" class="tbtn act" id="btn-interact">Use</button>
+      <button type="button" class="tbtn act" id="btn-place">Place</button>
+      <button type="button" class="tbtn act" id="btn-mine">Mine</button>
+      <button type="button" class="tbtn big" id="btn-jump">Jump</button>
     </div>
   </div>
 </div>
@@ -1929,15 +1929,15 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 
     <h3 class="set-head">Your account</h3>
     <div class="setting"><b>My wallet</b><small id="set-wallet-note">What you have earned, and what each kind of animal is worth.</small>
-      <button class="btn" id="set-wallet">Open my wallet</button></div>
+      <button type="button" class="btn" id="set-wallet">Open my wallet</button></div>
     <div class="setting"><b>Signing in</b><small>An account keeps what you earn on every device you play on.</small>
-      <button class="btn" id="set-account">My account</button></div>
+      <button type="button" class="btn" id="set-account">My account</button></div>
 
     <h3 class="set-head">Touch controls</h3>
     <div class="setting"><b>Move the buttons</b><small>Hold anything on the right of the screen — a button, the map, the height lever — and drag it wherever your thumb falls. The stick on the left stays where it is.</small>
       <input type="checkbox" id="set-padmove" /></div>
     <div class="setting"><b>Put the buttons back</b><small>Returns every button to where it started.</small>
-      <button class="btn" id="pad-reset-places">Reset places</button></div>
+      <button type="button" class="btn" id="pad-reset-places">Reset places</button></div>
 
     <h3 class="set-head">The world</h3>
     <div class="setting"><b>Dig out caves</b><small>Turn this off if you would rather have solid ground everywhere.</small>
@@ -1955,8 +1955,8 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
           <label>Player 2 <select id="split-p2"></select></label>
         </div>
         <div class="seg">
-          <button class="btn" id="split-start">Start split screen</button>
-          <button class="btn" id="split-stop">Stop split screen</button>
+          <button type="button" class="btn" id="split-start">Start split screen</button>
+          <button type="button" class="btn" id="split-stop">Stop split screen</button>
         </div>
         <div class="split-opts">
           <label class="split-opt"><span>Who uses the mouse</span>
@@ -1972,7 +1972,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
           <b class="split-keys-head">Player two&rsquo;s keys</b>
           <small>Click one and press the key you want.</small>
           <div id="split-keys"></div>
-          <button class="btn" id="split-keys-reset">Put the keys back to normal</button>
+          <button type="button" class="btn" id="split-keys-reset">Put the keys back to normal</button>
         </div>
       </div>
 
@@ -1985,7 +1985,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <input type="checkbox" id="set-vinvert" /></div>
     <p class="lede" style="margin:6px 0 10px">Tap a control to reassign it, then press the key you want.</p>
     <div id="vkey-binds"></div>
-    <button class="btn" id="vkey-reset">Reset vehicle controls</button>
+    <button type="button" class="btn" id="vkey-reset">Reset vehicle controls</button>
     <div class="setting" style="margin-top:12px"><b>Camera follows the vehicle</b><small>The view swings round to face the way you drive.</small>
       <input type="checkbox" id="set-valign" /></div>
 
@@ -2002,8 +2002,8 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <div class="setting"><b>Stick deadzone</b><small>Raise it if the view drifts on its own.</small>
       <input type="range" id="set-deadzone" min="0" max="0.5" step="0.01" /><output id="set-deadzone-out"></output></div>
     <div id="pad-binds"></div>
-    <button class="btn" id="pad-reset">Reset to the standard layout</button>
-    <br><br><button class="btn close-screen">Done</button>
+    <button type="button" class="btn" id="pad-reset">Reset to the standard layout</button>
+    <br><br><button type="button" class="btn close-screen">Done</button>
   </div>
 </section>
 
@@ -2021,8 +2021,8 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
         <div class="field">
           <label>Body</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="body-pick" data-body="female">Female</button>
-            <button class="body-pick" data-body="male">Male</button>
+            <button type="button" class="body-pick" data-body="female">Female</button>
+            <button type="button" class="body-pick" data-body="male">Male</button>
           </div>
         </div>
         <div class="swatches">
@@ -2034,14 +2034,14 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
           <label>Legs<input type="color" id="skin-legs" /></label>
         </div>
         <div class="presets">
-          <button class="preset" style="background:#4F7FE0" data-skin='{"head":"#E8C39E","torso":"#4F7FE0","arms":"#E8C39E","legs":"#3B4A63","hair":"#3A2A22","accent":"#F2C14E"}'></button>
-          <button class="preset" style="background:#6FE3C4" data-skin='{"head":"#8D6247","torso":"#6FE3C4","arms":"#8D6247","legs":"#25404A","hair":"#1B1218","accent":"#F0F6F4"}'></button>
-          <button class="preset" style="background:#A97BFF" data-skin='{"head":"#F0D2BC","torso":"#A97BFF","arms":"#F0D2BC","legs":"#3B2E58","hair":"#C86BE8","accent":"#FFE9A8"}'></button>
-          <button class="preset" style="background:#FF8A4C" data-skin='{"head":"#6E4630","torso":"#FF8A4C","arms":"#6E4630","legs":"#40241C","hair":"#221319","accent":"#FFD98A"}'></button>
+          <button type="button" class="preset" style="background:#4F7FE0" data-skin='{"head":"#E8C39E","torso":"#4F7FE0","arms":"#E8C39E","legs":"#3B4A63","hair":"#3A2A22","accent":"#F2C14E"}'></button>
+          <button type="button" class="preset" style="background:#6FE3C4" data-skin='{"head":"#8D6247","torso":"#6FE3C4","arms":"#8D6247","legs":"#25404A","hair":"#1B1218","accent":"#F0F6F4"}'></button>
+          <button type="button" class="preset" style="background:#A97BFF" data-skin='{"head":"#F0D2BC","torso":"#A97BFF","arms":"#F0D2BC","legs":"#3B2E58","hair":"#C86BE8","accent":"#FFE9A8"}'></button>
+          <button type="button" class="preset" style="background:#FF8A4C" data-skin='{"head":"#6E4630","torso":"#FF8A4C","arms":"#6E4630","legs":"#40241C","hair":"#221319","accent":"#FFD98A"}'></button>
         </div>
       </div>
     </div>
-    <br><button class="btn close-screen">Done</button>
+    <br><button type="button" class="btn close-screen">Done</button>
   </div>
 </section>
 
@@ -2085,7 +2085,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       from Vale canopy, Tidefruit from coral, Lumenspores from glowing caps. Walk up to that biome's animal
       with the food in your satchel and press feed. It follows you from then on, lends you its ability, and
       leaves something to collect every so often.</p>
-    <br><button class="btn close-screen">Close</button>
+    <br><button type="button" class="btn close-screen">Close</button>
   </div>
 </section>
 
@@ -2096,7 +2096,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     <p class="lede">Everything the telescope has found. From orbit, tapping a world sets your
       heading; from the ground it just tells you what is out there.</p>
     <div id="chart-list"></div>
-    <br><button class="btn close-screen">Close</button>
+    <br><button type="button" class="btn close-screen">Close</button>
   </div>
 </section>
 
@@ -2107,7 +2107,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <h3>Your companions</h3>
       <small id="companion-count"></small>
     </div>
-    <button class="btn" id="companion-close">Done</button>
+    <button type="button" class="btn" id="companion-close">Done</button>
   </header>
   <div id="companion-list"></div>
 </aside>
@@ -2120,8 +2120,8 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <p class="lede" id="map-note" style="margin:2px 0 0">Only the ground you have walked near is drawn.</p>
     </div>
     <div class="map-head-btns">
-      <button class="btn" id="map-bare" title="Put the panels away and just look">Hide panels</button>
-      <button class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
+      <button type="button" class="btn" id="map-bare" title="Put the panels away and just look">Hide panels</button>
+      <button type="button" class="btn map-exit close-screen" title="Close the map">Exit map ✕</button>
     </div>
   </div>
   <div class="map-body"><canvas id="bigmap" width="1024" height="1024"></canvas></div>
@@ -2140,11 +2140,11 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
     </div>
     <p class="map-hint">Drag the map to look around. Tap it to drop a mark. Pinch or scroll to zoom.</p>
     <div class="map-foot">
-      <button class="btn" id="map-out">Zoom out</button>
-      <button class="btn" id="map-in">Zoom in</button>
-      <button class="btn" id="map-centre">Centre on me</button>
-      <button class="btn" id="map-mark">Mark this spot</button>
-      <button class="btn" id="map-wild">Show animals</button>
+      <button type="button" class="btn" id="map-out">Zoom out</button>
+      <button type="button" class="btn" id="map-in">Zoom in</button>
+      <button type="button" class="btn" id="map-centre">Centre on me</button>
+      <button type="button" class="btn" id="map-mark">Mark this spot</button>
+      <button type="button" class="btn" id="map-wild">Show animals</button>
     </div>
     <div id="map-marks" class="map-marks"></div>
   </div>
@@ -2155,20 +2155,20 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <div class="sheet" style="max-width:660px">
     <h2>Your bag</h2>
     <div class="bag-tabs">
-      <button class="bag-tab on" data-tab="satchel">Satchel</button>
-      <button class="bag-tab" data-tab="craft">Crafting</button>
-      <button class="bag-tab" data-tab="forge">Furnace</button>
-      <button class="bag-tab" data-tab="chest" style="display:none">Chest</button>
-      <button class="bag-tab" data-tab="trade" style="display:none">Trade</button>
-      <button class="bag-tab" data-tab="companions">Companions</button>
-      <button class="bag-tab" data-tab="index">Creatures</button>
-      <button class="bag-tab" data-tab="eggs">Eggs</button>
-      <button class="bag-tab" data-tab="quests">Errands</button>
-      <button class="bag-tab" data-tab="all">All items</button>
+      <button type="button" class="bag-tab on" data-tab="satchel">Satchel</button>
+      <button type="button" class="bag-tab" data-tab="craft">Crafting</button>
+      <button type="button" class="bag-tab" data-tab="forge">Furnace</button>
+      <button type="button" class="bag-tab" data-tab="chest" style="display:none">Chest</button>
+      <button type="button" class="bag-tab" data-tab="trade" style="display:none">Trade</button>
+      <button type="button" class="bag-tab" data-tab="companions">Companions</button>
+      <button type="button" class="bag-tab" data-tab="index">Creatures</button>
+      <button type="button" class="bag-tab" data-tab="eggs">Eggs</button>
+      <button type="button" class="bag-tab" data-tab="quests">Errands</button>
+      <button type="button" class="bag-tab" data-tab="all">All items</button>
     </div>
     <input type="text" id="bag-search" placeholder="Search…" spellcheck="false" />
     <div id="bag-body"></div>
-    <button class="btn close-screen">Close</button>
+    <button type="button" class="btn close-screen">Close</button>
   </div>
 </section>
 
@@ -2185,7 +2185,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <label class="btn" for="load-file-home" style="display:inline-block;text-align:center">Choose a file</label>
       <input type="file" id="load-file-home" accept="application/json" hidden />
     </details>
-    <br><button class="btn close-screen">Close</button>
+    <br><button type="button" class="btn close-screen">Close</button>
   </div>
 </section>
 
@@ -2216,7 +2216,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       </label>
     </div>
     <p class="lede" id="mp-map-hint" style="margin:8px 0 0"></p>
-    <button class="play" id="mp-host-btn" style="margin-top:14px">Host this game</button>
+    <button type="button" class="play" id="mp-host-btn" style="margin-top:14px">Host this game</button>
     <div id="room-code-row" style="display:none">
       <p class="lede" style="margin-top:14px">Your room code</p>
       <div class="room-code" id="room-code">–</div>
@@ -2227,7 +2227,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <label for="mp-room">Room code (for private games)</label>
       <div class="seed-row">
         <input id="mp-room" spellcheck="false" inputmode="numeric" maxlength="7" placeholder="7 digits" />
-        <button class="btn" id="mp-join-btn">Join</button>
+        <button type="button" class="btn" id="mp-join-btn">Join</button>
       </div>
     </div>
     <div id="mp-list"><p class="lede">Open games appear here on their own, refreshed every few seconds.</p></div>
@@ -2235,7 +2235,7 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
 
 
 
-    <button class="btn close-screen">Close</button>
+    <button type="button" class="btn close-screen">Close</button>
   </div>
 </section>
 
@@ -2244,13 +2244,13 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
   <div class="sheet">
     <h2>Paused</h2>
     <p class="lede">The world keeps its shape. Your seed rebuilds it exactly.</p>
-    <button class="btn" id="resume">Back to the world</button>
+    <button type="button" class="btn" id="resume">Back to the world</button>
 
     <div class="pause-quick">
       <div class="setting"><b>Mode</b><small id="mode-note">Survival: gather, craft, tame.</small>
         <div class="seg">
-          <button class="btn" id="mode-survival">Survival</button>
-          <button class="btn" id="mode-creative">Creative</button>
+          <button type="button" class="btn" id="mode-survival">Survival</button>
+          <button type="button" class="btn" id="mode-creative">Creative</button>
         </div></div>
       <div class="setting" id="pause-room"><b>Room</b><small id="pause-room-note">Single player.</small></div>
 
@@ -2265,11 +2265,11 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <div class="setting"><b>This world</b><small id="pause-world">&mdash;</small></div>
 
       <div class="seg">
-        <button class="btn" id="pause-settings">All settings</button>
-        <button class="btn" id="pause-howto">How to play</button>
+        <button type="button" class="btn" id="pause-settings">All settings</button>
+        <button type="button" class="btn" id="pause-howto">How to play</button>
       </div>
-      <button class="btn" id="pause-wallet">My wallet</button>
-      <button class="btn" id="pause-companions">My companions</button>
+      <button type="button" class="btn" id="pause-wallet">My wallet</button>
+      <button type="button" class="btn" id="pause-companions">My companions</button>
       <p class="lede" style="margin:10px 0 0;font-size:12.5px">
         Two players on this computer? Split screen is in <b>Settings</b>.</p>
     </div>
@@ -2278,14 +2278,14 @@ body.split-on #split-divider{display:block;position:fixed;top:0;bottom:0;left:50
       <label for="slot-name">Save on this device</label>
       <div class="seed-row">
         <input id="slot-name" spellcheck="false" placeholder="name this save" />
-        <button class="btn" id="slot-save">Save</button>
+        <button type="button" class="btn" id="slot-save">Save</button>
       </div>
     </div>
     <div id="slot-list"></div>
-    <button class="btn" id="save-world">Also keep a copy as a file</button>
+    <button type="button" class="btn" id="save-world">Also keep a copy as a file</button>
     <label class="btn" for="load-file" style="display:inline-block;text-align:center">Load a save file</label>
     <input type="file" id="load-file" accept="application/json" hidden />
-    <button class="btn" id="quit">Leave to the title</button>
+    <button type="button" class="btn" id="quit">Leave to the title</button>
   </div>
 </section>
 
@@ -4894,7 +4894,7 @@ const MISSING = (() => {
    ====================================================================== */
 /* A button is never a submit button.
 
-   A <button> with no type attribute IS a submit button — that is the HTML
+   A <button type="button"> with no type attribute IS a submit button — that is the HTML
    default, not an opinion. Forty-nine of the controls on the settings screen
    are made that way, and a submit button's job is to send a form and load
    whatever comes back. With no <form> around them nothing happens, which is
@@ -7268,11 +7268,31 @@ Object.assign(Game, {
     this.sun.position.set(Math.cos(ang) * 120, Math.sin(ang) * 140, 60).add(this.player.pos);
     this.sun.target.position.copy(this.player.pos);
     this.sun.target.updateMatrixWorld();
+    /* Where you are, and — off home — WHICH WORLD that is.
+
+       The place name here is invented by regionName() from the biome and the
+       seed: "Clown Straits", "Amber Vale". On Voxelia that is exactly right,
+       because Voxelia is the only world there is.
+
+       Land on a planet, though, and the chart said "Vashix" while the screen
+       said "Amber Vale" — a name with no connection to the one that was
+       pressed, and nothing anywhere confirming you had arrived where you
+       aimed. The ship had taken you to precisely the right place and then
+       told you it had not. From a player's seat that reads as the star chart
+       sending you to a random planet, which is what it was reported as.
+
+       Off home, the world's own name leads and the local region follows it,
+       so the screen says both which planet you are standing on and where on
+       it you have landed. */
     const region = this.world.regionName(Math.floor(this.player.pos.x), Math.floor(this.player.pos.z));
-    if (this.biomeLabel !== region) {
-      this.biomeLabel = region;
-      $('#biome-name').textContent = region;
-      $('#biome-blurb').textContent = b.name + ' \u00b7 ' + b.blurb;
+    const here = this.offworld
+      ? this.offworld.name + ' \u00b7 ' + region
+      : region;
+    if (this.biomeLabel !== here) {
+      this.biomeLabel = here;
+      $('#biome-name').textContent = here;
+      $('#biome-blurb').textContent = (this.offworld ? this.offworld.label + ' \u00b7 ' : '')
+        + b.name + ' \u00b7 ' + b.blurb;
       $('#biome-card').classList.add('flash');
       setTimeout(() => $('#biome-card').classList.remove('flash'), 1400);
     }
@@ -13011,7 +13031,12 @@ Game.net = {
       case 'hostleft':
         Game.toast('The host left. Going back to the title \u2014 your spot is saved.');
         this.hostGone = true;
-        setTimeout(() => { UI.quitToHome(); UI.toast && UI.toast(); }, 900);
+        /* This was `UI.toast && UI.toast()`: UI has no toast, so the guard
+           was always false and the call never ran — and had it run, it was
+           passed no message to show. The message belongs to Game, and the
+           player has already been told above, so going home is all that is
+           left to do here. */
+        setTimeout(() => { UI.quitToHome(); }, 900);
         break;
       case 'roster':
         Game.voice.roster = m.players || [];
@@ -16815,6 +16840,7 @@ Object.assign(Game, {
         this.spacePos.copy(entry.mesh.position).add(
           new THREE.Vector3(0, this.courseTo.radius * 0.4, this.courseTo.radius + 80));
         this.spaceVel.set(0, 0, 0);
+        this.aimedAt = this.courseTo.id;
         this.toast('Course held: ' + this.courseTo.name + ' is off the bow.');
       }
       this.courseTo = null;
@@ -17051,10 +17077,40 @@ Object.assign(Game, {
     this.camera.rotateX(p.pitch);
 
     // what is close enough to land on
+    /* What you would land on if you pressed Land.
+
+       Two things were wrong here and they compounded into "the chart sends
+       me to a random planet".
+
+       First, this loop took the FIRST planet in the list that happened to be
+       within range and stopped there — not the nearest one. The list is in
+       the order the system was generated, so with two worlds in range you
+       landed on whichever was created first, which has nothing to do with
+       where you are.
+
+       Second, planets orbit. Picking one on the chart puts you alongside it
+       at that instant, and then it carries on around its orbit and leaves,
+       while some other world drifts into range behind you. By the time you
+       pressed Land the thing you chose might not even be the closest any
+       more.
+
+       So: the nearest world wins, and the one you actually chose on the
+       chart beats a stranger that has merely wandered past. */
     this.landTarget = null;
+    let best = Infinity;
     for (const entry of this.planetMeshes) {
       const d = entry.mesh.position.distanceTo(this.spacePos);
-      if (d < entry.planet.radius + 90) { this.landTarget = entry; break; }
+      if (d >= entry.planet.radius + 90) continue;
+      /* the one you asked for is worth a good deal of distance */
+      const score = (this.aimedAt === entry.planet.id) ? d * 0.25 : d;
+      if (score < best) { best = score; this.landTarget = entry; }
+    }
+    /* once you are nowhere near the world you picked, stop favouring it */
+    if (this.aimedAt && (!this.landTarget || this.landTarget.planet.id !== this.aimedAt)) {
+      const aim = this.planetMeshes.find((e) => e.planet.id === this.aimedAt);
+      if (!aim || aim.mesh.position.distanceTo(this.spacePos) > aim.planet.radius + 400) {
+        this.aimedAt = null;
+      }
     }
     UI.refreshSpaceBar();
   }
@@ -17195,6 +17251,7 @@ Object.assign(Game, {
   landOn(planet) {
     this.crewWith = null;                 // the flight is over; seats start again
     this.spacePilotId = null;
+    this.aimedAt = null;                  // you arrived; nothing left to aim at
     this.homeSeed = this.homeSeed || (this.world ? this.world.seedText : 'voxelia');
     // fixed for all time: the same planet in the same system is the same ground
     const seed = this.homeSeed + '::planet::' + planet.id + '::' + planet.name;
@@ -17356,7 +17413,11 @@ Object.assign(Game, {
       this.net.send({ t: 'rope', id: v.id, out: true, length: v.ropeLength });
       this.toast('Rope out, ' + v.ropeLength + ' blocks. Anyone below can take hold.');
     }
-    UI.refreshTouchButtons();
+    /* refreshTouchButtons is Game's, not UI's. Calling it on UI threw
+       "UI.refreshTouchButtons is not a function" every time a rope was let
+       out or taken in — which killed the rest of this function with it, so
+       the on-screen buttons never caught up with the rope. */
+    this.refreshTouchButtons();
   },
 
   grabRope() {
@@ -17510,6 +17571,12 @@ Object.assign(UI, {
         if (Game.realm === 'space') {
           const entry = Game.planetMeshes.find(e => e.planet.id === p.id);
           if (entry) {
+            /* Remember WHICH world this is, by its id. Flying you next to it
+               is not enough on its own: the planets are all moving, so by
+               the time you press Land the one you chose may have orbited on
+               and another may have drifted into range. This is what makes
+               Land honour the name you pressed. */
+            Game.aimedAt = p.id;
             // stand off the world at a fixed, safe distance and face it
             const away = entry.mesh.position.clone().normalize();
             Game.spacePos.copy(entry.mesh.position)
@@ -17526,6 +17593,7 @@ Object.assign(UI, {
         } else {
           // from the ground: remember the destination, so the rocket knows
           Game.courseTo = p;
+          Game.aimedAt = p.id;
           Game.toast('Course set for ' + p.name + '. ' + p.label +
                      '. Launch and it will be waiting at the top of the chart.');
           this.openStarChart();
@@ -18777,7 +18845,7 @@ try {
 } catch (e) {}
 </script>
 <div id="char-frame-wrap" aria-hidden="true">
-  <button id="char-frame-close" aria-label="Close the character screen">&#x2715;</button>
+  <button type="button" id="char-frame-close" aria-label="Close the character screen">&#x2715;</button>
   <iframe id="char-frame" title="Choose your character"></iframe>
 </div>
 </body>

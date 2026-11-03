@@ -62,7 +62,6 @@
   /* ------------------------------------------------------------ helpers */
 
   const HEX = /^#[0-9a-fA-F]{6}$/;
-  const safeHex = (h, fallback) => (typeof h === 'string' && HEX.test(h)) ? h : fallback;
 
 
   function loadScript(src) {
@@ -106,7 +105,6 @@
      defaults. If the models are re-exported with one material per region, named
      skin / hair / shirt / accent / jacket / sleeves / pants / pants2 / shoes /
      sole / eyes, recolouring below picks them up with no other change. */
-  function prepareRegions() {}
 
   /* ------------------------------------------------------------ one avatar */
 
@@ -129,10 +127,12 @@
     }
     this.state = null;
     this.oneShot = null;
+    this.oneShotUntil = 0;
     this.wasGrounded = true;
     this.mixer.addEventListener('finished', (e) => {
       if (this.oneShot && e.action === this.actions[this.oneShot]) {
         this.oneShot = null;
+        this.oneShotUntil = 0;
         this.fadeTo(this.state || 'idle', 0.12, true);
       }
     });
@@ -148,10 +148,38 @@
     this.current = next;
   };
 
-  Avatar.prototype.play = function (oneShot) {
-    if (!this.actions[oneShot]) return;
-    this.oneShot = oneShot;
-    this.fadeTo(oneShot, 0.08, true);
+  /* Play a movement once, over the top of whatever loop is running.
+
+     This used to latch ANY clip as the one-shot and wait for the mixer to
+     say it had finished. A clip only says that if it was set to run once —
+     and 'mine' is not one of those, because 'mine' is also a loop a player
+     sits in while they are digging. So asking to play a single swing put the
+     avatar into the looping mine clip, marked it as a one-shot that could
+     never finish, and left it there: arms swinging on the spot, for good,
+     with nothing able to take it out again. That is the character stuck
+     mid-swing, and it only ever showed while somebody was actually mining,
+     which is exactly when this path runs.
+
+     Now a clip that loops is simply restarted and not latched — the state
+     machine below is already in charge of leaving it — and the latch is kept
+     only for the clips that really do stop on their own. */
+  Avatar.prototype.play = function (name) {
+    const action = this.actions[name];
+    if (!action) return;
+    if (!ONE_SHOT.has(name)) {
+      /* a loop: start it again from the top for the new swing, and let
+         choose() decide when it ends, as it always did */
+      action.reset();
+      this.fadeTo(name, 0.08, true);
+      return;
+    }
+    this.oneShot = name;
+    /* and a belt for the braces: if the mixer never reports this finished —
+       a clip with no duration, a tab that slept through it — it is let go
+       after its own length rather than holding the avatar for ever. */
+    const clip = action.getClip && action.getClip();
+    this.oneShotUntil = (clip && clip.duration ? clip.duration : 0.6) + 0.35;
+    this.fadeTo(name, 0.08, true);
   };
 
   /** Which loop to be in, from compact state the network already carries. */
@@ -170,6 +198,16 @@
 
   Avatar.prototype.update = function (dt, s) {
     s = s || {};
+    /* Let go of a one-shot that has outstayed its welcome. The mixer's
+       'finished' event is the normal way out; this is for when it never
+       arrives, which is enough to strand a character mid-movement. */
+    if (this.oneShot) {
+      this.oneShotUntil = (this.oneShotUntil || 0) - dt;
+      if (this.oneShotUntil <= 0) {
+        this.oneShot = null;
+        this.fadeTo(this.state || 'idle', 0.12, true);
+      }
+    }
     const want = this.choose(s);
     // a landing gets its own little crouch
     if (s.grounded !== false && this.wasGrounded === false && this.actions.land) this.play('land');
